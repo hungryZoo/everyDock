@@ -55,3 +55,11 @@ open --env EVERYDOCK_TRACE_FRAMES=1 --stderr /tmp/everyDock-frames.log dist/ever
 - 최종 아이콘/세 유틸리티 렌더링 확인. 코드 수정 없이 같은 번들을 실행 상태로 유지한다.
 
 첫 후보의 5분 top 기록에는 사용자의 실제 호버 시험이 섞였다. 초기 10초 간격 유휴 표본은 약0.3%였으나 전체를 유휴 평균으로 사용할 수 없다. 추가 개선은 NSControl 셀 제거이며, 최종 사용자가 체감 개선을 확인한 뒤 더 이상 실행 번들을 재빌드하지 않았다.
+
+## 공개 배포 검증 — 2026-09-08
+
+- 소스 태그 `v0.3.1` → `66c659b9ef460033a29c33621a24d338da7ce7b0`.
+- [macOS 26 arm64 CI](https://github.com/hungryZoo/everyDock/actions/runs/34136112512): 17개 테스트·패키징·검증·아티팩트 업로드 성공(1분56초).
+- [공개 prerelease](https://github.com/hungryZoo/everyDock/releases/tag/v0.3.1): ZIP 및 SHA256SUMS를 인증 없이 다시 내려받아 체크섬 일치 확인.
+- [Homebrew tap](https://github.com/hungryZoo/homebrew-tap/commit/eb58774): v0.3.1, 위 ZIP SHA-256 적용. `brew style`, `brew audit --cask`, `brew info --cask`, `brew fetch --cask hungryZoo/tap/everydock` 성공. info에서 arm64/macOS>=26 확인.
+- TC-R01~R04 PASS(위 범위). 실제 cask 설치·업그레이드·제거 TC-R05~R06은 NOT RUN. 현재 사용자가 검증한 앱은 소스 작업 폴더의 배포 ZIP 추출본이며 Homebrew 설치로 덮어쓰지 않았다.
