@@ -26,6 +26,7 @@ final class DockPanel: NSPanel {
 @MainActor final class DockCoordinator: NSObject {
     private let model: AppModel
     private var panels: [String: DockPanel] = [:]
+    private var requestedFrames: [String: NSRect] = [:]
     private var refreshTimer: Timer?
     private var globalMouse: Any?
     private var localMouse: Any?
@@ -46,8 +47,9 @@ final class DockPanel: NSPanel {
             self?.updatePointer(event: event)
             return event
         }
-        let timer = Timer(timeInterval: 1, target: self, selector: #selector(refreshGeometry), userInfo: nil, repeats: true)
+        let timer = Timer(timeInterval: 5, target: self, selector: #selector(refreshGeometry), userInfo: nil, repeats: true)
         RunLoop.main.add(timer, forMode: .common)
+        timer.tolerance = 1
         refreshTimer = timer
         // Also catch pointer warps (remote control, display changes) that emit no mouseMoved event.
         let pointer = Timer(timeInterval: 0.05, target: self, selector: #selector(checkPointer), userInfo: nil, repeats: true)
@@ -67,6 +69,7 @@ final class DockPanel: NSPanel {
         } else if let point = event?.cgEvent?.location {
             location = NSPoint(x: point.x, y: (NSScreen.screens.first?.frame.maxY ?? 0) - point.y)
         } else { location = NSEvent.mouseLocation }
+        lastPointer = location
         panels.values.forEach { $0.surface.updatePointer(at: location) }
     }
     @objc private func checkPointer() {
@@ -82,6 +85,7 @@ final class DockPanel: NSPanel {
         for id in Array(panels.keys) where !desiredIDs.contains(id) {
             panels[id]?.surface.shutdown()
             panels.removeValue(forKey: id)?.close()
+            requestedFrames.removeValue(forKey: id)
         }
         for screen in visible {
             let id = AppModel.displayID(screen)
@@ -110,7 +114,12 @@ final class DockPanel: NSPanel {
             case .left: frame = NSRect(x: area.minX + inset, y: area.midY - length / 2, width: thickness, height: length)
             case .right: frame = NSRect(x: area.maxX - inset - thickness, y: area.midY - length / 2, width: thickness, height: length)
             }
-            if panel.frame != frame { panel.setFrame(frame, display: true); panel.surface.synchronize() }
+            let aligned = DockMetrics.aligned(frame, scale: screen.backingScaleFactor)
+            if requestedFrames[id] != aligned {
+                requestedFrames[id] = aligned
+                panel.setFrame(aligned, display: true)
+                panel.surface.synchronize()
+            }
             if model.paused { panel.orderOut(nil); panel.surface.shutdown() }
             else if raise || !panel.isVisible { panel.orderFrontRegardless() }
             panel.surface.updatePointer()

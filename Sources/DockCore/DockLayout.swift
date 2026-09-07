@@ -106,6 +106,14 @@ public struct DockPreferences: Codable, Equatable, Sendable {
 
 /// One shared geometry contract for panel sizing, drawing, hover and utility tiles.
 public enum DockMetrics {
+    public static func aligned(_ frame: CGRect, scale: Double) -> CGRect {
+        let scale = max(1, scale)
+        return CGRect(x: (frame.minX * scale).rounded() / scale,
+                      y: (frame.minY * scale).rounded() / scale,
+                      width: (frame.width * scale).rounded() / scale,
+                      height: (frame.height * scale).rounded() / scale)
+    }
+
     public static let gap = 2.0
     public static let padding = 7.0
     public static let iconBaseline = 8.0
@@ -120,6 +128,9 @@ public enum DockMetrics {
 }
 
 public enum DockMotion {
+    /// Equal elapsed time produces equal easing at 60, 120 or variable Hz.
+    public static func interpolation(elapsed: Double) -> Double { 1 - exp(-max(0, elapsed) * 20) }
+
     /// Cosine falloff keeps the magnification continuous at both ends of its radius.
     public static func scale(distance: Double, iconSize: Double, magnification: Double) -> Double {
         let radius = (iconSize + DockMetrics.gap) * 2.5

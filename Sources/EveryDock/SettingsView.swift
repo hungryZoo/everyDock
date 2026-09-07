@@ -98,8 +98,8 @@ struct SettingsView: View {
                 Section("일반") {
                     Toggle("활성 앱을 다시 클릭하면 최소화", isOn: $model.preferences.clickToMinimize)
                     LabeledContent("창 최소화·복원") {
-                        if model.accessibilityEnabled { Label("권한 허용됨", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
-                        else { Button("손쉬운 사용 권한 허용…", action: model.requestAccessibility) }
+                        Text(model.permissions.accessibility.title)
+                        Button("시스템 설정…", action: model.requestAccessibility)
                     }
                     Text("창의 노란 최소화 버튼을 통해 macOS 애니메이션을 실행합니다. 권한이 없을 때는 창을 숨기는 대신 권한을 안내합니다. 요술램프 효과는 시스템 Dock의 ‘윈도우 최소화 효과’ 설정을 따릅니다.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -109,10 +109,23 @@ struct SettingsView: View {
                         Text(String(format: "%.2f초", model.preferences.previewDelay)).monospacedDigit()
                     }
                     LabeledContent("미리보기 이미지") {
-                        if model.screenCaptureEnabled { Label("화면 기록 허용됨", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
-                        else { Button("화면 기록 권한 허용…", action: model.requestScreenCapture) }
+                        Text(model.permissions.capture.title)
+                        Button("접근 확인…", action: model.requestScreenCapture)
                     }
                     Text("미리보기는 메모리에서만 처리하며 파일로 저장하거나 전송하지 않습니다. 미리보기 창을 클릭하면 해당 창으로 전환합니다.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        Button(model.permissions.checking ? "확인 중…" : "권한 다시 확인", action: model.recheckPermissions)
+                            .disabled(model.permissions.checking)
+                        Button("현재 앱 위치 보기", action: model.revealCurrentApp)
+                    }
+                    if let detail = model.permissions.detail {
+                        Text(detail).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                    }
+                    if let detail = model.permissions.accessibilityDetail {
+                        Text("창 제어 결과: \(detail)").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text("권한 스위치가 켜져 있는데 macOS가 접근을 거부하면 everyDock을 종료하고 시스템 설정에서 기존 항목을 제거한 뒤, ‘현재 앱 위치 보기’의 앱을 다시 등록하고 실행해 주세요. 임시 서명 빌드를 교체하면 기존 허용이 유지되지 않을 수 있습니다.")
                         .font(.caption).foregroundStyle(.secondary)
                     Toggle("로그인 시 everyDock 실행", isOn: Binding(get: { model.loginEnabled }, set: { model.setLoginEnabled($0) }))
                     if model.loginNeedsApproval {
@@ -127,7 +140,7 @@ struct SettingsView: View {
             .formStyle(.grouped)
             Divider()
             HStack {
-                Text("v0.3.0 · Apple Silicon · macOS 26+").font(.caption).foregroundStyle(.tertiary)
+                Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "개발") · Apple Silicon · macOS 26+").font(.caption).foregroundStyle(.tertiary)
                 Spacer()
                 Button("종료") { NSApp.terminate(nil) }.buttonStyle(.plain).foregroundStyle(.secondary)
             }.padding(.horizontal, 24).padding(.vertical, 12)

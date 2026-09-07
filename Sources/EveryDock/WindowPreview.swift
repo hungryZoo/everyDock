@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import DockCore
 @preconcurrency import ScreenCaptureKit
 
 struct WindowPreview: Identifiable {
@@ -10,22 +11,31 @@ struct WindowPreview: Identifiable {
     let minimized: Bool
 }
 
+struct PreviewResult {
+    let windows: [WindowPreview]
+    let message: String?
+}
+
 @MainActor final class WindowPreviewService {
     private var cache: [CGWindowID: (NSImage, Date)] = [:]
-    func previews(for app: DockApplication) async -> [WindowPreview] {
-        guard let process = NSWorkspace.shared.runningApplications.first(where: { $0.bundleURL == app.url }) else { return [] }
-        let descriptions = await WindowActions.list(pid: process.processIdentifier)
-        guard CGPreflightScreenCaptureAccess() else {
-            return descriptions.enumerated().map { WindowPreview(id: "ax-\($0.offset)", title: $0.element.title,
-                                                                  frame: $0.element.frame, image: nil, minimized: $0.element.minimized) }
+    private let permissions: AppPermissions
+    init(permissions: AppPermissions) { self.permissions = permissions }
+    func previews(for app: DockApplication) async -> PreviewResult {
+        guard let process = NSWorkspace.shared.runningApplications.first(where: { $0.bundleURL == app.url || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier) }) else {
+            return PreviewResult(windows: [], message: "앱이 종료되었습니다.")
         }
+        async let windowList = WindowActions.list(pid: process.processIdentifier)
         do {
-            let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
+            let content = try await permissions.shareableContent()
+            let list = await windowList
+            permissions.recordAccessibility(list.failure)
+            let descriptions = list.windows
             let windows = content.windows.filter {
                 $0.owningApplication?.processID == process.processIdentifier && $0.windowLayer == 0 && $0.frame.width > 80 && $0.frame.height > 60
             }.sorted { a, b in a.isOnScreen != b.isOnScreen ? a.isOnScreen : a.windowID < b.windowID }
             cache = cache.filter { Date().timeIntervalSince($0.value.1) < 60 }
             var results: [WindowPreview] = []
+            var captureError: String?
             for window in windows.prefix(8) {
                 try Task.checkCancellation()
                 var image = cache[window.windowID]?.0
@@ -36,9 +46,13 @@ struct WindowPreview: Identifiable {
                     config.height = max(1, Int(window.frame.height * scale))
                     config.showsCursor = false
                     config.ignoreShadowsSingleWindow = true
-                    if let snapshot = try? await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: window), configuration: config) {
+                    do {
+                        let snapshot = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: window), configuration: config)
                         image = NSImage(cgImage: snapshot, size: NSSize(width: window.frame.width, height: window.frame.height))
                         cache[window.windowID] = (image!, Date())
+                    } catch {
+                        permissions.recordCaptureError(error)
+                        captureError = "창 이미지를 가져오지 못했습니다: \(error.localizedDescription)"
                     }
                 }
                 let name = window.title ?? ""
@@ -49,17 +63,24 @@ struct WindowPreview: Identifiable {
             for (index, description) in descriptions.enumerated() where !results.contains(where: { $0.title == description.title }) {
                 results.append(WindowPreview(id: "ax-\(index)", title: description.title, frame: description.frame, image: nil, minimized: description.minimized))
             }
-            return results
+            return PreviewResult(windows: results, message: results.contains { $0.image != nil } ? nil : captureError)
         } catch {
-            return descriptions.enumerated().map { WindowPreview(id: "ax-\($0.offset)", title: $0.element.title,
-                                                                  frame: $0.element.frame, image: nil, minimized: $0.element.minimized) }
+            let list = await windowList
+            permissions.recordAccessibility(list.failure)
+            let windows = list.windows.enumerated().map { WindowPreview(id: "ax-\($0.offset)", title: $0.element.title,
+                                                                         frame: $0.element.frame, image: nil, minimized: $0.element.minimized) }
+            let message: String?
+            if let failure = error as? CaptureFailure, case .permissionDenied = failure { message = "macOS가 현재 앱의 화면 접근을 거부했습니다. 이미 허용했다면 권한을 다시 확인해 주세요." }
+            else if error is CancellationError { message = nil }
+            else { message = "창 목록을 가져오지 못했습니다: \(error.localizedDescription)" }
+            return PreviewResult(windows: windows, message: message)
         }
     }
 }
 
 @MainActor final class WindowPreviewController: NSObject, NSPopoverDelegate {
     private let model: AppModel
-    private let service = WindowPreviewService()
+    private let service: WindowPreviewService
     private let popover = NSPopover()
     private var pending: Task<Void, Never>?
     private var refresh: Task<Void, Never>?
@@ -69,6 +90,7 @@ struct WindowPreview: Identifiable {
     var onVisibilityChange: ((Bool) -> Void)?
     init(model: AppModel) {
         self.model = model
+        service = WindowPreviewService(permissions: model.permissions)
         super.init()
         popover.behavior = .semitransient
         popover.animates = true
@@ -112,22 +134,23 @@ struct WindowPreview: Identifiable {
             }
         }
     }
-    private func setContent(app: DockApplication, previews: [WindowPreview]) {
-        let content = PreviewContent(app: app, previews: previews, model: model) { [weak self] item in
+    private func setContent(app: DockApplication, previews: PreviewResult) {
+        let content = PreviewContent(app: app, previews: previews.windows, status: previews.message, model: model) { [weak self] item in
             self?.close()
             guard let process = NSWorkspace.shared.runningApplications.first(where: { $0.bundleURL == app.url }) else { return }
             Task { @MainActor in
-                let raised = await WindowActions.focus(pid: process.processIdentifier, title: item.title, bounds: item.frame)
+                let failure = await WindowActions.focus(pid: process.processIdentifier, title: item.title, bounds: item.frame)
+                self?.model.permissions.recordAccessibility(failure)
                 process.unhide()
                 process.activate(options: [])
-                if !raised { self?.model.launch(app, toggle: false) }
+                if failure != nil { self?.model.launch(app, toggle: false) }
             }
         }
         if let host = popover.contentViewController as? NSHostingController<PreviewContent> {
             host.rootView = content
         } else { popover.contentViewController = NSHostingController(rootView: content) }
     }
-    private func show(app: DockApplication, previews: [WindowPreview], anchor: NSView) {
+    private func show(app: DockApplication, previews: PreviewResult, anchor: NSView) {
         setContent(app: app, previews: previews)
         let edge: NSRectEdge = model.preferences.edge == .bottom ? .maxY : model.preferences.edge == .left ? .maxX : .minX
         popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: edge)
@@ -151,6 +174,7 @@ struct WindowPreview: Identifiable {
 private struct PreviewContent: View {
     let app: DockApplication
     let previews: [WindowPreview]
+    let status: String?
     @ObservedObject var model: AppModel
     let select: (WindowPreview) -> Void
     var body: some View {
@@ -162,11 +186,12 @@ private struct PreviewContent: View {
                 Text("\(previews.count)개 창").font(.caption).foregroundStyle(.secondary)
             }
             if !model.screenCaptureEnabled {
-                Button("창 미리보기를 위해 화면 기록 허용…", action: model.requestScreenCapture)
+                Button("화면 접근 다시 확인…", action: model.requestScreenCapture)
                     .buttonStyle(.bordered)
             }
+            if let status { Text(status).font(.callout).foregroundStyle(.secondary) }
             if previews.isEmpty {
-                Text(model.screenCaptureEnabled ? "표시할 창이 없습니다." : "권한을 허용하면 이 앱의 창을 미리 볼 수 있습니다.")
+                Text("표시할 창이 없습니다.")
                     .font(.callout).foregroundStyle(.secondary).padding(.vertical, 20)
             } else {
                 ScrollView {

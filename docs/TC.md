@@ -2,14 +2,14 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.0 / 2026-09-07 |
-| 대상 | everyDock v0.3.0, Apple Silicon, macOS 26+ |
+| 문서 버전·기준일 | 1.1 / 2026-09-07 |
+| 대상 | everyDock v0.3.1, Apple Silicon, macOS 26+ |
 | 요구사항 | [SRS](SRS.md), [추적표](README.md) |
 | 기존 실행 근거 | [QA.md](../QA.md), Swift Testing 실행 결과 |
 
 ## 1. 실행 원칙과 환경
 
-자동 테스트 10개, 기능 수동 케이스 33개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
+자동 테스트 14개, 기능 수동 케이스 33개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
 
 | 환경 | 구성 |
 |---|---|
@@ -37,6 +37,10 @@
 | TC-A08 | `utilityTilesAreIncludedInDockWidth` / DockMetricsTests | 39pt, 앱 0 → 길이147/두께51; 앱 추가 길이+41 | FR-03 |
 | TC-A09 | `nativeMagnificationIsNotClampedToTwoTimes` / DockMetricsTests | 2.6667배 JSON → 2배로 잘리지 않고 유지 | FR-03 |
 | TC-A10 | `genieSettingParticipatesInSafeRecovery` / DockMetricsTests | scale→genie snapshot → scale 복원, 사용자 변경은 유지 | FR-08, FR-09 |
+| TC-A11 | `permissionDenialIsNotAWindowCapabilityError` / RegressionTests | AX 거부·타임아웃·창 없음·미지원·무효 객체를 서로 다른 실패로 분류 | FR-06, FR-18 |
+| TC-A12 | `onlyScreenCaptureUserDeclinedMeansPermissionDenied` / RegressionTests | SCK domain+userDeclined만 거부, 다른 domain/오류/취소는 제외 | FR-14, FR-18 |
+| TC-A13 | `animationProgressDependsOnTimeNotRefreshRate` / RegressionTests | 60/120Hz·불규칙 프레임 간격, 총 0.5초 → 같은 확대 진행률 | FR-04, NFR-02 |
+| TC-A14 | `panelAlignmentIsStableAcrossFractionalAndNegativeCoordinates` / RegressionTests | 음수·소수 좌표, 1×/2× → 픽셀 정렬의 멱등성 및 중심 오차 한계 | FR-01, FR-03 |
 
 TC-A01~A03은 레거시 `DockLayout` 함수 테스트다. 실제 NSPanel, 다중 화면, WindowServer 및 새 DockMetrics 배치를 대신 검증하지 않는다. TC-A05도 실제 모니터 프레임레이트나 시각적으로 완벽한 연속성을 증명하지 않는다.
 
@@ -99,18 +103,18 @@ TC-M21은 외장 볼륨 파일은 제외한 기본 회차와 외장 휴지통이
 
 ## 7. 성능·개인정보
 
-현재 전부 NOT RUN. 코드 구조나 타이머 설정만 보고 수치 목표를 통과 처리하지 않는다.
+표준 성능 케이스는 아직 전체 PASS가 아니다. v0.3.1의 제한된 실제 측정은 [QA-v0.3.1](QA-v0.3.1.md)에 분리한다. 코드 구조나 타이머 설정만 보고 수치 목표를 통과 처리하지 않는다.
 
 | ID | 절차 | 기대 결과 | 요구 |
 |---|---|---|---|
 | TC-P01 | 앱20개·2화면, 워밍업1분 후 유휴5분 CPU/RSS 측정 | 평균 CPU≤2%, RSS≤200MiB(주+감시 프로세스) | NFR-02 |
 | TC-P02 | Instruments로 포인터 왕복30초, 프리뷰30회 개폐 | 확대 프레임 P95≤16.7ms, 유휴 후 메모리 지속 증가 없음 | NFR-02 |
 | TC-P03 | 외부 앱 실행/종료20회와 화면 재연결5회 시간 측정 | 앱 상태 95%≤1초, 화면 회복 목표2초, AX 지연이 애니메이션을 막지 않음 | FR-01, FR-07, NFR-02 |
-| TC-P04 | 앱 프로세스 네트워크·파일 쓰기를 관찰하며 프리뷰 사용 | 원격 전송·이미지 저장 없음, 승인 전 캡처 없음 | NFR-04 |
+| TC-P04 | 앱 프로세스 네트워크·파일 쓰기를 관찰하며 프리뷰 사용 | 원격 전송·이미지 저장 없음, 최초 실제 API 검사는 OS 승인 흐름 사용, 거부 후 자동 재요청 없음 | NFR-04 |
 
 ## 8. 배포 테스트
 
-TC-R01~R04는 아래 실행 기록 기준 PASS이며, TC-R05~R06은 NOT RUN이다. 앱 설치 시험은 별도 appdir를 사용해 사용자의 기존 앱을 덮어쓰지 않는다.
+v0.3.0의 TC-R01~R04는 아래 실행 기록 기준 PASS이며, TC-R05~R06은 NOT RUN이다. 앱 설치 시험은 별도 appdir를 사용해 사용자의 기존 앱을 덮어쓰지 않는다.
 
 | ID | 절차 | 기대 결과 | 요구 |
 |---|---|---|---|
@@ -136,3 +140,13 @@ TC-R01~R04는 아래 실행 기록 기준 PASS이며, TC-R05~R06은 NOT RUN이�
 결함은 TC ID, 기대/실제, 재현 횟수, OS·화면·권한·commit, 개인정보를 제거한 근거를 포함한다. 파일 손실·설정 미복원·실행 불가·중복 패널은 P0로 분류한다. 애니메이션 품질·폴더 스택·미리보기 문제는 사용자 작업 차단 정도에 따라 P1/P2로 분류한다.
 
 공개 베타는 TC-R01~R04와 명시한 기본 관찰을 근거로 배포하며 미검증 경로를 릴리스에 표시한다. 안정 버전은 P0 수동·파일 보존·권한 허용 경로·성능·설치 업그레이드/제거·공증 검증이 모두 끝나야 한다. 수동 TC가 남아 있는 현재 결과를 ‘전체 테스트 통과’라고 표현하지 않는다.
+
+## 10. v0.3.1 회귀 절차
+
+- TC-M09/M10/M23/M24/M32: 시스템 설정에서 켜짐과 실제 API 성공을 각각 확인한다. 재빌드 전 승인 항목만 남은 경우 실제 거부 안내·현재 앱 위치·명시적 재검사를 확인하고, 최종 번들 재등록 후 최소화/복원/썸네일/카드 선택을 반복한다. 사용자의 OS 승인 전 전체 PASS로 처리하지 않는다.
+- TC-M09: AXFocusedWindow가 없는 앱에서 AXMainWindow/첫 일반 창 선택을 검사한다. 최소화 미지원·응답 지연을 권한 부족으로 표시하면 실패다.
+- TC-M07/P02: 60/120Hz 화면별로 왕복·정지·이탈 후 유휴를 측정한다. 선택적으로 `EVERYDOCK_TRACE_FRAMES=1` 실행 로그에서 callback 간격과 렌더 함수 소요시간을 수집한다. 이 값은 화면에 실제 표시된 프레임레이트나 WindowServer/GPU 시간을 증명하지 않는다. Instruments의 실제 프레임 측정은 별도다.
+- TC-M08/P03: 앱 실행 알림 직후 상태와 5초 보완 조회를 구분한다. 재확인 타이머까지 기다려야 아이콘이 반영되면 실패다.
+- TC-M19: 휴지통 변화 중 확대를 계속해 디렉터리 조회가 UI를 막지 않는지 확인한다.
+
+실행 결과: [QA-v0.3.1](QA-v0.3.1.md). v0.3.0 배포 실행 기록은 과거 버전의 근거로 보존한다.

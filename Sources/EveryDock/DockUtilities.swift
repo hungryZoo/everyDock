@@ -21,28 +21,45 @@ enum DockUtility: String, CaseIterable, Sendable {
     private var stack: NSPopover?
     private let downloads = FolderContents(folder: DockUtility.downloads.url)
     private var trashWatcher: DispatchSourceFileSystemObject?
+    private var icons: [DockUtility: NSImage] = [:]
+    private var trashRefresh: Task<Void, Never>?
+    private var trashDirty = false
     var onChange: (() -> Void)?
     var isDesktopShowing: Bool { !hidden.isEmpty }
 
     init() {
+        for item in [DockUtility.desktop, .downloads] { icons[item] = NSWorkspace.shared.icon(forFile: item.url.path) }
+        refreshTrash()
         let descriptor = open(DockUtility.trash.url.path, O_EVTONLY)
         if descriptor >= 0 {
             let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor, eventMask: [.write, .rename, .delete], queue: .main)
-            source.setEventHandler { [weak self] in Task { @MainActor in self?.onChange?() } }
+            source.setEventHandler { [weak self] in Task { @MainActor in self?.refreshTrash() } }
             source.setCancelHandler { Darwin.close(descriptor) }
             source.resume()
             trashWatcher = source
         }
     }
-    func stop() { restoreDesktop(); trashWatcher?.cancel(); stack?.performClose(nil) }
+    func stop() { trashRefresh?.cancel(); restoreDesktop(); trashWatcher?.cancel(); stack?.performClose(nil) }
 
     func icon(_ item: DockUtility) -> NSImage {
-        if item == .trash {
-            let nonempty = (try? FileManager.default.contentsOfDirectory(atPath: item.url.path).contains { $0 != ".DS_Store" }) ?? false
-            return NSImage(named: NSImage.Name(nonempty ? "NSTrashFull" : "NSTrashEmpty"))
-                ?? NSImage(systemSymbolName: nonempty ? "trash.fill" : "trash", accessibilityDescription: "휴지통")!
+        icons[item] ?? NSImage(named: "NSTrashEmpty") ?? NSImage(systemSymbolName: "trash", accessibilityDescription: "휴지통")!
+    }
+
+    private func refreshTrash() {
+        trashDirty = true
+        guard trashRefresh == nil else { return }
+        trashRefresh = Task { @MainActor in
+            while trashDirty && !Task.isCancelled {
+                trashDirty = false
+                let nonempty = await Task.detached(priority: .utility) {
+                    (try? FileManager.default.contentsOfDirectory(atPath: DockUtility.trash.url.path).contains { $0 != ".DS_Store" }) ?? false
+                }.value
+                guard !Task.isCancelled else { break }
+                icons[.trash] = NSImage(named: nonempty ? "NSTrashFull" : "NSTrashEmpty")
+                onChange?()
+            }
+            trashRefresh = nil
         }
-        return NSWorkspace.shared.icon(forFile: item.url.path)
     }
 
     func activate(_ item: DockUtility, from anchor: NSView, edge: NSRectEdge) {
@@ -83,7 +100,7 @@ enum DockUtility: String, CaseIterable, Sendable {
         if item == .trash {
             NSWorkspace.shared.recycle(urls) { [weak self] _, error in
                 let detail = error?.localizedDescription
-                Task { @MainActor in completion(detail); self?.onChange?() }
+                Task { @MainActor in completion(detail); self?.refreshTrash() }
             }
         } else {
             // Copy, never silently move or overwrite the user's original files.
@@ -124,7 +141,7 @@ enum DockUtility: String, CaseIterable, Sendable {
                 } catch { return error.localizedDescription }
             }.value
             completion(result)
-            onChange?()
+            refreshTrash()
         }
     }
 }
