@@ -7,7 +7,8 @@ import QuartzCore
     private let model: AppModel
     private let glass = NSGlassEffectView()
     private let indicators = DockIndicators()
-    private let tooltip = NSTextField(labelWithString: "")
+    private let tooltip = DockTooltip(frame: .zero)
+    private var menuTracking = false
     private let menuButton = NSButton()
     private var buttons: [String: DockAppButton] = [:]
     private var utilityButtons: [DockUtility: DockUtilityButton] = [:]
@@ -46,14 +47,6 @@ import QuartzCore
         glass.cornerRadius = 16
         addSubview(glass)
         addSubview(indicators)
-        tooltip.alignment = .center
-        tooltip.font = .systemFont(ofSize: 13, weight: .medium)
-        tooltip.textColor = .labelColor
-        tooltip.drawsBackground = true
-        tooltip.backgroundColor = .windowBackgroundColor.withAlphaComponent(0.95)
-        tooltip.wantsLayer = true
-        tooltip.layer?.cornerRadius = 7
-        tooltip.layer?.masksToBounds = true
         tooltip.isHidden = true
         tooltip.setAccessibilityElement(false)
         addSubview(tooltip)
@@ -86,6 +79,7 @@ import QuartzCore
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     @objc func synchronize() {
+        guard !menuTracking else { synchronizationPending = true; return }
         edge = model.preferences.edge
         magnification = model.magnification
         reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -136,6 +130,7 @@ import QuartzCore
     }
 
     func updatePointer(at location: NSPoint? = nil) {
+        guard !menuTracking else { return }
         guard let window, window.isVisible, !model.paused else { hoverPoint = nil; return }
         let point = convert(window.convertPoint(fromScreen: location ?? NSEvent.mouseLocation), from: nil)
         let onDock = backgroundRect.contains(point) || buttons.values.contains { !$0.isHidden && $0.frame.contains(point) }
@@ -155,7 +150,7 @@ import QuartzCore
     }
 
     private func animate() {
-        guard displayLink == nil, window != nil else { return }
+        guard !menuTracking, displayLink == nil, window != nil else { return }
         lastTick = CACurrentMediaTime()
         let link = displayLink(target: self, selector: #selector(displayTick(_:)))
         let rate = Float(window?.screen?.maximumFramesPerSecond ?? 60)
@@ -281,8 +276,32 @@ import QuartzCore
         menu.addItem(.separator())
         add(menu, "모든 Dock 일시 숨기기", #selector(pause))
         add(menu, "everyDock 종료", #selector(quit))
-        let point = convert(window?.convertPoint(fromScreen: NSEvent.mouseLocation) ?? .zero, from: nil)
-        menu.popUp(positioning: nil, at: point, in: self)
+        presentMenu(menu, anchor: self)
+    }
+    func presentMenu(_ menu: NSMenu, anchor: NSView) {
+        guard let window, let screen = window.screen else { return }
+        menuTracking = true
+        previews.close()
+        tooltip.isHidden = true
+        stop()
+        defer {
+            menuTracking = false
+            if synchronizationPending { synchronizationPending = false; synchronize() }
+            updatePointer()
+            animate()
+        }
+        menu.update()
+        let rect = anchor === self ? backgroundRect : convert(anchor.bounds, from: anchor)
+        let screenRect = window.convertToScreen(convert(rect, to: nil))
+        let point = DockMenuPlacement.topLeft(anchor: screenRect, menu: menu.size, edge: edge, screen: screen.visibleFrame)
+        menu.popUp(positioning: nil, at: point, in: nil)
+    }
+    func showWindows(_ button: DockAppButton) {
+        // Start after NSMenu has finished tracking and released its mouse capture.
+        DispatchQueue.main.async { [weak self, weak button] in
+            guard let self, let button, button.window != nil else { return }
+            previews.showImmediately(app: button.app, anchor: button)
+        }
     }
     override func rightMouseDown(with event: NSEvent) { showDockMenu() }
     private func add(_ menu: NSMenu, _ title: String, _ action: Selector) { menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = self }
@@ -395,8 +414,21 @@ private final class DockIndicators: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func rightMouseDown(with event: NSEvent) {
+        showAppMenu()
+    }
+    override func accessibilityPerformShowMenu() -> Bool { showAppMenu(); return true }
+    override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.control) { showAppMenu() }
+        else { super.mouseDown(with: event) }
+    }
+    private func showAppMenu() {
         let menu = NSMenu(title: app.name)
         add(menu, "열기", #selector(openApp))
+        if app.isRunning {
+            add(menu, "열린 창 보기…", #selector(showWindows))
+            add(menu, "모든 창 닫기", #selector(closeWindows))
+            menu.addItem(.separator())
+        }
         add(menu, app.isPinned ? "Dock에서 고정 해제" : "Dock에 고정", #selector(pin))
         if app.isPinned {
             add(menu, "앞으로 이동", #selector(moveEarlier))
@@ -407,10 +439,12 @@ private final class DockIndicators: NSView {
             menu.addItem(.separator())
             add(menu, "종료", #selector(quitApp))
         }
-        NSMenu.popUpContextMenu(menu, with: event, for: self)
+        (superview as? DockSurface)?.presentMenu(menu, anchor: self)
     }
     private func add(_ menu: NSMenu, _ title: String, _ action: Selector) { menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = self }
     @objc private func openApp() { model.launch(app, toggle: false) }
+    @objc private func showWindows() { (superview as? DockSurface)?.showWindows(self) }
+    @objc private func closeWindows() { model.closeAllWindows(app) }
     @objc private func pin() { model.togglePin(app) }
     @objc private func moveEarlier() { model.movePin(app, offset: -1) }
     @objc private func moveLater() { model.movePin(app, offset: 1) }
@@ -445,7 +479,7 @@ private final class DockIndicators: NSView {
             menu.addItem(.separator())
             menu.addItem(withTitle: "휴지통 비우기…", action: #selector(emptyTrash), keyEquivalent: "").target = self
         }
-        NSMenu.popUpContextMenu(menu, with: event, for: self)
+        (superview as? DockSurface)?.presentMenu(menu, anchor: self)
     }
     @objc private func openFolder() { NSWorkspace.shared.open(item.url) }
     @objc private func emptyTrash() {

@@ -2,14 +2,14 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.1 / 2026-09-08 |
-| 대상 | everyDock v0.3.1, Apple Silicon, macOS 26+ |
+| 문서 버전·기준일 | 1.2 / 2026-09-08 |
+| 대상 | everyDock v0.3.2, Apple Silicon, macOS 26+ |
 | 요구사항 | [SRS](SRS.md), [추적표](README.md) |
 | 기존 실행 근거 | [QA.md](../QA.md), Swift Testing 실행 결과 |
 
 ## 1. 실행 원칙과 환경
 
-자동 테스트 17개, 기능 수동 케이스 33개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
+자동 테스트 25개, 기능 수동 케이스 40개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
 
 | 환경 | 구성 |
 |---|---|
@@ -23,7 +23,7 @@
 
 ## 2. 자동 테스트
 
-실행: `swift test --arch arm64`. 현재 모두 PASS(2026-09-07). 이름은 실제 Swift Testing 함수와 일치한다.
+실행: `swift test --arch arm64`. 현재 25개 PASS(2026-09-08). 이름은 실제 Swift Testing 함수와 일치한다.
 
 | ID | 함수·소스 | 검증 입력과 기대 결과 | 연결 |
 |---|---|---|---|
@@ -44,6 +44,14 @@
 | TC-A15 | `iconControlCancelsReleaseOutsideAndTracksDragBackInside` / DockControlTests | 아이콘 밖에서 놓기→취소, 드래그 후 안에서 놓기→한 번 실행, tracking 해제 | FR-04 |
 | TC-A16 | `iconControlSupportsAccessibilityPressWithoutMouseTracking` / DockControlTests | 접근성 Press→한 번 실행, 마우스 tracking 없음 | FR-04, NFR-06 |
 | TC-A17 | `iconControlSupportsSpaceAndReturn` / DockControlTests | Space/Return 각각 한 번 실행 | FR-04, NFR-06 |
+| TC-A18 | `captureMetadataNeverAddsGhostWindows` / WindowMatchingTests | AX 1개 + SC 3개·제목 변경 → 카드 매핑 1개, AX 빈 목록 → 0개 | FR-14 |
+| TC-A19 | `sameTitleWindowsKeepSeparateOneToOneImages` / WindowMatchingTests | 동명 창·역순 SC 목록 → 서로 다른 1:1 이미지 | FR-14 |
+| TC-A20 | `missingMinimizedAndMovedWindowsDoNotBorrowAnotherImage` / WindowMatchingTests | 누락·이동 창 → 타 창 이미지 연결 안 함 | FR-14 |
+| TC-A21 | `menuPlacementUsesIconEdgeAndClampsNegativeScreens` / WindowMatchingTests | 3개 edge·음수 좌표·화면 모서리 → 아이콘 기준 간격과 화면 경계 | FR-21 |
+| TC-A22 | `tooltipCentersTextVerticallyAtDifferentHeights` / DockControlTests | 한글/영문 3개·26/32/40pt → 레이블 세로 중심 일치 | FR-21 |
+| TC-A23 | `closeAllStopsAtSaveConfirmation` / WindowCloseTests | 두 번째 창 확인 대기 → 세 번째 요청 없음 | FR-20 |
+| TC-A24 | `closeAllSkipsAlreadyClosedButStopsAtErrors` / WindowCloseTests | 닫힌 창 건너뛰고 미지원 오류에서 중단 | FR-20 |
+| TC-A25 | `closeAllCompletesOnlyItsInitialSnapshot` / WindowCloseTests | 시작 목록 각 항목 한 번 처리 | FR-20 |
 
 TC-A01~A03은 레거시 `DockLayout` 함수 테스트다. 실제 NSPanel, 다중 화면, WindowServer 및 새 DockMetrics 배치를 대신 검증하지 않는다. TC-A05도 실제 모니터 프레임레이트나 시각적으로 완벽한 연속성을 증명하지 않는다.
 
@@ -95,7 +103,7 @@ TC-M21은 외장 볼륨 파일은 제외한 기본 회차와 외장 휴지통이
 | TC-M23 / P1 | 실행 앱, 화면 기록 거부 | 0.55초 호버, 미실행 앱 호버, 팝업으로 이동·이탈 | 실행 앱에 권한 안내 팝업, 미실행 앱은 없음, 이동 유지·이탈 닫힘 | FR-14, FR-15 / PARTIAL: 권한 안내 팝업 관찰 |
 | TC-M24 / P1 | E3 모두 허용, 창 1/8/9개 | 프리뷰 열고 창 내용 변경, 2초 갱신 관찰 | 해당 PID의 창 이미지, 캡처 최대8개, 보호된 창 대체 표시 | FR-14 / PARTIAL: 사용자 미리보기 정상 확인, 1/8/9개·보호된 창 행렬 미실행 |
 | TC-M25 / P1 | AX 허용, 이미지 권한 거부, 최소화 창 | 프리뷰 열기, 동명 창·제목 없는 창 포함 | 제목/대체 아이콘·최소화 상태, 창 없음 구분 | FR-14 / NOT RUN: 제목 대체·동명 창 행렬 미실행 |
-| TC-M26 / P1 | E3 허용, 다른 화면·동명 창 | 지정 카드 선택, 선택 직전 창 닫기 | 제목+geometry에 맞는 창 선택, 사라졌으면 앱 활성화 | FR-15 / NOT RUN: 권한 복구 완료, 다른 화면·동명 창 선택 행렬 미실행 |
+| TC-M26 / P1 | E3 허용, 다른 화면·동명 창 | 지정 카드 선택, 선택 직전 창 닫기 | 카드의 AX 객체에 맞는 창 선택, 사라졌으면 앱 활성화 | FR-15 / NOT RUN: 권한 복구 완료, 다른 화면·동명 창 선택 행렬 미실행 |
 | TC-M27 / P1 | E3 허용 | 앱 빠르게 왕복, 프리뷰 끄기, 화면 분리, 60초 후 재조회 | stale 결과 없음, 취소 작업 재표시 안 함, 캐시 상한, 해제 패널 팝업 없음 | FR-14, FR-15 / NOT RUN |
 | TC-M28 / P0 | E1, 테스트 앱 핀 | 가져오기·추가·드롭·중복·순서·해제·앱 위치 이동 | 중복 없음, 모든 화면 순서 동일, bundle ID 재탐색·삭제 가능 | FR-16 / PARTIAL: 최초 가져오기 관찰 |
 | TC-M29 / P0 | 기존 설정 백업, 구버전 fixture | 재실행·설정 변경·누락키/경계값 fixture 복원 | 기존 선택 유지, 범위 정규화, 손상 데이터 대응 | FR-17 / PARTIAL: A04/A06, 화면 설정 관찰; 손상 회차 미실행 |
@@ -157,3 +165,17 @@ v0.3.0의 TC-R01~R04는 아래 실행 기록 기준 PASS이며, TC-R05~R06은 NO
 v0.3.1 최종 회귀: NSButton의 셀 레이아웃 제거 후 17개 자동 테스트 PASS. 사용자는 미리보기·최소화 정상 동작을 확인했고, 추가 렌더러 교체 후 확대가 부드럽다고 확인했다. 실제 표시 프레임·모든 창 유형·전체 수동 행렬까지 PASS로 확장하지 않는다.
 
 v0.3.1의 TC-R01~R04는 2026-09-08 PASS. 최종 소스 CI·공개 ZIP 재다운로드 SHA-256·Homebrew style/audit/info/fetch 근거는 [최종 QA의 공개 배포 검증](QA-v0.3.1.md#공개-배포-검증--2026-09-08)을 따른다. TC-R05~R06은 NOT RUN을 유지한다.
+
+## 11. v0.3.2 창 관리 회귀
+
+| ID | 절차 | 기대 결과 | 결과 |
+|---|---|---|---|
+| TC-M34 | 각 Dock edge에서 아이콘 우클릭·Control-클릭·ShowMenu, 메뉴 탐색·Escape | 아이콘 안쪽 메뉴, 확대 정지, 메뉴 뒤 호버 정상 | 실기기 범위 QA-v0.3.2 참조 |
+| TC-M35 | 창 1개, 동명 3개, 제목 변경, 최소화·닫기 후 프리뷰 갱신 | 실제 일반 창당 카드 1개, 유령 SC 창 미추가 | 실기기 범위 QA-v0.3.2 참조 |
+| TC-M36 | Finder 일반 창을 모두 닫은 상태에서 Dock 클릭 | Finder 다시 열기, 바탕화면 최소화 시도 없음 | 실기기 범위 QA-v0.3.2 참조 |
+| TC-M37 | 한글/영문 앱 이름 호버·라이트/다크·1×/2× | 상하 여백 균등, 잘림 없음 | A22 PASS; 전체 시각 행렬 NOT RUN |
+| TC-M38 | 테스트 창 3개에서 카드 ×, 모든 창 닫기; Finder에서도 반복 | 개별 대상만 닫힘, 전체 닫기는 앱 종료 안 함, 개수 갱신 | 실기기 범위 QA-v0.3.2 참조 |
+| TC-M39 | 테스트 문서 수정 후 모든 창 닫기, 저장 확인에서 취소; 닫는 중 새 창 생성 | 확인 우회 없음, 이후 창 및 새 창 보존 | A23~25 및 fixture 저장 확인·취소 PASS; 실제 문서 행렬 NOT RUN |
+| TC-M40 | 메뉴로 미리보기 열기→외부 클릭→같은 앱 호버, × 후 다른 앱 호버 | 재개방 정상, 닫기/선택 혼동 없음, 이전 작업 재표시 없음 | 실기기 범위 QA-v0.3.2 참조 |
+
+자동 테스트는 매칭/배치/닫기 순서의 회귀를 검증하며 실제 AX 앱 호환성과 저장 대화상자 전체를 대신하지 않는다. 사용자 실제 문서를 닫는 시험은 수행하지 않는다.

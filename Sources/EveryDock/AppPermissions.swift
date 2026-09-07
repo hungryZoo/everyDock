@@ -54,6 +54,8 @@ import DockCore
         }
     }
 
+    func invalidateContent() { contentCache = nil }
+
     func recordCaptureError(_ error: any Error) {
         let failure = CaptureFailure.classify(error)
         if failure == .permissionDenied { capture = .denied; contentCache = nil }

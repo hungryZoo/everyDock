@@ -53,3 +53,16 @@ import Testing
     }
     #expect(receiver.count == 2)
 }
+
+@MainActor @Test func tooltipCentersTextVerticallyAtDifferentHeights() {
+    let tooltip = DockTooltip(frame: .zero)
+    for title in ["Finder", "미리보기", "Downloads and Documents"] {
+        tooltip.stringValue = title
+        for height in [26.0, 32.0, 40.0] {
+            tooltip.frame = NSRect(x: 0, y: 0, width: 220, height: height)
+            tooltip.layout()
+            #expect(abs(tooltip.textFrame.midY - tooltip.bounds.midY) < 0.01)
+            #expect(tooltip.textFrame.height <= height)
+        }
+    }
+}

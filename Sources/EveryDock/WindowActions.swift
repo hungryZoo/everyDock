@@ -3,14 +3,52 @@ import AppKit
 import DockCore
 
 enum WindowActionResult: Sendable { case minimized, restored, activate, failed(WindowFailure) }
+
+/// Immutable remote AX identity. Messaging is performed only by detached WindowActions tasks.
+/// CFEqual compares remote objects, so two equal titles never become the same window.
+struct WindowReference: @unchecked Sendable, Hashable {
+    let pid: pid_t
+    let element: AXUIElement
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.pid == rhs.pid && CFEqual(lhs.element, rhs.element) }
+    func hash(into hasher: inout Hasher) { hasher.combine(pid); hasher.combine(CFHash(element)) }
+}
 struct WindowDescription: Sendable {
+    let reference: WindowReference
     let title: String
     let frame: CGRect
     let minimized: Bool
+    let canClose: Bool
 }
 struct WindowListResult: Sendable {
     let windows: [WindowDescription]
     let failure: WindowFailure?
+}
+enum WindowCloseResult: Sendable {
+    case closed, awaitingApplication, failed(WindowFailure)
+    var message: String? {
+        switch self {
+        case .closed: nil
+        case .awaitingApplication: "앱에서 저장 확인이나 창 닫기를 완료해 주세요. 나머지 창은 닫지 않았습니다."
+        case .failed(.permissionDenied): "macOS가 창 제어를 거부했습니다. 손쉬운 사용 권한을 확인해 주세요."
+        case .failed(.noWindow): "이 창은 이미 닫혔습니다."
+        case .failed(.unsupported): "이 창은 닫기 기능을 제공하지 않습니다."
+        case .failed(.timedOut): "앱이 응답하지 않습니다. 잠시 후 다시 시도해 주세요."
+        case .failed(.apiError(let code)): "창을 닫지 못했습니다. macOS 오류: \(code)"
+        }
+    }
+}
+
+enum WindowCloseSequence {
+    static func perform<T: Sendable>(snapshot: [T], close: @Sendable (T) async -> WindowCloseResult) async -> WindowCloseResult {
+        for window in snapshot {
+            if Task.isCancelled { return .awaitingApplication }
+            switch await close(window) {
+            case .closed, .failed(.noWindow): continue
+            case let result: return result
+            }
+        }
+        return .closed
+    }
 }
 
 /// All cross-process AX messaging stays off the rendering thread.
@@ -18,38 +56,37 @@ enum WindowActions {
     static func toggle(pid: pid_t, active: Bool, minimize: Bool) async -> WindowActionResult {
         await Task.detached(priority: .userInitiated) {
             let application = client(pid)
-            let result = windows(application)
-            guard case .success(let windows) = result else {
-                if case .failure(let error) = result { return .failed(error) }
-                return .failed(.noWindow)
-            }
-            if active && minimize {
-                // Some apps expose only AXMainWindow, not AXFocusedWindow.
-                let target = element(application, kAXFocusedWindowAttribute)
-                    ?? element(application, kAXMainWindowAttribute)
-                    ?? windows.first { !bool($0, kAXMinimizedAttribute) }
-                if let target, !bool(target, kAXMinimizedAttribute) {
-                    if let button = element(target, kAXMinimizeButtonAttribute) {
-                        let pressed = AXUIElementPerformAction(button, kAXPressAction as CFString)
-                        if pressed == .success { return .minimized }
-                        if pressed == .apiDisabled { return .failed(.permissionDenied) }
+            switch windows(application) {
+            case .failure(let failure): return .failed(failure)
+            case .success(let windows):
+                if active && minimize {
+                    let preferred = [element(application, kAXFocusedWindowAttribute), element(application, kAXMainWindowAttribute)]
+                        .compactMap { $0 }.first { candidate in windows.contains { CFEqual($0, candidate) } }
+                    let target = preferred ?? windows.first { !bool($0, kAXMinimizedAttribute) }
+                    if let target, !bool(target, kAXMinimizedAttribute) {
+                        if let button = element(target, kAXMinimizeButtonAttribute) {
+                            let pressed = AXUIElementPerformAction(button, kAXPressAction as CFString)
+                            if pressed == .success { return .minimized }
+                            if pressed == .apiDisabled { return .failed(.permissionDenied) }
+                        }
+                        let error = AXUIElementSetAttributeValue(target, kAXMinimizedAttribute as CFString, kCFBooleanTrue)
+                        return error == .success ? .minimized : .failed(.classify(error))
                     }
-                    let error = AXUIElementSetAttributeValue(target, kAXMinimizedAttribute as CFString, kCFBooleanTrue)
-                    return error == .success ? .minimized : .failed(.classify(error))
                 }
-            }
-            let minimized = windows.filter { bool($0, kAXMinimizedAttribute) }
-            if !minimized.isEmpty {
-                var restored = false
-                var failure: WindowFailure = .unsupported
-                for window in minimized {
-                    let error = AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
-                    if error == .success { _ = AXUIElementPerformAction(window, kAXRaiseAction as CFString); restored = true }
-                    else { failure = .classify(error) }
+                let minimized = windows.filter { bool($0, kAXMinimizedAttribute) }
+                if !minimized.isEmpty {
+                    var restored = false
+                    var failure: WindowFailure = .unsupported
+                    for window in minimized {
+                        let error = AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+                        if error == .success { _ = AXUIElementPerformAction(window, kAXRaiseAction as CFString); restored = true }
+                        else { failure = .classify(error) }
+                    }
+                    return restored ? .restored : .failed(failure)
                 }
-                return restored ? .restored : .failed(failure)
+                // Reopen applications with no document windows, including Finder's desktop-only state.
+                return .activate
             }
-            return active && minimize ? .failed(.noWindow) : .activate
         }.value
     }
 
@@ -57,30 +94,76 @@ enum WindowActions {
         await Task.detached(priority: .userInitiated) {
             switch windows(client(pid)) {
             case .success(let windows):
-                return WindowListResult(windows: windows.map { WindowDescription(title: title($0), frame: frame($0), minimized: bool($0, kAXMinimizedAttribute)) }, failure: nil)
+                return WindowListResult(windows: windows.map {
+                    WindowDescription(reference: WindowReference(pid: pid, element: $0), title: string($0, kAXTitleAttribute),
+                                      frame: frame($0), minimized: bool($0, kAXMinimizedAttribute), canClose: closeButton($0) != nil)
+                }, failure: nil)
             case .failure(let failure): return WindowListResult(windows: [], failure: failure)
             }
         }.value
     }
 
-    static func focus(pid: pid_t, title expected: String, bounds: CGRect) async -> WindowFailure? {
+    static func focus(_ reference: WindowReference) async -> WindowFailure? {
+        await Task.detached(priority: .userInitiated) {
+            if let failure = validate(reference) { return failure }
+            let window = reference.element
+            if bool(window, kAXMinimizedAttribute) {
+                let error = AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+                if error != .success { return .classify(error) }
+            }
+            _ = AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
+            let error = AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+            return error == .success ? nil : .classify(error)
+        }.value
+    }
+
+    static func close(_ reference: WindowReference) async -> WindowCloseResult {
+        await Task.detached(priority: .userInitiated) { await closeAndWait(reference) }.value
+    }
+
+    static func closeAll(pid: pid_t) async -> WindowCloseResult {
         await Task.detached(priority: .userInitiated) {
             switch windows(client(pid)) {
-            case .failure(let failure): return failure
-            case .success(let windows):
-                let matching = windows.filter { title($0) == expected }
-                guard let window = matching.min(by: { distance(frame($0), bounds) < distance(frame($1), bounds) }) else { return .noWindow }
-                if bool(window, kAXMinimizedAttribute) {
-                    let result = AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
-                    if result != .success { return .classify(result) }
-                }
-                _ = AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
-                let result = AXUIElementPerformAction(window, kAXRaiseAction as CFString)
-                return result == .success ? nil : .classify(result)
+            case .failure(let failure): return .failed(failure)
+            case .success(let snapshot):
+                // Snapshot identities: never close a new window created while the operation is running.
+                let references = snapshot.map { WindowReference(pid: pid, element: $0) }
+                return await WindowCloseSequence.perform(snapshot: references, close: closeAndWait)
             }
         }.value
     }
 
+    private static func closeAndWait(_ reference: WindowReference) async -> WindowCloseResult {
+        if let failure = validate(reference) { return .failed(failure) }
+        let application = client(reference.pid)
+        if hasDialog(application) { return .awaitingApplication }
+        guard let button = closeButton(reference.element) else { return .failed(.unsupported) }
+        let error = AXUIElementPerformAction(button, kAXPressAction as CFString)
+        guard error == .success else { return .failed(.classify(error)) }
+        // A successful Press can open a save sheet. Wait for disappearance before continuing.
+        for _ in 0..<12 {
+            try? await Task.sleep(for: .milliseconds(100))
+            if Task.isCancelled { return .awaitingApplication }
+            if let failure = validate(reference) {
+                return failure == .noWindow ? .closed : .failed(failure)
+            }
+            if hasDialog(application) { return .awaitingApplication }
+        }
+        return .awaitingApplication
+    }
+    private static func hasDialog(_ application: AXUIElement) -> Bool {
+        guard case .success(let list) = windows(application) else { return true }
+        return list.contains {
+            bool($0, kAXModalAttribute) || elements($0, kAXChildrenAttribute).contains { string($0, kAXRoleAttribute) == kAXSheetRole }
+                || [kAXDialogSubrole, kAXSystemDialogSubrole].contains(string($0, kAXSubroleAttribute))
+        }
+    }
+    private static func validate(_ reference: WindowReference) -> WindowFailure? {
+        switch windows(client(reference.pid)) {
+        case .failure(let failure): return failure
+        case .success(let list): return list.contains { CFEqual($0, reference.element) } ? nil : .noWindow
+        }
+    }
     private static func client(_ pid: pid_t) -> AXUIElement {
         let application = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(application, 0.5)
@@ -91,7 +174,24 @@ enum WindowActions {
         let error = AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value)
         if error == .noValue { return .success([]) }
         guard error == .success else { return .failure(.classify(error)) }
-        return .success(value as? [AXUIElement] ?? [])
+        var result: [AXUIElement] = []
+        for window in value as? [AXUIElement] ?? [] {
+            let role = string(window, kAXRoleAttribute), subrole = string(window, kAXSubroleAttribute)
+            let supported = [kAXStandardWindowSubrole, kAXDialogSubrole, kAXSystemDialogSubrole].contains(subrole)
+                || (subrole.isEmpty && (element(window, kAXCloseButtonAttribute) != nil || element(window, kAXMinimizeButtonAttribute) != nil))
+            guard role == kAXWindowRole, supported, !result.contains(where: { CFEqual($0, window) }) else { continue }
+            result.append(window)
+        }
+        return .success(result)
+    }
+    private static func closeButton(_ window: AXUIElement) -> AXUIElement? {
+        guard let button = element(window, kAXCloseButtonAttribute), bool(button, kAXEnabledAttribute) else { return nil }
+        return button
+    }
+    private static func elements(_ owner: AXUIElement, _ attribute: String) -> [AXUIElement] {
+        var value: CFTypeRef?
+        AXUIElementCopyAttributeValue(owner, attribute as CFString, &value)
+        return value as? [AXUIElement] ?? []
     }
     private static func element(_ owner: AXUIElement, _ attribute: String) -> AXUIElement? {
         var value: CFTypeRef?
@@ -99,9 +199,9 @@ enum WindowActions {
               let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
         return unsafeDowncast(value, to: AXUIElement.self)
     }
-    private static func title(_ window: AXUIElement) -> String {
+    private static func string(_ owner: AXUIElement, _ attribute: String) -> String {
         var value: CFTypeRef?
-        AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &value)
+        AXUIElementCopyAttributeValue(owner, attribute as CFString, &value)
         return value as? String ?? ""
     }
     private static func frame(_ window: AXUIElement) -> CGRect {
@@ -117,7 +217,6 @@ enum WindowActions {
         }
         return CGRect(origin: point, size: extent)
     }
-    private static func distance(_ a: CGRect, _ b: CGRect) -> Double { abs(a.minX - b.minX) + abs(a.minY - b.minY) + abs(a.width - b.width) }
     private static func bool(_ element: AXUIElement, _ attribute: String) -> Bool {
         var value: CFTypeRef?
         return AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success && (value as? Bool == true)

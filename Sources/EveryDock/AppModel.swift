@@ -270,7 +270,7 @@ final class AppModel: NSObject, ObservableObject {
                     permissions.recordAccessibility(failure)
                     switch failure {
                     case .permissionDenied: report("macOS가 현재 실행 중인 everyDock의 창 제어를 거부했습니다. 이미 허용했다면 등록된 앱과 현재 앱의 서명이 달라졌을 수 있습니다. 설정의 ‘권한 다시 확인’과 ‘현재 앱 위치 보기’를 이용해 주세요.")
-                    case .noWindow: report("최소화할 창이 없습니다. 앱에 열려 있는 창을 선택한 뒤 다시 시도해 주세요.")
+                    case .noWindow: openApplication(app)
                     case .unsupported: report("이 창은 macOS 최소화 기능을 제공하지 않습니다.")
                     case .timedOut: report("앱이 창 제어 요청에 제때 응답하지 않았습니다. 잠시 후 다시 시도해 주세요.")
                     case .apiError(let code): report("창 조작에 실패했습니다. macOS 오류 코드: \(code)")
@@ -296,6 +296,20 @@ final class AppModel: NSObject, ObservableObject {
         }
         refreshApps()
         openApplication(app)
+    }
+
+    func closeAllWindows(_ app: DockApplication) {
+        guard let process = NSWorkspace.shared.runningApplications.first(where: {
+            !$0.isTerminated && ($0.bundleURL == app.url || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier))
+        }), clicksInProgress.insert(app.id).inserted else { return }
+        Task { @MainActor in
+            defer { clicksInProgress.remove(app.id); refreshApps(); permissions.invalidateContent() }
+            let result = await WindowActions.closeAll(pid: process.processIdentifier)
+            if case .failed(let failure) = result { permissions.recordAccessibility(failure) }
+            else { permissions.recordAccessibility(nil) }
+            if case .awaitingApplication = result { process.unhide(); process.activate(options: []) }
+            else if let message = result.message { report(message) }
+        }
     }
 
     private func openApplication(_ app: DockApplication) {

@@ -2,8 +2,8 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.1 / 2026-09-07 |
-| 제품 기준 | everyDock v0.3.1 |
+| 문서 버전·기준일 | 1.2 / 2026-09-08 |
+| 제품 기준 | everyDock v0.3.2 |
 | 상위 문서 | [PRD](PRD.md) |
 | 검증 명세 | [TC](TC.md) |
 
@@ -31,10 +31,10 @@
 | ApplicationSnapshot | 앱 속성 백그라운드 조회·이벤트 병합 | `ApplicationSnapshot.swift` |
 | DockSurface | 아이콘·점·구분선·확대·바운스·히트 테스트 | `DockSurface.swift` |
 | NativeDockStyle | 시스템 아이콘/확대 크기 읽기 | `NativeDockStyle.swift` |
-| WindowActions | 백그라운드 AX 최소화·복원·창 목록·전면 표시 | `WindowActions.swift` |
+| WindowActions | 백그라운드 AX 최소화·복원·창 목록·전면 표시·개별/일괄 닫기 | `WindowActions.swift` |
 | NativeDockManager | 복원 기록·파일 잠금·Dock 설정·감시 자식 프로세스 | `NativeDockManager.swift` |
 | DockUtilities | 바탕화면, 폴더 목록, 복사·휴지통, 확인 대화상자 | `DockUtilities.swift` |
-| WindowPreview | 창 캡처·캐시·호버 팝업·선택 | `WindowPreview.swift` |
+| WindowPreview | 창 캡처·캐시·호버/메뉴 팝업·선택·닫기 | `WindowPreview.swift` |
 | DockCore | 설정, 치수·모션, 복원 값 모델 | `Sources/DockCore` |
 
 모든 UI 변경은 MainActor에서 실행한다. AX와 디렉터리 읽기는 분리된 작업으로 수행한다. `NSRunningApplication` KVO 대상 객체는 강하게 보관하고, 객체를 해제하기 전에 관찰을 무효화해야 한다.
@@ -75,9 +75,11 @@
 
 ### FR-06 최소화·복원 — P-02 / P0
 
-활성 앱 재클릭 옵션이 켜져 있으면 AX focused window, main window, 최소화되지 않은 첫 창 순으로 대상을 찾고 minimize button에 Press를 요청하고, 지원하지 않으면 minimized 속성을 설정한다. 최소화 창 복원 시 minimized=false 및 raise를 요청한다. 현재 구현은 앱 클릭 복원 시 앱의 최소화 창들을 복원하며, 개별 창 선택은 FR-15를 사용한다.
+AXWindow 중 standard/dialog/system dialog 및 subrole이 없으나 창 버튼이 있는 창만 취급하고 CFEqual로 같은 객체를 중복 제거한다. 활성 앱 재클릭 옵션이 켜져 있으면 이 목록에 속한 AX focused window, main window, 최소화되지 않은 첫 창 순으로 대상을 찾고 minimize button에 Press를 요청하고, 지원하지 않으면 minimized 속성을 설정한다. 최소화 창 복원 시 minimized=false 및 raise를 요청한다. 현재 구현은 앱 클릭 복원 시 앱의 최소화 창들을 복원하며, 개별 창 선택은 FR-15를 사용한다.
 
 사전 AX 신뢰 검사가 false여도 실제 요청을 차단하지 않는다. 실제 apiDisabled만 권한 거부로, noValue는 창 없음, unsupported 계열은 미지원, cannotComplete는 응답 지연으로 분류한다. 앱 숨김으로 위장하지 않는다. AX messaging timeout은 개별 메시지당 0.5초이며 전체 요청의 시간 상한을 뜻하지 않는다. 모든 AX 메시지는 UI 스레드 밖에서 호출한다. 시스템이 요술램프 효과와 도착 위치를 결정하며 everyDock별 도착점 지정은 범위 밖이다.
+
+유효한 창이 없으면 오류 설정 창 대신 앱의 다시 열기를 요청한다. Finder의 바탕화면·도우미 창은 대상에서 제외한다.
 
 ### FR-07 앱 상태 일관성 — P-02 / P0
 
@@ -118,13 +120,13 @@ file URL 드롭만 처리한다. 바탕화면·다운로드에는 원본을 유�
 
 ### FR-14 호버 창 미리보기 — P-05 / P1
 
-실행 앱에 대해 설정 지연 후 앱 PID의 창을 조회해야 한다. ScreenCaptureKit에서 일반 창(layer 0, 폭>80pt, 높이>60pt)을 대상으로 최대 8개를 캡처하고, 필요한 AX 창 제목 대체 항목을 추가한다. 이미지 크기는 최대 440×330 픽셀 설정이며 오디오·포인터는 캡처하지 않는다.
+실행 앱에 대해 설정 지연 후 앱 PID의 AX 일반 창 목록을 기준으로 카드와 개수를 결정해야 한다. SC 목록을 추가 카드로 합치지 않는다. 같은 PID·layer 0의 캡처 창을 위치와 크기 차이 각 8pt 이내에서 점수순으로 1:1 연결하고 제목 일치는 보조 점수로만 사용한다. 동명 창은 독립 AX 객체로 유지한다. 첫 8개 카드까지 이미지를 캡처하고 나머지도 제목으로 선택·닫기를 제공한다. AX 조회가 실패하면 정확한 목록을 읽지 못했다는 안내를 표시한다. 이미지 크기는 최대 440×330 픽셀 설정이며 오디오·포인터는 캡처하지 않는다.
 
 팝업이 열린 동안 약 2초 간격 갱신한다. 캐시는 최근 32개, 조회 시 60초 넘은 항목을 정리하는 메모리 캐시다. 앱 종료 시 소멸한다. CGPreflight 결과가 false라는 이유로 캡처를 차단하지 않는다. 최초 사용 및 명시적 재확인은 SCShareableContent로 실제 접근을 검사하고, 여러 패널의 동시 요청은 하나로 합친다(목록 캐시 1초). 실제 SCStreamErrorDomain의 userDeclined(-3801)만 권한 거부로 분류한다. 거부 후에는 자동 재요청하지 않고 사용자의 재확인 또는 OS 허용 힌트를 기다린다. 다른 API 오류·빈 창·보호된 창은 각각 오류 또는 제목/대체 이미지로 대응한다. 공개 API가 제공하지 않는 창 캡처를 우회하지 않는다.
 
 ### FR-15 미리보기 수명·창 선택 — P-05 / P1
 
-아이콘에서 팝업으로 포인터를 옮길 때 약 260ms의 닫힘 유예를 제공하고 팝업 안에서는 유지한다. 대상 변경·클릭·화면 제거·기능 끄기 때 이전 지연·갱신 작업을 취소한다. 제목과 가장 가까운 창 geometry로 AX 창을 찾아 최소화를 해제·raise한다. 찾지 못하면 앱 활성화로 대응하고 종료된 앱의 오래된 창 핸들을 사용하지 않는다.
+아이콘에서 팝업으로 포인터를 옮길 때 약 260ms의 닫힘 유예를 제공하고 팝업 안에서는 유지한다. 대상 변경·클릭·화면 제거·기능 끄기 때 이전 지연·갱신 작업을 취소한다. 카드에 보관한 PID+AX 객체를 현재 앱 창 목록과 CFEqual로 재검증한 뒤 최소화를 해제·raise한다. 제목이나 geometry로 조작 대상을 추측하지 않는다. 사라진 창은 앱 활성화로 대응한다. 팝업이 실제 표시 중일 때만 포인터가 팝업 위에 있는지 검사하며 닫힘 delegate에서도 대상과 작업을 초기화한다. ‘열린 창 보기…’는 호버 설정과 무관하게 즉시 열고 외부 클릭으로 닫을 때까지 유지한다.
 
 ### FR-16 고정 앱 — P-06 / P0
 
@@ -141,6 +143,16 @@ file URL 드롭만 처리한다. 바탕화면·다운로드에는 원본을 유�
 ### FR-19 배포 — P-07 / P1
 
 소스·MRD·PRD·SRS·TC를 공개 GitHub 저장소에 제공한다. 태그와 번들 버전을 일치시키고, arm64 ZIP과 SHA-256 파일을 Release에 올린다. Homebrew tap cask는 버전 고정 URL·체크섬·arm64·macOS 26 이상·앱 설치 항목을 선언한다. README는 설치·실행·업데이트·제거 및 권한을 안내한다. 베타는 prerelease로 표시한다. 복원 journal을 자동 zap 대상으로 등록하지 않는다.
+
+### FR-20 개별 및 모든 창 닫기 — P-09 / P1
+
+미리보기 카드마다 접근성 이름과 도움말이 있는 24pt × 버튼을 제공한다. 닫기 버튼이 없는 창은 비활성화한다. 이미지 선택과 별도 버튼으로 처리하여 닫기 클릭이 창 선택으로 전달되지 않아야 한다. 닫는 동안 중복 요청을 막고 AX 목록과 캡처 메타데이터 캐시를 갱신한다.
+
+앱 우클릭 메뉴는 Finder를 포함한 실행 앱에 ‘모든 창 닫기’를 제공한다. 시작 시 창 객체 목록을 고정하고 순서대로 정상 AXCloseButton Press를 실행한다. 새 창은 포함하지 않는다. 이미 닫힌 창은 건너뛰고 오류는 중지·안내한다. 모달 대화상자/저장 sheet가 있거나 Press 후 최대 1.2초 동안 창이 사라지지 않으면 남은 창을 닫지 않고 앱을 전면에 표시해 사용자 응답을 기다린다. 저장·삭제·확인 버튼을 자동으로 누르거나 강제 종료하지 않는다.
+
+### FR-21 메뉴와 이름 레이블 — P-02 / P1
+
+우클릭, Control-클릭, 접근성 ShowMenu에 같은 앱 메뉴를 제공한다. 메뉴의 크기와 선택 아이콘의 화면 좌표로 아래 Dock에서는 위쪽, 양옆에서는 안쪽에 6pt 간격으로 배치한다. 음수 좌표와 화면 visibleFrame 경계를 보정하며 최종 배치는 NSMenu에 맡긴다. 메뉴 추적 중 호버·미리보기·확대·목록 배치를 멈추고 종료 후 최신 상태를 반영한다. 이름 상자의 배경은 별도 뷰로 그리고 레이블의 intrinsic 높이를 기준으로 세로 중앙에 놓는다.
 
 ## 4. 비기능 요구사항
 
@@ -164,7 +176,7 @@ CPU는 Activity Monitor의 프로세스 CPU(논리 코어 하나=100%) 기준으
 | DockPreferences | JSON Data, UserDefaults `everyDock.preferences.v1`, domain `app.everydock.mac` | 사용자 설정 유지 |
 | 고정 앱 | path, optional bundleIdentifier | 설정과 함께 저장 |
 | 실행 상태 | id, URL, 이름, 아이콘, pinned/running/active/launching/hidden | 프로세스 메모리 |
-| 미리보기 | window ID, 제목, frame, NSImage?, minimized | 메모리 캐시 |
+| 미리보기 | PID+AX 객체(CFEqual/CFHash), 제목, frame, NSImage?, minimized, canClose | 메모리 캐시 |
 | 복원 snapshot | `original`/`applied`, bool/number/string/absent | 복원 완료까지 journal 유지 |
 | 바탕화면 복원 목록 | NSRunningApplication 목록·이전 활성 앱 | 앱 수명 내 메모리 |
 
@@ -190,3 +202,7 @@ CPU는 Activity Monitor의 프로세스 CPU(논리 코어 하나=100%) 기준으
 ## 9. v0.3.1 변경 근거
 
 권한 스위치가 켜져 있어도 현재 앱의 실제 AX/SCK 요청은 거부될 수 있으므로, UI 상태만으로 원인을 단정하지 않는다. ad-hoc 재빌드의 실행 파일 식별 변경은 가능한 원인이며 권한 DB를 우회하거나 변경하지 않는다. 성능 수정은 메인 스레드 반복 IPC와 프레임마다 아이콘 그리기를 제거한다. [검증 기록](QA-v0.3.1.md)을 참조한다. 화면 동기화 API 근거: [Apple NSView.displayLink](https://developer.apple.com/documentation/appkit/nsview/displaylink(target:selector:)).
+
+## v0.3.2 구현 근거
+
+메뉴 좌표는 [Apple NSMenu.popUp](https://developer.apple.com/documentation/appkit/nsmenu/popup(positioning:at:in:))의 뷰/화면 좌표 규약을 따른다. 창 닫기는 [표준 닫기 버튼](https://developer.apple.com/documentation/applicationservices/kaxclosebuttonsubrole)을 사용한다. [QA-v0.3.2](QA-v0.3.2.md)에 검증 범위와 제한을 기록한다.
