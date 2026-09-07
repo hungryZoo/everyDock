@@ -1,0 +1,93 @@
+# everyDock
+
+모든 모니터에 항상 표시되는 macOS 앱 바. **Apple Silicon · macOS 26 이상**을 대상으로 하는 Swift 6 / AppKit / SwiftUI 메뉴 막대 앱입니다.
+
+## Homebrew 설치
+
+**Apple Silicon · macOS 26 이상 · Homebrew 6 기준**입니다. 현재는 v0.3 공개 베타입니다.
+
+```sh
+brew tap hungryZoo/tap
+brew trust --cask hungryZoo/tap/everydock
+brew install --cask hungryZoo/tap/everydock
+open -a everyDock
+```
+
+`brew trust`는 이 cask만 신뢰하도록 지정합니다. 앱은 `/Applications/everyDock.app`에 설치됩니다. [Homebrew 설치](https://brew.sh/) · [공개 릴리스](https://github.com/hungryZoo/everyDock/releases) · [Homebrew cask](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb)
+
+현재 배포본은 ad-hoc 서명이며 Apple 공증은 없습니다. 첫 실행이 차단되면 출처를 확인한 뒤 **시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기**에서 직접 승인하세요. 설치 과정에서 Gatekeeper나 quarantine을 해제하지 않습니다. 최소화·창 선택에는 손쉬운 사용, 썸네일에는 화면 기록, 다운로드 목록에는 폴더 접근 허용이 필요합니다.
+
+업데이트 전 메뉴 막대에서 everyDock을 정상 종료한 뒤 실행합니다.
+
+```sh
+brew update
+brew upgrade --cask everydock
+open -a everyDock
+```
+
+제거도 먼저 everyDock을 정상 종료해 기본 Dock 복원을 마친 후 진행합니다. 설정과 복원 기록은 자동 삭제하지 않습니다.
+
+```sh
+brew uninstall --cask everydock
+```
+
+## 소스에서 빌드
+
+Xcode 26 이상과 macOS 26 SDK가 필요합니다. 외부 패키지는 없습니다.
+
+```sh
+./scripts/build.sh
+open dist/everyDock.app
+```
+
+`dist/everyDock.app`을 응용 프로그램 폴더로 옮긴 뒤 실행하세요. 로그인 시 실행은 옮긴 위치에서 등록하세요. Xcode에서는 `Package.swift`를 열어 편집할 수 있습니다. 기본 서명은 로컬 실행용 ad-hoc 서명이며, 외부 배포에는 Developer ID 서명과 공증이 필요합니다.
+
+## v0.3 사용법
+
+- 연결된 각 디스플레이에 같은 앱 목록을 표시합니다. 기본 Dock의 고정 앱은 최초 실행 시 가져오며, 나중에도 설정에서 가져올 수 있습니다.
+- 기본 Dock의 아이콘 크기와 확대 크기를 따라갑니다. 39pt → 104pt처럼 2배가 넘는 확대도 유지합니다. 아이콘 셀의 추가 안쪽 여백을 없애고, 간격·패딩·실행 표시를 공통 치수로 정리했습니다. 배경은 macOS 26의 `NSGlassEffectView`입니다. 수동 크기는 설정에서 크기 연동을 끄고 조절합니다.
+- 포인터와 이웃 아이콘이 연속적으로 확대되며 서로 밀려납니다. 실행 중에는 아이콘이 튀어 오르고, 클릭에는 짧은 반응 애니메이션이 있습니다. ‘동작 줄이기’를 존중합니다.
+- 아이콘 클릭은 실행/활성화합니다. 활성 앱을 다시 클릭하면 **실제 창의 노란 최소화 버튼을 손쉬운 사용 API로 누릅니다**. 이 경로를 지원하지 않는 창은 최소화 속성 설정을 시도합니다. 다음 클릭으로 최소화한 창을 복원합니다. 권한이 없거나 최소화를 지원하지 않으면 안내를 표시합니다. 앱 숨기기를 최소화로 대체하지 않습니다.
+- 실행 중인 앱 위에 기본 0.55초 동안 머무르면 창 미리보기가 열립니다. 지연은 설정에서 조절하며, 열린 동안 약 2초마다 갱신합니다. 창을 클릭하면 해당 창을 앞으로 가져옵니다. 창 이미지는 **화면 기록**, 개별 창 전환·최소화는 **손쉬운 사용** 권한이 필요합니다. 이미지 권한이 없어도 손쉬운 사용이 허용되면 창 제목 목록을 볼 수 있습니다.
+- 바탕화면 아이콘은 현재 보이는 앱을 숨겨 바탕화면을 표시합니다. 다시 클릭하면 저장한 앱과 이전 활성 앱을 복원합니다. 이전부터 숨겨진 앱은 복원 목록에 넣지 않습니다. 우클릭은 바탕화면 폴더를 엽니다.
+- 다운로드 아이콘은 최근 수정한 항목 최대 80개를 격자로 표시합니다. 파일 클릭과 Finder 열기를 지원하며, 다운로드 폴더 접근 허용이 필요할 수 있습니다. 접근 대기 중에도 Finder 열기를 사용할 수 있습니다.
+- 휴지통 아이콘은 휴지통을 엽니다. 파일을 끌어 놓으면 macOS의 휴지통 이동 기능을 사용합니다. 우클릭의 ‘휴지통 비우기…’는 별도 확인 후 현재 사용자의 휴지통만 비웁니다. 외장 드라이브 휴지통은 Finder에서 관리하세요.
+- 바탕화면·다운로드 아이콘으로 파일을 끌어 놓으면 원본을 유지하고 복사하며, 같은 이름을 덮어쓰지 않습니다.
+- 앱 아이콘 우클릭은 고정/해제, 순서 변경, Finder에서 보기, 정상 종료를 제공합니다. `.app` 파일을 Dock 배경에 놓거나 설정의 ‘앱 추가’로 고정합니다.
+- 메뉴 막대에서 설정, 일시 숨기기/복원, 화면 재감지, 종료를 제공합니다. 설정에서 아래/왼쪽/오른쪽 위치, 실행 앱·전체 화면 표시, 표시할 모니터, 로그인 시 실행을 조절합니다. 앱이 많으면 스크롤합니다.
+
+## 권한과 macOS 동작
+
+권한은 everyDock 설정의 해당 버튼으로 시스템 설정을 열어 사용자가 허용합니다. 로컬 ad-hoc 앱을 다시 빌드하면 서명이 달라져 기존 허용이 무효화될 수 있습니다. 그 경우 현재 실행할 앱을 손쉬운 사용 목록에서 다시 등록하고 재실행하세요.
+
+창 미리보기는 [ScreenCaptureKit의 SCScreenshotManager](https://developer.apple.com/documentation/screencapturekit/scscreenshotmanager)로 해당 앱 창의 정지 이미지를 가져옵니다. 오디오를 기록하지 않으며, 이미지는 메모리에만 보관합니다. Apple Events 자동화 권한은 사용하지 않습니다. 네트워크 통신과 분석 수집은 없습니다.
+
+기본 Dock 관리는 최초 설정에서 켜지며 기존 사용자의 켬/끔 선택은 유지합니다. `autohide`, `autohide-delay`, `autohide-time-modifier`, `mineffect`의 기존 값과 키 존재 여부를 원자적으로 저장하고, 자동 숨김·긴 표시 지연·요술램프 효과를 적용한 뒤 Dock을 재시작합니다. 종료·일시 숨기기·모든 모니터 해제 시 원래 값을 복원합니다. 관리를 끄면 기본 Dock과 함께 사용하고 최소화 효과도 사용자의 macOS 설정을 따릅니다.
+
+별도 복원 프로세스가 `kqueue`로 everyDock 종료를 감지해 충돌·강제 종료 후에도 설정을 복원합니다. 복원 기록은 `~/Library/Application Support/everyDock/native-dock-recovery-*.json`에 보관하며 파일 잠금으로 복원 충돌을 방지합니다. 사용 중 사용자가 해당 값을 직접 바꾸면 덮어쓰지 않습니다. 두 프로세스가 동시에 종료되거나 전원이 꺼지면 다음 Dock 관리 시작 때 남은 기록을 복구합니다. Dock 자체는 비활성화하지 않아 시스템 기능을 유지합니다.
+
+## 재현 범위
+
+창 최소화 애니메이션과 도착점은 macOS가 정합니다. 시스템 요술램프의 도착점을 별도의 everyDock 아이콘으로 지정하는 공개 API는 사용하지 않습니다. **여러 모니터의 everyDock으로 각각 빨려 들어가는 효과까지 재현한 것은 아닙니다.** 치수와 재질을 개선했지만 시스템 Dock과 픽셀 단위 동일성을 보장하지 않습니다.
+
+알림 배지, Dock 바 안의 개별 최소화 창 타일, Mission Control은 구현하지 않습니다. 보호된 창이나 최소화되어 캡처할 수 없는 창은 제목과 대체 아이콘 또는 이전 미리보기로 표시될 수 있습니다. 바탕화면 보기는 앱 숨김/복원 방식으로, Mission Control의 창 이동 효과를 재현하지 않습니다.
+
+일반 데스크탑, Spaces, 전체 화면/Stage Manager 표시를 위한 창 동작을 설정합니다. 잠금·보안 화면이나 더 높은 레벨 창 위 표시는 보장하지 않습니다. 별도 오버레이이므로 다른 앱의 최대화 영역을 줄이지 않으며 콘텐츠 일부를 가릴 수 있습니다. 앱 창을 클릭한 모니터로 강제 이동하지 않습니다.
+
+고정 앱 가져오기와 크기 연동은 공개 계약이 없는 `com.apple.dock` 환경설정 형식을 읽습니다. 실패하면 앱 직접 추가·수동 크기를 사용할 수 있습니다. 설정은 `app.everydock.mac` 도메인의 `everyDock.preferences.v1` 키에 저장합니다.
+
+## 검증과 구조
+
+개발 요구사항은 [docs](docs/README.md)에 있습니다: [MRD](docs/MRD.md) · [PRD](docs/PRD.md) · [SRS](docs/SRS.md) · [TC](docs/TC.md) · [릴리스 절차](docs/RELEASING.md).
+
+```sh
+swift test --arch arm64
+./scripts/build.sh
+```
+
+자동 테스트 10개는 좌표·화면 제한, 확대 곡선, 설정 이전, 유틸리티를 포함한 치수, 요술램프 설정 복원, 사용자 변경 보존을 검증합니다. 앱 감지는 실행 알림과 KVO를 사용하고 0.5초 확인을 보완합니다. 상태가 같으면 앱 목록을 다시 만들지 않습니다. 실제 기기 검증과 미검증 항목은 [QA.md](QA.md)에 기록합니다.
+
+- `Sources/DockCore`: 설정·치수·복원 모델과 순수 계산.
+- `Sources/EveryDock`: 패널, Dock UI, 앱 감지/실행, 창 조작, 폴더·휴지통, 미리보기, 설정.
+- `Resources`: 앱 메타데이터.
+- `scripts/build.sh`: arm64 빌드, 아이콘 생성, 앱 패키징과 서명.
