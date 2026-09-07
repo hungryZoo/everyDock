@@ -23,3 +23,13 @@
 - TC-M34/M37 **PARTIAL**: 메뉴 좌표와 레이블 중앙 배치는 자동 테스트로 검증했으며 모든 edge·1×/2×·라이트/다크 시각 행렬은 미실행이다.
 - TC-M35/M38/M39/M40 **PARTIAL**: 위 fixture 경로는 통과했지만 Chrome/Finder 전체 창 조합, 실제 문서 저장 확인과 새 창 생성 중 일괄 닫기 행렬까지 확장하지 않는다. 사용자 창을 일괄 닫는 실험은 하지 않았다.
 - TC-P01~P03 **NOT RUN (이 버전)**: 기존 NSControl·캐시·display link 경로를 유지했으나 이번 빌드의 실제 표시 프레임/CPU 수치 목표는 새로 측정하지 않았다.
+
+- Finder 추가 대조 **PASS (관찰 범위)**: everyDock의 4개 카드가 Finder 자체 ‘윈도우’ 메뉴의 4개 항목과 일치했다. 동명 폴더 창 2개도 양쪽에 독립 항목으로 존재했다. 기존 Finder 창을 닫거나 폴더 위치를 바꾸지 않았다. 빈 Finder에서 다시 열기(TC-M36)는 이 회차에서 **NOT RUN**이다.
+
+## 공개 배포 검증
+
+- 소스·태그: `v0.3.2` → `e20c3b610e19af18452cc08ed52470cbf699ee1a`. [macOS CI](https://github.com/hungryZoo/everyDock/actions/runs/34139955393)에서 테스트·패키징·업로드 **PASS**.
+- [공개 릴리스](https://github.com/hungryZoo/everyDock/releases/tag/v0.3.2) ZIP을 인증 없는 URL로 다시 받아 SHA-256 `91594a4658cab73d20be2c07e732f0b0ec417609f367b99a047e9428d6fc3776` 일치, 추출본 arm64와 codesign strict **PASS**.
+- 공개 tap commit `700ac2d`: everydock 0.3.2, 위 ZIP 체크섬. `brew style`, `brew audit --cask`, `brew info`, `brew fetch` **PASS**. 다른 cask의 동시 변경을 보존한 상태로 갱신했다.
+- 실제 설치 앱 정상 종료 후 `brew upgrade --cask hungryZoo/tap/everydock`로 0.3.1→0.3.2 **PASS**, 실행 파일 해시가 검증한 패키지와 일치한다. 재실행 후 버전 0.3.2, 기존 두 화면·39→104pt·기본 Dock 관리 설정을 확인했다. ‘권한 다시 확인’의 실제 AX/SCK 결과 모두 ‘사용 가능’이다.
+- TC-R01~R04 **PASS**. TC-R05는 위 업그레이드·실행 경로 **PARTIAL**이며 새 사용자 첫 설치 행렬은 미실행이다. TC-R06 제거/재설치 **NOT RUN**. ad-hoc 공개 베타 상태를 유지한다.
