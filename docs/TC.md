@@ -9,7 +9,7 @@
 
 ## 1. 실행 원칙과 환경
 
-자동 테스트 14개, 기능 수동 케이스 33개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
+자동 테스트 17개, 기능 수동 케이스 33개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
 
 | 환경 | 구성 |
 |---|---|
@@ -41,6 +41,9 @@
 | TC-A12 | `onlyScreenCaptureUserDeclinedMeansPermissionDenied` / RegressionTests | SCK domain+userDeclined만 거부, 다른 domain/오류/취소는 제외 | FR-14, FR-18 |
 | TC-A13 | `animationProgressDependsOnTimeNotRefreshRate` / RegressionTests | 60/120Hz·불규칙 프레임 간격, 총 0.5초 → 같은 확대 진행률 | FR-04, NFR-02 |
 | TC-A14 | `panelAlignmentIsStableAcrossFractionalAndNegativeCoordinates` / RegressionTests | 음수·소수 좌표, 1×/2× → 픽셀 정렬의 멱등성 및 중심 오차 한계 | FR-01, FR-03 |
+| TC-A15 | `iconControlCancelsReleaseOutsideAndTracksDragBackInside` / DockControlTests | 아이콘 밖에서 놓기→취소, 드래그 후 안에서 놓기→한 번 실행, tracking 해제 | FR-04 |
+| TC-A16 | `iconControlSupportsAccessibilityPressWithoutMouseTracking` / DockControlTests | 접근성 Press→한 번 실행, 마우스 tracking 없음 | FR-04, NFR-06 |
+| TC-A17 | `iconControlSupportsSpaceAndReturn` / DockControlTests | Space/Return 각각 한 번 실행 | FR-04, NFR-06 |
 
 TC-A01~A03은 레거시 `DockLayout` 함수 테스트다. 실제 NSPanel, 다중 화면, WindowServer 및 새 DockMetrics 배치를 대신 검증하지 않는다. TC-A05도 실제 모니터 프레임레이트나 시각적으로 완벽한 연속성을 증명하지 않는다.
 
@@ -54,10 +57,10 @@ TC-A01~A03은 레거시 `DockLayout` 함수 테스트다. 실제 NSPanel, 다중
 | TC-M04 / P1 | E1 | 개별 Spaces 켬/끔, 전체 화면 옵션 켬/끔, Stage Manager 전환 | 옵션과 OS 허용 범위대로 표시, 종료·Spaces 전환 방해 없음 | FR-02 / NOT RUN |
 | TC-M05 / P0 | E1 | 일시 숨김→복원, 화면 전부 해제→메뉴에서 재선택 | 패널 숨김·복구, 메뉴 접근 유지, 기본 Dock 복원 | FR-02, FR-08 / NOT RUN |
 | TC-M06 / P0 | native 39/104 및 연동 켬 | 기본 Dock 크기·확대 변경, 연동 해제해 수동 크기 변경 | 연동값 반영, 수동 설정 독립 보존, 과밀 목록 스크롤 | FR-03 / PARTIAL: 39→104와 유틸리티 렌더링 관찰 |
-| TC-M07 / P0 | E1 | 아이콘 가로질러 이동·정지·이탈·클릭, 확대 상단 빈 공간 클릭 | 이웃 확대·밀림, 진동·잔상 없음, 빈 공간은 아래 앱 클릭 | FR-04 / PARTIAL: 확대·이웃 이동 관찰, 전체 입력 행렬 미실행 |
+| TC-M07 / P0 | E1 | 아이콘 가로질러 이동·정지·이탈·클릭, 확대 상단 빈 공간 클릭 | 이웃 확대·밀림, 진동·잔상 없음, 빈 공간은 아래 앱 클릭 | FR-04 / PARTIAL: 최종 NSControl 버전에서 사용자 ‘이제 부드러움’ 확인, 입력 A15~17 PASS; 전체 표시 FPS 행렬 미실행 |
 | TC-M08 / P0 | 미실행 앱 하나 | 실행 클릭 후 launch 상태, 외부 실행/종료, 활성 앱 전환 관찰 | 즉시 요청 반응, 상태 반영, 포커스만으로 순서 안 바뀜 | FR-05, FR-07 / PARTIAL: v0.2 Music 요청·반영 기록, 외부 실행·종료 행렬 추가 필요 |
-| TC-M09 / P0 | AX 허용, genie, 문서 창 | 앱 활성화→Dock 재클릭, 10회 반복 | 실제 창 최소화, 시스템 애니메이션. 앱 숨김과 구분 | FR-06 / BLOCKED: 현재 앱 AX 미허용 |
-| TC-M10 / P0 | AX 허용, 최소화 창 2개 | Dock 클릭, 이후 프리뷰에서 개별 창 선택 | 앱 클릭은 최소화 창 복원, 개별 카드는 대상 창 복원 | FR-06, FR-15 / BLOCKED: AX 미허용 |
+| TC-M09 / P0 | AX 허용, genie, 문서 창 | 앱 활성화→Dock 재클릭, 10회 반복 | 실제 창 최소화, 시스템 애니메이션. 앱 숨김과 구분 | FR-06 / PARTIAL: 재등록 후 API 성공·사용자 최소화 정상 확인; 10회 반복 미실행 |
+| TC-M10 / P0 | AX 허용, 최소화 창 2개 | Dock 클릭, 이후 프리뷰에서 개별 창 선택 | 앱 클릭은 최소화 창 복원, 개별 카드는 대상 창 복원 | FR-06, FR-15 / PARTIAL: AX 접근 성공, 다중 최소화 창·개별 복원 행렬 미실행 |
 | TC-M11 / P0 | AX 거부, 활성 문서 창 | 재클릭 최소화 시도, 다른 앱 실행·설정·종료 | 권한 안내, 창 숨겨지지 않음, 다른 조작 가능 | FR-06, FR-18 / NOT RUN |
 
 ## 4. 기본 Dock 복원 테스트
@@ -150,3 +153,5 @@ v0.3.0의 TC-R01~R04는 아래 실행 기록 기준 PASS이며, TC-R05~R06은 NO
 - TC-M19: 휴지통 변화 중 확대를 계속해 디렉터리 조회가 UI를 막지 않는지 확인한다.
 
 실행 결과: [QA-v0.3.1](QA-v0.3.1.md). v0.3.0 배포 실행 기록은 과거 버전의 근거로 보존한다.
+
+v0.3.1 최종 회귀: NSButton의 셀 레이아웃 제거 후 17개 자동 테스트 PASS. 사용자는 미리보기·최소화 정상 동작을 확인했고, 추가 렌더러 교체 후 확대가 부드럽다고 확인했다. 실제 표시 프레임·모든 창 유형·전체 수동 행렬까지 PASS로 확장하지 않는다.

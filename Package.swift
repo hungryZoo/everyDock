@@ -8,6 +8,7 @@ let package = Package(
     targets: [
         .target(name: "DockCore"),
         .executableTarget(name: "EveryDock", dependencies: ["DockCore"]),
-        .testTarget(name: "DockCoreTests", dependencies: ["DockCore"])
+        .testTarget(name: "DockCoreTests", dependencies: ["DockCore"]),
+        .testTarget(name: "EveryDockTests", dependencies: ["EveryDock"])
     ]
 )

@@ -148,7 +148,8 @@ import QuartzCore
             FileHandle.standardError.write(Data(line.utf8))
         }
         // Transparent animation space passes clicks through to the user's other windows.
-        if window.ignoresMouseEvents == onDock { window.ignoresMouseEvents = !onDock }
+        let acceptsInput = onDock || DockIconButton.trackingButton != nil
+        if window.ignoresMouseEvents == acceptsInput { window.ignoresMouseEvents = !acceptsInput }
         let next = onDock ? point : nil
         if next != hoverPoint { hoverPoint = next; animate() }
     }
@@ -330,18 +331,17 @@ private final class DockIndicators: NSView {
 }
 
 /// Rasterize artwork once; changing an icon's bounds only changes its composited layer.
-@MainActor class DockIconButton: NSButton {
+@MainActor class DockIconButton: NSControl {
+    private(set) static weak var trackingButton: DockIconButton?
     private var artwork: NSImage?
     private var pixels: CGImage?
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        title = ""
-        imagePosition = .imageOnly
         layerContentsRedrawPolicy = .never
         layer?.contentsGravity = .resizeAspect
-        isBordered = false
-        setButtonType(.momentaryChange)
+        setAccessibilityRole(.button)
+        setAccessibilityElement(true)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override var wantsUpdateLayer: Bool { true }
@@ -353,13 +353,31 @@ private final class DockIndicators: NSView {
         pixels = image.cgImage(forProposedRect: &proposed, context: nil, hints: [.interpolation: NSImageInterpolation.high])
         layer?.contents = pixels
     }
-    override func highlight(_ flag: Bool) {
-        super.highlight(flag)
+    private func highlight(_ flag: Bool) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         layer?.opacity = flag ? 0.6 : 1
         CATransaction.commit()
     }
+    override func mouseDown(with event: NSEvent) {
+        Self.trackingButton = self
+        highlight(true)
+    }
+    override func mouseDragged(with event: NSEvent) {
+        highlight(bounds.contains(convert(event.locationInWindow, from: nil)))
+    }
+    override func mouseUp(with event: NSEvent) {
+        guard Self.trackingButton === self else { return }
+        Self.trackingButton = nil
+        highlight(false)
+        if bounds.contains(convert(event.locationInWindow, from: nil)) { _ = sendAction(action, to: target) }
+    }
+    override var acceptsFirstResponder: Bool { true }
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 49 || event.keyCode == 36 { _ = sendAction(action, to: target) }
+        else { super.keyDown(with: event) }
+    }
+    override func accessibilityPerformPress() -> Bool { sendAction(action, to: target) }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
@@ -370,10 +388,6 @@ private final class DockIndicators: NSView {
         self.app = app
         self.model = model
         super.init(frame: .zero)
-        isBordered = false
-        imagePosition = .imageOnly
-        imageScaling = .scaleProportionallyUpOrDown
-        setButtonType(.momentaryChange)
         wantsLayer = true
         setAccessibilityLabel(app.name)
         setAccessibilityRole(.button)
@@ -411,8 +425,6 @@ private final class DockIndicators: NSView {
         self.item = item
         self.model = model
         super.init(frame: .zero)
-        isBordered = false
-        setButtonType(.momentaryChange)
         target = self
         action = #selector(activate)
         setArtwork(model.utilities.icon(item))
