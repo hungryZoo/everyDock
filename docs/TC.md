@@ -2,14 +2,14 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.2 / 2026-09-08 |
-| 대상 | everyDock v0.3.2, Apple Silicon, macOS 26+ |
+| 문서 버전·기준일 | 1.3 / 2026-09-09 |
+| 대상 | everyDock v0.3.3, Apple Silicon, macOS 26+ |
 | 요구사항 | [SRS](SRS.md), [추적표](README.md) |
 | 기존 실행 근거 | [QA.md](../QA.md), Swift Testing 실행 결과 |
 
 ## 1. 실행 원칙과 환경
 
-자동 테스트 25개, 기능 수동 케이스 40개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
+자동 테스트 31개, 기능 수동 케이스 45개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
 
 | 환경 | 구성 |
 |---|---|
@@ -23,7 +23,7 @@
 
 ## 2. 자동 테스트
 
-실행: `swift test --arch arm64`. 현재 25개 PASS(2026-09-08). 이름은 실제 Swift Testing 함수와 일치한다.
+실행: `swift test --arch arm64`. 현재 31개 PASS(2026-09-09). 이름은 실제 Swift Testing 함수와 일치한다.
 
 | ID | 함수·소스 | 검증 입력과 기대 결과 | 연결 |
 |---|---|---|---|
@@ -52,6 +52,12 @@
 | TC-A23 | `closeAllStopsAtSaveConfirmation` / WindowCloseTests | 두 번째 창 확인 대기 → 세 번째 요청 없음 | FR-20 |
 | TC-A24 | `closeAllSkipsAlreadyClosedButStopsAtErrors` / WindowCloseTests | 닫힌 창 건너뛰고 미지원 오류에서 중단 | FR-20 |
 | TC-A25 | `closeAllCompletesOnlyItsInitialSnapshot` / WindowCloseTests | 시작 목록 각 항목 한 번 처리 | FR-20 |
+| TC-A26 | `previewFitsOneTwoAndManyWindows` / WorkAreaTests | 0/1/2/9개 → 열 수·너비·스크롤 높이 | FR-14 |
+| TC-A27 | `bottomZoomReservesOnlyRestingDockAndIsIdempotent` / WorkAreaTests | 음수 원점, 화면 채운 창 → Dock 위 경계, 재보정 없음 | FR-23 |
+| TC-A28 | `workAreaPreservesNormalMinimizedAndFullScreenWindows` / WorkAreaTests | 일반·최소화·전체 화면 → 변경 없음 | FR-23 |
+| TC-A29 | `sideDockReservesCorrectEdgeOnNegativeDisplays` / WorkAreaTests | 음수 X/Y, 양옆 Dock → 해당 경계 보정 | FR-23 |
+| TC-A30 | `appsLauncherIsNotTreatedAsRegularWindowApplication` / ApplicationCatalogTests | Apps/Launchpad만 특별 경로, Finder·nil 제외 | FR-22 |
+| TC-A31 | `catalogIncludesNestedUtilitiesButNotEmbeddedHelperApps` / ApplicationCatalogTests | 임시 번들·Utilities·중복 root·hidden → 실제 앱 2개만 | FR-22 |
 
 TC-A01~A03은 레거시 `DockLayout` 함수 테스트다. 실제 NSPanel, 다중 화면, WindowServer 및 새 DockMetrics 배치를 대신 검증하지 않는다. TC-A05도 실제 모니터 프레임레이트나 시각적으로 완벽한 연속성을 증명하지 않는다.
 
@@ -86,7 +92,7 @@ TC-A01~A03은 레거시 `DockLayout` 함수 테스트다. 실제 NSPanel, 다중
 
 | ID / 우선순위 | 사전조건 | 절차 | 기대 결과 | 요구 / 현재 결과 |
 |---|---|---|---|---|
-| TC-M16 / P1 | 앱 여러 개 표시, 일부는 미리 숨김 | 바탕화면 클릭→창 다시 보기→정상 종료 회차 | 표시하던 앱과 이전 활성 앱 복원. 원래 숨긴 앱은 유지 | FR-10 / PARTIAL: 모든 표시 앱·이전 활성 앱 복원 PASS, 사전 숨김·종료 회차 미실행 |
+| TC-M16 / P1 | Desktop 접근 허용/거부, 다른 앱 표시 | 바탕화면 클릭→파일 목록→닫기, 다시 열기·파일 클릭·Finder 열기 | 앱 숨김 없이 바탕화면 파일 팝업 표시, 접근/빈 상태 구분 | FR-10 / v0.3.3에서 절차 변경, QA-v0.3.3 참조 |
 | TC-M17 / P1 | Downloads 접근 거부/대기 | 팝업 열고 2초 대기, 닫고 재개방 | 안내·Finder 버튼, UI 응답, 중복 디렉터리 요청 없음 | FR-11 / PARTIAL: 팝업·대기 안내 관찰, 최종 중복 요청 구현은 코드 확인 |
 | TC-M18 / P1 | E4, Downloads 접근 허용 | 빈 폴더, 파일 90개, 수정일 변경, 항목 클릭 | 빈 상태/최근80개/정렬/열기 정상 | FR-11 / BLOCKED: 현재 폴더 접근 응답 대기 |
 | TC-M19 / P1 | E4, 빈/찬 휴지통 | 아이콘 클릭, 외부에서 테스트 파일 이동 후 아이콘 확인 | Finder에 사용자 휴지통 표시, 아이콘 갱신 | FR-12 / NOT RUN |
@@ -181,3 +187,15 @@ v0.3.1의 TC-R01~R04는 2026-09-08 PASS. 최종 소스 CI·공개 ZIP 재다운�
 자동 테스트는 매칭/배치/닫기 순서의 회귀를 검증하며 실제 AX 앱 호환성과 저장 대화상자 전체를 대신하지 않는다. 사용자 실제 문서를 닫는 시험은 수행하지 않는다.
 
 v0.3.2 배포 회귀: TC-R01~R04 PASS, TC-R05는 실제 Homebrew 0.3.1→0.3.2 업그레이드·재실행·기존 설정·실제 AX/SCK 재검사까지 PARTIAL PASS, 신규 사용자 설치는 미실행이다. TC-R06은 NOT RUN. [최종 실행·배포 근거](QA-v0.3.2.md)를 따른다.
+
+## 12. v0.3.3 회귀
+
+| ID | 절차 | 기대 결과 | 상태 |
+|---|---|---|---|
+| TC-M41 | fixture 3개→2개→1개, 마지막 닫기·재개방 | 1개는 여분 열 없음, 폭과 높이 갱신, 닫기 버튼 유지 | QA-v0.3.3 참조 |
+| TC-M42 | 바탕화면·다운로드 반복 개폐, 접근 허용/거부·빈 폴더·파일 클릭 | 각 폴더 컨텐츠·올바른 안내·중복 읽기 없음, 다른 앱 숨김 없음 | QA-v0.3.3 참조 |
+| TC-M43 | Apps 클릭·검색·결과 실행·메뉴 열기 | 설치 앱 탐색, 검색 결과 실행, 불필요한 AX 최소화 없음 | QA-v0.3.3 참조 |
+| TC-M44 | fixture 타이틀 더블클릭 확대/복원 3회, 3개 edge·2개 화면 | 정지 Dock과 겹치지 않음, 일반 크기로 복원, 보정 루프 없음 | QA-v0.3.3 참조 |
+| TC-M45 | 창 전체 화면·최소화·일반 resize·화면 숨김·앱 종료·AX 거부 | 제외 상태 유지, 관찰 정리, 지원하지 않는 앱 무한 재시도 없음 | QA-v0.3.3 참조 |
+
+FR-10의 이전 바탕화면 숨김/복원 결과는 과거 버전 QA에 보존하며 새 파일 팝업 PASS로 재사용하지 않는다.

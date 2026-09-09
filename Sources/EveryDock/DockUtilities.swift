@@ -4,7 +4,7 @@ import SwiftUI
 enum DockUtility: String, CaseIterable, Sendable {
     case desktop, downloads, trash
     var title: String {
-        switch self { case .desktop: "바탕화면 보기"; case .downloads: "다운로드"; case .trash: "휴지통" }
+        switch self { case .desktop: "바탕화면"; case .downloads: "다운로드"; case .trash: "휴지통" }
     }
     var url: URL {
         switch self {
@@ -16,16 +16,15 @@ enum DockUtility: String, CaseIterable, Sendable {
 }
 
 @MainActor final class DockUtilities {
-    private var hidden: [NSRunningApplication] = []
-    private var previous: NSRunningApplication?
     private var stack: NSPopover?
-    private let downloads = FolderContents(folder: DockUtility.downloads.url)
+    private let downloads = FolderContents(folder: DockUtility.downloads.url, title: "다운로드", symbol: "arrow.down.circle")
+    private let desktop = FolderContents(folder: DockUtility.desktop.url, title: "바탕화면", symbol: "desktopcomputer")
+    private let applications = FolderContents(folder: URL(fileURLWithPath: "/Applications"), title: "앱", symbol: "square.grid.3x3", appsOnly: true)
     private var trashWatcher: DispatchSourceFileSystemObject?
     private var icons: [DockUtility: NSImage] = [:]
     private var trashRefresh: Task<Void, Never>?
     private var trashDirty = false
     var onChange: (() -> Void)?
-    var isDesktopShowing: Bool { !hidden.isEmpty }
 
     init() {
         for item in [DockUtility.desktop, .downloads] { icons[item] = NSWorkspace.shared.icon(forFile: item.url.path) }
@@ -39,7 +38,7 @@ enum DockUtility: String, CaseIterable, Sendable {
             trashWatcher = source
         }
     }
-    func stop() { trashRefresh?.cancel(); restoreDesktop(); trashWatcher?.cancel(); stack?.performClose(nil) }
+    func stop() { trashRefresh?.cancel(); trashWatcher?.cancel(); stack?.performClose(nil) }
 
     func icon(_ item: DockUtility) -> NSImage {
         icons[item] ?? NSImage(named: "NSTrashEmpty") ?? NSImage(systemSymbolName: "trash", accessibilityDescription: "휴지통")!
@@ -64,37 +63,20 @@ enum DockUtility: String, CaseIterable, Sendable {
 
     func activate(_ item: DockUtility, from anchor: NSView, edge: NSRectEdge) {
         switch item {
-        case .desktop: toggleDesktop()
-        case .downloads:
-            stack?.performClose(nil)
-            let popover = NSPopover()
-            popover.behavior = .transient
-            popover.contentViewController = NSHostingController(rootView: FolderStack(contents: downloads) { [weak popover] in popover?.performClose(nil) })
-            stack = popover
-            popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: edge)
+        case .desktop, .downloads:
+            show(item == .desktop ? desktop : downloads, from: anchor, edge: edge)
         case .trash: NSWorkspace.shared.open(item.url)
         }
     }
 
-    func toggleDesktop() {
-        if hidden.isEmpty {
-            previous = NSWorkspace.shared.frontmostApplication
-            // Snapshot before issuing any request: hiding a frontmost app can activate
-            // another app, and the immediate return value is not the resulting state.
-            hidden = NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular && !$0.isHidden }
-            hidden.forEach { _ = $0.hide() }
-        } else { restoreDesktop() }
-        onChange?()
-    }
-    func restoreDesktop() {
-        for process in hidden.reversed() where !process.isTerminated {
-            process.unhide()
-            process.activate(options: [.activateAllWindows])
-        }
-        hidden.removeAll()
-        previous?.activate(options: [])
-        previous = nil
-        onChange?()
+    func showApplications(from anchor: NSView, edge: NSRectEdge) { show(applications, from: anchor, edge: edge) }
+    private func show(_ contents: FolderContents, from anchor: NSView, edge: NSRectEdge) {
+        stack?.performClose(nil)
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentViewController = NSHostingController(rootView: FolderStack(contents: contents) { [weak popover] in popover?.performClose(nil) })
+        stack = popover
+        popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: edge)
     }
     func drop(_ urls: [URL], onto item: DockUtility, completion: @escaping @MainActor @Sendable (String?) -> Void) {
         if item == .trash {
@@ -146,29 +128,36 @@ enum DockUtility: String, CaseIterable, Sendable {
     }
 }
 
-private struct StackFile: Identifiable, Sendable {
+private struct StackFile: Identifiable, @unchecked Sendable {
     var id: URL { url }
     let url: URL
     let name: String
     let date: Date
+    let icon: NSImage
 }
 
 private struct FolderStack: View {
     @ObservedObject var contents: FolderContents
     let close: () -> Void
     private var folder: URL { contents.folder }
+    @State private var search = ""
+    @State private var openError: String?
+    @FocusState private var searchFocused: Bool
+    private var files: [StackFile] { contents.files.filter { search.isEmpty || $0.name.localizedStandardContains(search) } }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Label("다운로드", systemImage: "arrow.down.circle").font(.headline)
+                Label(contents.title, systemImage: contents.symbol).font(.headline)
                 Spacer()
                 Button("Finder에서 열기") { NSWorkspace.shared.open(folder); close() }
             }
+            if contents.appsOnly { TextField("앱 검색", text: $search).textFieldStyle(.roundedBorder).focused($searchFocused) }
+            if let openError { Text(openError).foregroundStyle(.secondary) }
             if contents.loading {
                 VStack(spacing: 12) {
                     ProgressView()
                     if contents.waitingForAccess {
-                        Text("폴더 접근 응답을 기다리고 있습니다. macOS의 다운로드 폴더 접근 요청을 확인해 주세요.")
+                        Text("폴더 접근 응답을 기다리고 있습니다. macOS의 \(contents.title) 폴더 접근 요청을 확인해 주세요.")
                             .font(.callout).foregroundStyle(.secondary)
                         Button("폴더 접근 설정 열기…") {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders")!)
@@ -186,17 +175,18 @@ private struct FolderStack: View {
                     panel.prompt = "허용"
                     if panel.runModal() == .OK { contents.load() }
                 }
-            } else if contents.files.isEmpty { Text("다운로드 폴더가 비어 있습니다.").foregroundStyle(.secondary).padding(32) }
+            } else if contents.files.isEmpty { Text("\(contents.title) 폴더가 비어 있습니다.").foregroundStyle(.secondary).padding(32) }
+            else if files.isEmpty { Text("검색 결과가 없습니다.").foregroundStyle(.secondary).padding(32) }
             else {
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 18) {
-                        ForEach(contents.files) { file in
+                        ForEach(files) { file in
                             Button {
-                                NSWorkspace.shared.open(file.url)
-                                close()
+                                if NSWorkspace.shared.open(file.url) { close() }
+                                else { openError = "항목을 열지 못했습니다. Finder에서 위치를 확인해 주세요." }
                             } label: {
                                 VStack(spacing: 6) {
-                                    Image(nsImage: NSWorkspace.shared.icon(forFile: file.url.path)).resizable().frame(width: 48, height: 48)
+                                    Image(nsImage: file.icon).resizable().frame(width: 48, height: 48)
                                     Text(file.name).font(.caption).lineLimit(2).multilineTextAlignment(.center).frame(height: 30)
                                 }.frame(width: 82)
                             }.buttonStyle(.plain).help(file.name)
@@ -204,20 +194,25 @@ private struct FolderStack: View {
                     }.padding(.vertical, 4)
                 }.frame(maxHeight: 380)
             }
-        }.padding(18).frame(width: 400).onAppear { contents.load() }
+        }.padding(18).frame(width: 400).onAppear { contents.load(); searchFocused = contents.appsOnly }
     }
 }
 
-// Keep one directory request per app, including while a system permission prompt
+// Keep one directory request per folder, including while a system permission prompt
 // is pending. Opening/closing the popover must not accumulate blocked workers.
 @MainActor private final class FolderContents: ObservableObject {
     let folder: URL
+    let title: String
+    let symbol: String
+    let appsOnly: Bool
     @Published var files: [StackFile] = []
     @Published var loading = true
     @Published var waitingForAccess = false
     @Published var error: String?
     private var request: Task<Void, Never>?
-    init(folder: URL) { self.folder = folder }
+    init(folder: URL, title: String, symbol: String, appsOnly: Bool = false) {
+        self.folder = folder; self.title = title; self.symbol = symbol; self.appsOnly = appsOnly
+    }
     func load() {
         guard request == nil else { return }
         loading = true
@@ -227,17 +222,31 @@ private struct FolderStack: View {
                 try? await Task.sleep(for: .seconds(2))
                 if !Task.isCancelled && loading { waitingForAccess = true }
             }
-            let folder = self.folder
+            let folder = self.folder, appsOnly = self.appsOnly
             let result: Result<[StackFile], Error> = await Task.detached {
             Result {
-                let urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles])
-                return urls.map { url in StackFile(url: url, name: url.lastPathComponent,
-                                                  date: (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) }
-                    .sorted { $0.date > $1.date }.prefix(80).map { $0 }
+                let urls: [URL]
+                if appsOnly { urls = ApplicationCatalog.urls() }
+                else { urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) }
+                let ordered = urls.map { url in (url, (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) }
+                    .sorted { appsOnly ? $0.0.lastPathComponent.localizedStandardCompare($1.0.lastPathComponent) == .orderedAscending : $0.1 > $1.1 }
+                return ordered.prefix(appsOnly ? ordered.count : 80).map { url, date in
+                    StackFile(url: url, name: appsOnly ? FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "") : FileManager.default.displayName(atPath: url.path),
+                              date: date, icon: NSWorkspace.shared.icon(forFile: url.path))
+                }
+
             }
             }.value
             waiting.cancel()
-            switch result { case .success(let value): files = value; error = nil; case .failure: error = "다운로드 폴더를 읽을 수 없습니다. 폴더 접근을 허용해 주세요." }
+            switch result {
+            case .success(let value): files = value; error = nil
+            case .failure(let failure):
+                let code = failure as NSError
+                error = code.domain == NSCocoaErrorDomain && code.code == NSFileReadNoPermissionError
+                    ? "\(title) 폴더에 접근할 수 없습니다. 폴더 접근을 허용해 주세요."
+                    : "\(title) 폴더를 읽지 못했습니다: \(failure.localizedDescription)"
+            }
+
             loading = false
             waitingForAccess = false
             request = nil

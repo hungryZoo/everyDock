@@ -177,6 +177,10 @@ struct PreviewResult {
         })
         if let host = popover.contentViewController as? NSHostingController<PreviewContent> { host.rootView = content }
         else { popover.contentViewController = NSHostingController(rootView: content) }
+        if let view = popover.contentViewController?.view {
+            view.layoutSubtreeIfNeeded()
+            popover.contentSize = view.fittingSize
+        }
     }
     func close() {
         clearTasks()
@@ -201,6 +205,7 @@ private struct PreviewContent: View {
     let closeWindow: (WindowPreview) async -> String?
     @State private var busy = false
     @State private var closeMessage: String?
+    private var layout: DockCore.PreviewLayout { DockCore.PreviewLayout(count: previews.count) }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -217,7 +222,7 @@ private struct PreviewContent: View {
                 Button("\(app.name) 열기") { model.launch(app, toggle: false) }.buttonStyle(.bordered).padding(.bottom, 8)
             } else {
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(190)), count: layout.columns), spacing: 12) {
                         ForEach(previews) { preview in
                             ZStack(alignment: .topLeading) {
                                 Button { select(preview) } label: {
@@ -245,9 +250,9 @@ private struct PreviewContent: View {
                             }
                         }
                     }
-                }.frame(height: min(340, CGFloat((previews.count + 1) / 2) * 160))
+                }.frame(height: layout.gridHeight)
                 if previews.count > 8 { Text("이미지는 최대 8개 창에 표시됩니다. 모든 창을 선택하고 닫을 수 있습니다.").font(.caption).foregroundStyle(.secondary) }
             }
-        }.padding(16).frame(width: 420)
+        }.padding(16).frame(width: layout.width)
     }
 }

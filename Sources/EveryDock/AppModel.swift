@@ -253,7 +253,14 @@ final class AppModel: NSObject, ObservableObject {
                                isHidden: process?.hidden ?? false)
     }
 
-    func launch(_ app: DockApplication, toggle: Bool = true) {
+    func launch(_ app: DockApplication, toggle: Bool = true, anchor: NSView? = nil) {
+        if ApplicationCatalog.isLauncher(bundle: app.bundleIdentifier) {
+            if let anchor {
+                let edge: NSRectEdge = preferences.edge == .bottom ? .maxY : preferences.edge == .left ? .maxX : .minX
+                utilities.showApplications(from: anchor, edge: edge)
+            } else { NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications")) }
+            return
+        }
         if let process = NSWorkspace.shared.runningApplications.first(where: {
             !$0.isTerminated && ($0.bundleURL == app.url || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier))
         }) {

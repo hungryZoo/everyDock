@@ -53,6 +53,44 @@ enum WindowCloseSequence {
 
 /// All cross-process AX messaging stays off the rendering thread.
 enum WindowActions {
+    static func fitZoomedWindow(_ reference: WindowReference, areas: [WindowWorkArea]) async -> WindowFailure? {
+        let request = Task.detached(priority: .userInitiated) { () -> WindowFailure? in
+            guard !Task.isCancelled else { return nil }
+            let window = reference.element
+            // Resize notifications can refer to a helper, dialog, minimized or full-screen window.
+            guard string(window, kAXRoleAttribute) == kAXWindowRole,
+                  string(window, kAXSubroleAttribute) == kAXStandardWindowSubrole,
+                  !bool(window, kAXMinimizedAttribute) else { return nil }
+            var fullScreen: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(window, "AXFullScreen" as CFString, &fullScreen) == .success,
+                  fullScreen as? Bool == false else { return nil }
+            let old = frame(window)
+            guard let area = areas.max(by: { a, b in
+                let x = a.visible.intersection(old), y = b.visible.intersection(old)
+                return (x.isNull ? 0 : x.width * x.height) < (y.isNull ? 0 : y.width * y.height)
+            }), area.visible.intersects(old), let adjusted = area.adjusted(old, fullScreen: false, minimized: false) else { return nil }
+            WindowTrace.write("fit \(old) -> \(adjusted)")
+            var settable: DarwinBoolean = false
+            guard AXUIElementIsAttributeSettable(window, kAXSizeAttribute as CFString, &settable) == .success, settable.boolValue else { return .unsupported }
+            if adjusted.origin != old.origin {
+                guard AXUIElementIsAttributeSettable(window, kAXPositionAttribute as CFString, &settable) == .success, settable.boolValue else { return .unsupported }
+            }
+            var size = adjusted.size
+            guard !Task.isCancelled else { return nil }
+            guard let value = AXValueCreate(.cgSize, &size) else { return .unsupported }
+            let resized = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, value)
+            guard resized == .success else { return .classify(resized) }
+            if adjusted.origin != old.origin {
+                var point = adjusted.origin
+                guard let value = AXValueCreate(.cgPoint, &point) else { return .unsupported }
+                let moved = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
+                if moved != .success { return .classify(moved) }
+            }
+            return nil
+        }
+        return await withTaskCancellationHandler { await request.value } onCancel: { request.cancel() }
+    }
+
     static func toggle(pid: pid_t, active: Bool, minimize: Bool) async -> WindowActionResult {
         await Task.detached(priority: .userInitiated) {
             let application = client(pid)

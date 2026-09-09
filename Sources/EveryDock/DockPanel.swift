@@ -25,6 +25,7 @@ final class DockPanel: NSPanel {
 
 @MainActor final class DockCoordinator: NSObject {
     private let model: AppModel
+    private let workArea: WindowWorkAreaController
     private var panels: [String: DockPanel] = [:]
     private var requestedFrames: [String: NSRect] = [:]
     private var refreshTimer: Timer?
@@ -34,6 +35,7 @@ final class DockPanel: NSPanel {
     private var lastPointer = NSPoint(x: -100000, y: -100000)
     init(model: AppModel) {
         self.model = model
+        workArea = WindowWorkAreaController(permissions: model.permissions)
         super.init()
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification] {
@@ -80,6 +82,8 @@ final class DockPanel: NSPanel {
     }
     @objc private func refreshGeometry() { reconcile(raise: false) }
     func reconcile(raise: Bool = true) {
+        var areas: [WindowWorkArea] = []
+        let originY = NSScreen.screens.first?.frame.maxY ?? 0
         let visible = NSScreen.screens.filter { !model.preferences.hiddenDisplayIDs.contains(AppModel.displayID($0)) }
         let desiredIDs = Set(visible.map { AppModel.displayID($0) })
         for id in Array(panels.keys) where !desiredIDs.contains(id) {
@@ -115,6 +119,19 @@ final class DockPanel: NSPanel {
             case .right: frame = NSRect(x: area.maxX - inset - thickness, y: area.midY - length / 2, width: thickness, height: length)
             }
             let aligned = DockMetrics.aligned(frame, scale: screen.backingScaleFactor)
+            if !model.paused {
+                // Reserve the resting Dock, not its transparent magnification/tooltip space.
+                let thickness = DockMetrics.thickness(iconSize: model.iconSize) + 4
+                let boundary: Double
+                switch pref.edge {
+                case .bottom: boundary = originY - (aligned.minY + thickness)
+                case .left: boundary = aligned.minX + thickness
+                case .right: boundary = aligned.maxX - thickness
+                }
+                let visibleAX = CGRect(x: screen.visibleFrame.minX, y: originY - screen.visibleFrame.maxY,
+                                       width: screen.visibleFrame.width, height: screen.visibleFrame.height)
+                areas.append(WindowWorkArea(visible: visibleAX, dockBoundary: boundary, edge: pref.edge))
+            }
             if requestedFrames[id] != aligned {
                 requestedFrames[id] = aligned
                 panel.setFrame(aligned, display: true)
@@ -124,8 +141,10 @@ final class DockPanel: NSPanel {
             else if raise || !panel.isVisible { panel.orderFrontRegardless() }
             panel.surface.updatePointer()
         }
+        workArea.configure(areas)
     }
     func stop() {
+        workArea.stop()
         refreshTimer?.invalidate()
         pointerTimer?.invalidate()
         if let globalMouse { NSEvent.removeMonitor(globalMouse) }

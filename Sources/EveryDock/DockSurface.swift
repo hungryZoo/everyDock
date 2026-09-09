@@ -87,7 +87,7 @@ import QuartzCore
         for (item, button) in utilityButtons {
             button.setArtwork(model.utilities.icon(item))
             if item == .desktop {
-                let title = model.utilities.isDesktopShowing ? "창 다시 보기" : item.title
+                let title = item.title
                 button.toolTip = title
                 button.setAccessibilityLabel(title)
             }
@@ -259,7 +259,7 @@ import QuartzCore
     @objc private func appClicked(_ sender: DockAppButton) {
         previews.close()
         clicks[sender.app.id] = ProcessInfo.processInfo.systemUptime
-        model.launch(sender.app)
+        model.launch(sender.app, anchor: sender)
         animate()
     }
     override func scrollWheel(with event: NSEvent) {
@@ -442,7 +442,7 @@ private final class DockIndicators: NSView {
         (superview as? DockSurface)?.presentMenu(menu, anchor: self)
     }
     private func add(_ menu: NSMenu, _ title: String, _ action: Selector) { menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = self }
-    @objc private func openApp() { model.launch(app, toggle: false) }
+    @objc private func openApp() { model.launch(app, toggle: false, anchor: self) }
     @objc private func showWindows() { (superview as? DockSurface)?.showWindows(self) }
     @objc private func closeWindows() { model.closeAllWindows(app) }
     @objc private func pin() { model.togglePin(app) }
