@@ -13,4 +13,8 @@
 
 소스 `706cbed66d95a13626bfa50da17c0707deb79dcb`의 [GitHub CI](https://github.com/hungryZoo/everyDock/actions/runs/34429251279)는 테스트·패키징·검증 산출물 업로드 PASS다. 로컬 `swift test --arch arm64`도 최종 소스에서 37개 PASS였다. 동일 ZIP에서 추출한 /Applications 설치 후보를 권한 목록에 재등록한 뒤 실제 손쉬운 사용·화면 기록 검사 모두 ‘사용 가능’을 확인했다.
 
-공개 배포·Homebrew 설치 결과는 완료 후 갱신한다.
+공개 태그 `v0.3.4`는 `e7351c4`를 가리키며 [릴리스](https://github.com/hungryZoo/everyDock/releases/tag/v0.3.4)에 ZIP과 SHA256SUMS를 게시했다. 태그의 코드와 검사한 `706cbed` 코드는 동일하며 추가 변경은 검증 문서다. 공개 ZIP을 인증 없이 다운로드해 SHA-256 `5609e05bb1a06fdb643f19ceab8bf1c84edd87ef576642be99fbee194d392f84` 일치를 확인했다.
+
+Homebrew cask `f0232af`로 갱신했고 style/audit PASS다. `brew --cache`의 URL 조회가 지연되어 해당 조회를 중단한 뒤, 검증한 공개 ZIP을 Homebrew가 사용하는 URL 해시 기반 캐시에 넣었다. Homebrew 자체 체크섬 검증을 거쳐 `brew upgrade --cask hungryZoo/tap/everydock`으로 0.3.3 → 0.3.4 업그레이드 PASS, `brew list --cask --versions everydock`으로 설치 버전을 확인했다.
+
+설치 앱과 dist 앱의 실행 파일 SHA-256은 모두 `c6aea9c4a33885325b37a85ba0cd9d97e8a9502e100546040057039fdf3a08f1`이고 codesign strict 검증 PASS다. 설치 후 실제 권한 검사도 손쉬운 사용·화면 기록 모두 ‘사용 가능’이었다. WindowFixture는 종료했으며 최종 everyDock은 trace 없이 정상 실행 중이다. 권한 DB나 전체 디스크 접근 설정은 변경하지 않았다.
