@@ -414,7 +414,8 @@ private final class DockIndicators: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func rightMouseDown(with event: NSEvent) {
-        showAppMenu()
+        if event.modifierFlags.contains(.option) { nativeMenu() }
+        else { showAppMenu() }
     }
     override func accessibilityPerformShowMenu() -> Bool { showAppMenu(); return true }
     override func mouseDown(with event: NSEvent) {
@@ -424,6 +425,7 @@ private final class DockIndicators: NSView {
     private func showAppMenu() {
         let menu = NSMenu(title: app.name)
         add(menu, "열기", #selector(openApp))
+        add(menu, "앱의 macOS Dock 메뉴…", #selector(nativeMenu))
         if app.isRunning {
             add(menu, "열린 창 보기…", #selector(showWindows))
             add(menu, "모든 창 닫기", #selector(closeWindows))
@@ -443,6 +445,14 @@ private final class DockIndicators: NSView {
     }
     private func add(_ menu: NSMenu, _ title: String, _ action: Selector) { menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = self }
     @objc private func openApp() { model.launch(app, toggle: false, anchor: self) }
+    @objc private func nativeMenu() {
+        let url = app.url
+        DispatchQueue.main.async { [weak self] in
+            Task { @MainActor in
+                if let message = await NativeDockMenu.show(for: url) { self?.model.report(message) }
+            }
+        }
+    }
     @objc private func showWindows() { (superview as? DockSurface)?.showWindows(self) }
     @objc private func closeWindows() { model.closeAllWindows(app) }
     @objc private func pin() { model.togglePin(app) }

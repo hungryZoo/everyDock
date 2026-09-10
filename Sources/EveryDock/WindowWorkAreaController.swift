@@ -25,10 +25,12 @@ private final class WindowObservation: @unchecked Sendable {
         // Some applications deliver resize at application scope, others require each window.
         AXObserverAddNotification(observer, application, kAXWindowCreatedNotification as CFString, nil)
         AXObserverAddNotification(observer, application, kAXWindowResizedNotification as CFString, nil)
+        AXObserverAddNotification(observer, application, kAXWindowMovedNotification as CFString, nil)
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value) == .success else { return nil }
         for window in value as? [AXUIElement] ?? [] {
             let result = AXObserverAddNotification(observer, window, kAXWindowResizedNotification as CFString, nil)
+            AXObserverAddNotification(observer, window, kAXWindowMovedNotification as CFString, nil)
             WindowTrace.write("resize observer status=\(result.rawValue)")
         }
         return WindowObservation(observer)
@@ -43,13 +45,16 @@ private final class WindowObservation: @unchecked Sendable {
     private var installing: Task<Void, Never>?
     private var pending: [WindowReference: Task<Void, Never>] = [:]
     private var activePID: pid_t?
-    private var lastAttempt: [WindowReference: TimeInterval] = [:]
+    private var states: [WindowReference: WindowZoomState] = [:]
+    private var dirty: Set<WindowReference> = []
+    private var lastEvent: [WindowReference: TimeInterval] = [:]
     private var permissionSubscription: AnyCancellable?
     private var generation = 0
     init(permissions: AppPermissions) {
         self.permissions = permissions
         super.init()
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activated), name: NSWorkspace.didActivateApplicationNotification, object: nil)
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(terminated(_:)), name: NSWorkspace.didTerminateApplicationNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(changed(_:)), name: workAreaEvent, object: nil)
         permissionSubscription = permissions.$accessibility.removeDuplicates().sink { [weak self] _ in
             Task { @MainActor in self?.observeFrontmost(force: true) }
@@ -58,9 +63,14 @@ private final class WindowObservation: @unchecked Sendable {
     func configure(_ areas: [WindowWorkArea]) {
         guard self.areas != areas else { return }
         self.areas = areas
+        states.removeAll()
         observeFrontmost(force: true)
     }
     @objc private func activated() { observeFrontmost(force: false) }
+    @objc private func terminated(_ notification: Notification) {
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+        states = states.filter { $0.key.pid != app.processIdentifier }
+    }
     private func observeFrontmost(force: Bool) {
         let process = NSWorkspace.shared.frontmostApplication
         let pid = process?.processIdentifier
@@ -73,6 +83,18 @@ private final class WindowObservation: @unchecked Sendable {
         installing = Task { @MainActor in
             let token = await Task.detached(priority: .utility) { WindowObservation.make(pid: pid) }.value
             guard !Task.isCancelled, current == generation, let token else { return }
+            let snapshot = await WindowActions.list(pid: pid)
+            guard !Task.isCancelled, current == generation else { return }
+            if snapshot.failure == nil {
+                let references = Set(snapshot.windows.map(\.reference))
+                states = states.filter { $0.key.pid != pid || references.contains($0.key) }
+                for window in snapshot.windows where !window.minimized {
+                    var state = states[window.reference] ?? WindowZoomState()
+                    // Seed only the original frame; attaching an observer must not resize a window.
+                    state.observe(window.frame, in: areas)
+                    states[window.reference] = state
+                }
+            }
             observation = token
             CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(token.observer), .commonModes)
         }
@@ -81,31 +103,36 @@ private final class WindowObservation: @unchecked Sendable {
         guard let event = notification.object as? ObservedWindowEvent, event.window.pid == activePID else { return }
         if event.created { observeFrontmost(force: true); return }
         WindowTrace.write("resize event")
-        pending[event.window]?.cancel()
+        dirty.insert(event.window)
+        lastEvent[event.window] = ProcessInfo.processInfo.systemUptime
+        guard pending[event.window] == nil else { return }
         let current = generation
         pending[event.window] = Task { @MainActor in
-            // Let the application's zoom animation finish before issuing one correction.
-            try? await Task.sleep(for: .milliseconds(100))
-            guard !Task.isCancelled, current == generation else { return }
-            let now = ProcessInfo.processInfo.systemUptime
-            guard now - (lastAttempt[event.window] ?? 0) > 0.5 else { pending[event.window] = nil; return }
-            lastAttempt[event.window] = now
-            let failure = await WindowActions.fitZoomedWindow(event.window, areas: areas)
-            guard !Task.isCancelled, current == generation else { return }
+            // Serialize read/modify/write per window; do not cancel a correction after it writes.
+            while dirty.contains(event.window) {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled, current == generation else { return }
+                if ProcessInfo.processInfo.systemUptime - (lastEvent[event.window] ?? 0) < 0.09 { continue }
+                dirty.remove(event.window)
+                let (state, failure) = await WindowActions.fitZoomedWindow(event.window, areas: areas, state: states[event.window] ?? WindowZoomState())
+                guard current == generation else { return }
+                states[event.window] = state
+                if let failure { permissions.recordAccessibility(failure); dirty.remove(event.window) }
+            }
             pending[event.window] = nil
-            if let failure { permissions.recordAccessibility(failure) }
         }
     }
     private func disconnect() {
         generation += 1
         installing?.cancel(); installing = nil
         pending.values.forEach { $0.cancel() }; pending.removeAll()
-        lastAttempt.removeAll()
+        dirty.removeAll()
+        lastEvent.removeAll()
         if let observation { CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observation.observer), .commonModes) }
         observation = nil; activePID = nil
     }
     func stop() {
-        areas = []; disconnect(); permissionSubscription?.cancel()
+        areas = []; states.removeAll(); disconnect(); permissionSubscription?.cancel()
         NotificationCenter.default.removeObserver(self)
         NSWorkspace.shared.notificationCenter.removeObserver(self)
     }

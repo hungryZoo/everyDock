@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import QuickLookThumbnailing
+import DockCore
 
 enum DockUtility: String, CaseIterable, Sendable {
     case desktop, downloads, trash
@@ -19,7 +21,6 @@ enum DockUtility: String, CaseIterable, Sendable {
     private var stack: NSPopover?
     private let downloads = FolderContents(folder: DockUtility.downloads.url, title: "다운로드", symbol: "arrow.down.circle")
     private let desktop = FolderContents(folder: DockUtility.desktop.url, title: "바탕화면", symbol: "desktopcomputer")
-    private let applications = FolderContents(folder: URL(fileURLWithPath: "/Applications"), title: "앱", symbol: "square.grid.3x3", appsOnly: true)
     private var trashWatcher: DispatchSourceFileSystemObject?
     private var icons: [DockUtility: NSImage] = [:]
     private var trashRefresh: Task<Void, Never>?
@@ -69,7 +70,22 @@ enum DockUtility: String, CaseIterable, Sendable {
         }
     }
 
-    func showApplications(from anchor: NSView, edge: NSRectEdge) { show(applications, from: anchor, edge: edge) }
+    func showApplications(onError: @escaping @MainActor @Sendable (String) -> Void) {
+        stack?.performClose(nil)
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.apps.launcher")
+                ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.launchpad.launcher") else {
+            onError("macOS의 Apps 실행기를 찾지 못했습니다. Spotlight에서 ⌘1을 눌러 앱을 열어 주세요.")
+            return
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        // The system launcher sends the Apps request on launch. Re-activation alone may do nothing.
+        configuration.createsNewApplicationInstance = true
+        configuration.activates = false
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, error in
+            let detail = error?.localizedDescription
+            if let detail { Task { @MainActor in onError("Apps를 열지 못했습니다: \(detail)") } }
+        }
+    }
     private func show(_ contents: FolderContents, from anchor: NSView, edge: NSRectEdge) {
         stack?.performClose(nil)
         let popover = NSPopover()
@@ -133,17 +149,16 @@ private struct StackFile: Identifiable, @unchecked Sendable {
     let url: URL
     let name: String
     let date: Date
-    let icon: NSImage
+    var icon: NSImage
+    let isDirectory: Bool
 }
 
 private struct FolderStack: View {
     @ObservedObject var contents: FolderContents
     let close: () -> Void
     private var folder: URL { contents.folder }
-    @State private var search = ""
     @State private var openError: String?
-    @FocusState private var searchFocused: Bool
-    private var files: [StackFile] { contents.files.filter { search.isEmpty || $0.name.localizedStandardContains(search) } }
+    private var files: [StackFile] { contents.files }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -151,7 +166,7 @@ private struct FolderStack: View {
                 Spacer()
                 Button("Finder에서 열기") { NSWorkspace.shared.open(folder); close() }
             }
-            if contents.appsOnly { TextField("앱 검색", text: $search).textFieldStyle(.roundedBorder).focused($searchFocused) }
+            Text("수정일 최신순 · 최대 80개").font(.caption).foregroundStyle(.secondary)
             if let openError { Text(openError).foregroundStyle(.secondary) }
             if contents.loading {
                 VStack(spacing: 12) {
@@ -176,7 +191,6 @@ private struct FolderStack: View {
                     if panel.runModal() == .OK { contents.load() }
                 }
             } else if contents.files.isEmpty { Text("\(contents.title) 폴더가 비어 있습니다.").foregroundStyle(.secondary).padding(32) }
-            else if files.isEmpty { Text("검색 결과가 없습니다.").foregroundStyle(.secondary).padding(32) }
             else {
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 18) {
@@ -186,7 +200,7 @@ private struct FolderStack: View {
                                 else { openError = "항목을 열지 못했습니다. Finder에서 위치를 확인해 주세요." }
                             } label: {
                                 VStack(spacing: 6) {
-                                    Image(nsImage: file.icon).resizable().frame(width: 48, height: 48)
+                                    Image(nsImage: file.icon).resizable().scaledToFit().frame(width: 48, height: 48)
                                     Text(file.name).font(.caption).lineLimit(2).multilineTextAlignment(.center).frame(height: 30)
                                 }.frame(width: 82)
                             }.buttonStyle(.plain).help(file.name)
@@ -194,7 +208,7 @@ private struct FolderStack: View {
                     }.padding(.vertical, 4)
                 }.frame(maxHeight: 380)
             }
-        }.padding(18).frame(width: 400).onAppear { contents.load(); searchFocused = contents.appsOnly }
+        }.padding(18).frame(width: 400).onAppear { contents.load() }.onDisappear { contents.cancelThumbnails() }
     }
 }
 
@@ -204,17 +218,23 @@ private struct FolderStack: View {
     let folder: URL
     let title: String
     let symbol: String
-    let appsOnly: Bool
     @Published var files: [StackFile] = []
     @Published var loading = true
     @Published var waitingForAccess = false
     @Published var error: String?
     private var request: Task<Void, Never>?
-    init(folder: URL, title: String, symbol: String, appsOnly: Bool = false) {
-        self.folder = folder; self.title = title; self.symbol = symbol; self.appsOnly = appsOnly
+    private var visible = false
+    private var thumbnailGeneration = 0
+    private var thumbnails: [URL: QLThumbnailGenerator.Request] = [:]
+    private var queue: [StackFile] = []
+    private var cache: [URL: (date: Date, image: NSImage)] = [:]
+    init(folder: URL, title: String, symbol: String) {
+        self.folder = folder; self.title = title; self.symbol = symbol
     }
     func load() {
+        visible = true
         guard request == nil else { return }
+        cancelThumbnails(); visible = true
         loading = true
         waitingForAccess = false
         request = Task { @MainActor in
@@ -222,17 +242,16 @@ private struct FolderStack: View {
                 try? await Task.sleep(for: .seconds(2))
                 if !Task.isCancelled && loading { waitingForAccess = true }
             }
-            let folder = self.folder, appsOnly = self.appsOnly
+            let folder = self.folder
             let result: Result<[StackFile], Error> = await Task.detached {
             Result {
-                let urls: [URL]
-                if appsOnly { urls = ApplicationCatalog.urls() }
-                else { urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) }
+                let urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey], options: [.skipsHiddenFiles])
                 let ordered = urls.map { url in (url, (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) }
-                    .sorted { appsOnly ? $0.0.lastPathComponent.localizedStandardCompare($1.0.lastPathComponent) == .orderedAscending : $0.1 > $1.1 }
-                return ordered.prefix(appsOnly ? ordered.count : 80).map { url, date in
-                    StackFile(url: url, name: appsOnly ? FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "") : FileManager.default.displayName(atPath: url.path),
-                              date: date, icon: NSWorkspace.shared.icon(forFile: url.path))
+                    .sorted { FileOrdering.precedes(date: $0.1, name: $0.0.lastPathComponent, otherDate: $1.1, otherName: $1.0.lastPathComponent) }
+                return ordered.prefix(80).map { url, date in
+                    StackFile(url: url, name: FileManager.default.displayName(atPath: url.path), date: date,
+                              icon: NSWorkspace.shared.icon(forFile: url.path),
+                              isDirectory: (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true)
                 }
 
             }
@@ -250,6 +269,40 @@ private struct FolderStack: View {
             loading = false
             waitingForAccess = false
             request = nil
+            if visible && error == nil { startThumbnails() }
+        }
+    }
+    func cancelThumbnails() {
+        visible = false; thumbnailGeneration += 1
+        thumbnails.values.forEach { QLThumbnailGenerator.shared.cancel($0) }
+        thumbnails.removeAll(); queue.removeAll()
+    }
+    private func startThumbnails() {
+        let current = Set(files.map(\.url))
+        cache = cache.filter { current.contains($0.key) }
+        for index in files.indices {
+            if let hit = cache[files[index].url], hit.date == files[index].date { files[index].icon = hit.image }
+        }
+        queue = files.filter { !$0.isDirectory && cache[$0.url]?.date != $0.date }
+        pumpThumbnails()
+    }
+    private func pumpThumbnails() {
+        while visible && thumbnails.count < 3 && !queue.isEmpty {
+            let file = queue.removeFirst(), generation = thumbnailGeneration
+            let request = QLThumbnailGenerator.Request(fileAt: file.url, size: CGSize(width: 48, height: 48), scale: 2, representationTypes: .thumbnail)
+            thumbnails[file.url] = request
+            QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] representation, _ in
+                let pixels = representation?.cgImage
+                Task { @MainActor in
+                    guard let self, self.visible, generation == self.thumbnailGeneration else { return }
+                    self.thumbnails[file.url] = nil
+                    if let pixels, let index = self.files.firstIndex(where: { $0.url == file.url && $0.date == file.date }) {
+                        let image = NSImage(cgImage: pixels, size: .zero)
+                        self.cache[file.url] = (file.date, image); self.files[index].icon = image
+                    }
+                    self.pumpThumbnails()
+                }
+            }
         }
     }
 }

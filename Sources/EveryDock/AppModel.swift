@@ -255,10 +255,7 @@ final class AppModel: NSObject, ObservableObject {
 
     func launch(_ app: DockApplication, toggle: Bool = true, anchor: NSView? = nil) {
         if ApplicationCatalog.isLauncher(bundle: app.bundleIdentifier) {
-            if let anchor {
-                let edge: NSRectEdge = preferences.edge == .bottom ? .maxY : preferences.edge == .left ? .maxX : .minX
-                utilities.showApplications(from: anchor, edge: edge)
-            } else { NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications")) }
+            utilities.showApplications { [weak self] in self?.report($0) }
             return
         }
         if let process = NSWorkspace.shared.runningApplications.first(where: {
@@ -487,7 +484,7 @@ final class AppModel: NSObject, ObservableObject {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Desktop-Settings.extension")!)
     }
 
-    private func report(_ text: String) {
+    func report(_ text: String) {
         message = text
         showSettings?()
     }

@@ -121,7 +121,7 @@ final class DockPanel: NSPanel {
             let aligned = DockMetrics.aligned(frame, scale: screen.backingScaleFactor)
             if !model.paused {
                 // Reserve the resting Dock, not its transparent magnification/tooltip space.
-                let thickness = DockMetrics.thickness(iconSize: model.iconSize) + 4
+                let thickness = DockMetrics.thickness(iconSize: model.iconSize)
                 let boundary: Double
                 switch pref.edge {
                 case .bottom: boundary = originY - (aligned.minY + thickness)

@@ -53,42 +53,66 @@ enum WindowCloseSequence {
 
 /// All cross-process AX messaging stays off the rendering thread.
 enum WindowActions {
-    static func fitZoomedWindow(_ reference: WindowReference, areas: [WindowWorkArea]) async -> WindowFailure? {
-        let request = Task.detached(priority: .userInitiated) { () -> WindowFailure? in
-            guard !Task.isCancelled else { return nil }
+    static func fitZoomedWindow(_ reference: WindowReference, areas: [WindowWorkArea], state: WindowZoomState) async -> (WindowZoomState, WindowFailure?) {
+        let request = Task.detached(priority: .userInitiated) { () -> (WindowZoomState, WindowFailure?) in
+            guard !Task.isCancelled else { return (state, nil) }
+            var next = state
             let window = reference.element
             // Resize notifications can refer to a helper, dialog, minimized or full-screen window.
             guard string(window, kAXRoleAttribute) == kAXWindowRole,
                   string(window, kAXSubroleAttribute) == kAXStandardWindowSubrole,
-                  !bool(window, kAXMinimizedAttribute) else { return nil }
+                  !bool(window, kAXMinimizedAttribute) else { return (state, nil) }
             var fullScreen: CFTypeRef?
             guard AXUIElementCopyAttributeValue(window, "AXFullScreen" as CFString, &fullScreen) == .success,
-                  fullScreen as? Bool == false else { return nil }
+                  fullScreen as? Bool == false else { return (state, nil) }
             let old = frame(window)
-            guard let area = areas.max(by: { a, b in
-                let x = a.visible.intersection(old), y = b.visible.intersection(old)
-                return (x.isNull ? 0 : x.width * x.height) < (y.isNull ? 0 : y.width * y.height)
-            }), area.visible.intersects(old), let adjusted = area.adjusted(old, fullScreen: false, minimized: false) else { return nil }
+            guard let adjusted = next.destination(for: old, in: areas) else { return (next, nil) }
             WindowTrace.write("fit \(old) -> \(adjusted)")
             var settable: DarwinBoolean = false
-            guard AXUIElementIsAttributeSettable(window, kAXSizeAttribute as CFString, &settable) == .success, settable.boolValue else { return .unsupported }
+            guard AXUIElementIsAttributeSettable(window, kAXSizeAttribute as CFString, &settable) == .success, settable.boolValue else { return (state, .unsupported) }
             if adjusted.origin != old.origin {
-                guard AXUIElementIsAttributeSettable(window, kAXPositionAttribute as CFString, &settable) == .success, settable.boolValue else { return .unsupported }
+                guard AXUIElementIsAttributeSettable(window, kAXPositionAttribute as CFString, &settable) == .success, settable.boolValue else { return (state, .unsupported) }
             }
-            var size = adjusted.size
-            guard !Task.isCancelled else { return nil }
-            guard let value = AXValueCreate(.cgSize, &size) else { return .unsupported }
-            let resized = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, value)
-            guard resized == .success else { return .classify(resized) }
-            if adjusted.origin != old.origin {
-                var point = adjusted.origin
-                guard let value = AXValueCreate(.cgPoint, &point) else { return .unsupported }
-                let moved = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
-                if moved != .success { return .classify(moved) }
+            let restoring = state.fitted != nil && adjusted == state.normal
+            let ticks: AsyncStream<Double>
+            if restoring { ticks = await WindowRestoreClock.frames(for: old) }
+            else { ticks = AsyncStream { $0.yield(1); $0.finish() } }
+            var last = old
+            for await progress in ticks {
+                guard !Task.isCancelled else { return (state, nil) }
+                let current = frame(window)
+                // Stop if the user or application moves/resizes the window during the transition.
+                if abs(current.minX - last.minX) > 3 || abs(current.minY - last.minY) > 3 ||
+                    abs(current.width - last.width) > 3 || abs(current.height - last.height) > 3 || bool(window, kAXMinimizedAttribute) {
+                    next.reset(); next.observe(current, in: areas)
+                    return (next, nil)
+                }
+                let step = WindowFrameAnimation.frame(from: old, to: adjusted, progress: progress)
+                if let failure = setFrame(window, from: last, to: step) { return (state, failure) }
+                last = step
             }
-            return nil
+            let actual = frame(window)
+            // Apps can enforce a minimum size. Do not keep reapplying a rejected correction.
+            if abs(actual.width - adjusted.width) > 2 || abs(actual.height - adjusted.height) > 2 {
+                next.reset()
+            }
+            return (next, nil)
         }
         return await withTaskCancellationHandler { await request.value } onCancel: { request.cancel() }
+    }
+
+    private static func setFrame(_ window: AXUIElement, from old: CGRect, to target: CGRect) -> WindowFailure? {
+        var size = target.size
+        guard let value = AXValueCreate(.cgSize, &size) else { return .unsupported }
+        let resized = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, value)
+        guard resized == .success else { return .classify(resized) }
+        if target.origin != old.origin {
+            var point = target.origin
+            guard let value = AXValueCreate(.cgPoint, &point) else { return .unsupported }
+            let moved = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
+            if moved != .success { return .classify(moved) }
+        }
+        return nil
     }
 
     static func toggle(pid: pid_t, active: Bool, minimize: Bool) async -> WindowActionResult {

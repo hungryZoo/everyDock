@@ -2,14 +2,14 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.3 / 2026-09-09 |
+| 문서 버전·기준일 | 1.4 / 2026-09-10 |
 | 대상 | everyDock v0.3.3, Apple Silicon, macOS 26+ |
 | 요구사항 | [SRS](SRS.md), [추적표](README.md) |
 | 기존 실행 근거 | [QA.md](../QA.md), Swift Testing 실행 결과 |
 
 ## 1. 실행 원칙과 환경
 
-자동 테스트 31개, 기능 수동 케이스 45개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
+자동 테스트 36개, 기능 수동 케이스 47개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
 
 | 환경 | 구성 |
 |---|---|
@@ -23,7 +23,7 @@
 
 ## 2. 자동 테스트
 
-실행: `swift test --arch arm64`. 현재 31개 PASS(2026-09-09). 이름은 실제 Swift Testing 함수와 일치한다.
+실행: `swift test --arch arm64`. 현재 36개 PASS(2026-09-10). 이름은 실제 Swift Testing 함수와 일치한다.
 
 | ID | 함수·소스 | 검증 입력과 기대 결과 | 연결 |
 |---|---|---|---|
@@ -57,7 +57,7 @@
 | TC-A28 | `workAreaPreservesNormalMinimizedAndFullScreenWindows` / WorkAreaTests | 일반·최소화·전체 화면 → 변경 없음 | FR-23 |
 | TC-A29 | `sideDockReservesCorrectEdgeOnNegativeDisplays` / WorkAreaTests | 음수 X/Y, 양옆 Dock → 해당 경계 보정 | FR-23 |
 | TC-A30 | `appsLauncherIsNotTreatedAsRegularWindowApplication` / ApplicationCatalogTests | Apps/Launchpad만 특별 경로, Finder·nil 제외 | FR-22 |
-| TC-A31 | `catalogIncludesNestedUtilitiesButNotEmbeddedHelperApps` / ApplicationCatalogTests | 임시 번들·Utilities·중복 root·hidden → 실제 앱 2개만 | FR-22 |
+| TC-A31 | RETIRED (2026-09-10) | 자체 설치 앱 목록 제거로 해당 구현·테스트 폐기. ID는 재사용하지 않음 | FR-22 |
 
 TC-A01~A03은 레거시 `DockLayout` 함수 테스트다. 실제 NSPanel, 다중 화면, WindowServer 및 새 DockMetrics 배치를 대신 검증하지 않는다. TC-A05도 실제 모니터 프레임레이트나 시각적으로 완벽한 연속성을 증명하지 않는다.
 
@@ -194,8 +194,26 @@ v0.3.2 배포 회귀: TC-R01~R04 PASS, TC-R05는 실제 Homebrew 0.3.1→0.3.2 �
 |---|---|---|---|
 | TC-M41 | fixture 3개→2개→1개, 마지막 닫기·재개방 | 1개는 여분 열 없음, 폭과 높이 갱신, 닫기 버튼 유지 | QA-v0.3.3 참조 |
 | TC-M42 | 바탕화면·다운로드 반복 개폐, 접근 허용/거부·빈 폴더·파일 클릭 | 각 폴더 컨텐츠·올바른 안내·중복 읽기 없음, 다른 앱 숨김 없음 | QA-v0.3.3 참조 |
-| TC-M43 | Apps 클릭·검색·결과 실행·메뉴 열기 | 설치 앱 탐색, 검색 결과 실행, 불필요한 AX 최소화 없음 | QA-v0.3.3 참조 |
+| TC-M43 | Apps 클릭·Spotlight 앱 검색·닫기·다시 열기 | 시스템 Spotlight 앱 화면, 불필요한 AX 최소화 없음 | QA-v0.3.3 참조 |
 | TC-M44 | fixture 타이틀 더블클릭 확대/복원 3회, 3개 edge·2개 화면 | 정지 Dock과 겹치지 않음, 일반 크기로 복원, 보정 루프 없음 | QA-v0.3.3 참조 |
 | TC-M45 | 창 전체 화면·최소화·일반 resize·화면 숨김·앱 종료·AX 거부 | 제외 상태 유지, 관찰 정리, 지원하지 않는 앱 무한 재시도 없음 | QA-v0.3.3 참조 |
 
 FR-10의 이전 바탕화면 숨김/복원 결과는 과거 버전 QA에 보존하며 새 파일 팝업 PASS로 재사용하지 않는다.
+
+## 13. 2026-09-10 보완 회귀
+
+| ID | 테스트 | 기대 결과 | 요구사항 |
+|---|---|---|---|
+| TC-A32 | `correctedZoomRestoresOriginalForThreeCycles` / WindowZoomStateTests | 보정 후 원래 좌표·크기로 3회 복원, 자체 resize 반복 없음 | FR-23 |
+| TC-A33 | `nativeRestoreAndManualResizeUpdateTheSavedFrame` / WindowZoomStateTests | 앱 자체 복원 허용, 수동 이동 뒤 새 기준 사용 | FR-23 |
+| TC-A34 | `observerReattachmentPreservesRestoreAndUnknownHistoryIsNotInvented` / WindowZoomStateTests | 앱 전환 후 유지, 사전 이력 없으면 복원 크기 추측 안 함 | FR-23 |
+| TC-A35 | `sideZoomRestoresPositionAndSizeWithoutMovingToDisconnectedDisplay` / WindowZoomStateTests | 왼쪽 Dock 보정·복원, 다른 화면의 과거 위치로 이동 안 함 | FR-23 |
+| TC-A36 | `newestModifiedFilesSortFirstWithStableNameTies` / WindowZoomStateTests | 수정일 최신순, 같은 날짜는 자연스러운 파일명 순 | FR-10/FR-11/FR-25 |
+| TC-M46 | 카카오톡의 ‘앱의 macOS Dock 메뉴…’, Option-우클릭, 기본 Dock 항목 없는 앱 | 앱 제공 메뉴, everyDock 메뉴 유지, 없는 항목 안내; 메뉴 위치는 macOS 관리 | FR-24 |
+| TC-M47 | 바탕화면·다운로드의 이미지/PDF/미지원 파일, 수정 후 재개방·빠른 개폐 | 비율 유지 썸네일·아이콘 fallback, 최대 3개 병렬, 취소 결과 무시, 최신순 | FR-25 |
+
+TC-M44는 창의 확대/복원 3회와 경계의 추가 4pt 제거를 함께 확인한다. 창이 이미 확대된 채 everyDock을 시작한 경우 원래 크기 복원은 제외한다. 자동 좌표 테스트로 실제 앱의 AX 동작을 PASS 처리하지 않는다.
+
+| TC-A37 | `restoreAnimationHasExactEndpointsAndMonotonicGeometry` / WindowZoomStateTests | 시작·종료 좌표 정확, 중간 크기·위치가 역행하지 않음 | FR-23 |
+
+TC-M44 추가: 복원 전환 중 점프·멈춤, 동작 줄이기, 앱 전환 취소를 확인한다. TC-A37은 실제 프레임 간격이나 AX 응답 속도 PASS를 의미하지 않는다.

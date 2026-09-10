@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.3 / 2026-09-09 |
+| 문서 버전·기준일 | 1.4 / 2026-09-10 |
 | 제품 기준 | everyDock v0.3.3 |
 | 상위 문서 | [PRD](PRD.md) |
 | 검증 명세 | [TC](TC.md) |
@@ -156,19 +156,30 @@ file URL 드롭만 처리한다. 바탕화면·다운로드에는 원본을 유�
 
 우클릭, Control-클릭, 접근성 ShowMenu에 같은 앱 메뉴를 제공한다. 메뉴의 크기와 선택 아이콘의 화면 좌표로 아래 Dock에서는 위쪽, 양옆에서는 안쪽에 6pt 간격으로 배치한다. 음수 좌표와 화면 visibleFrame 경계를 보정하며 최종 배치는 NSMenu에 맡긴다. 메뉴 추적 중 호버·미리보기·확대·목록 배치를 멈추고 종료 후 최신 상태를 반영한다. 이름 상자의 배경은 별도 뷰로 그리고 레이블의 intrinsic 높이를 기준으로 세로 중앙에 놓는다.
 
-### FR-22 Apps 앱 목록 — P-02/P-04 / P1
+### FR-22 Spotlight Apps 연결 — P-02/P-04 / P1
 
-com.apple.apps.launcher 및 이전 Launchpad 식별자는 일반 창 앱으로 취급하지 않는다. Dock 클릭·메뉴 열기는 설치 앱 검색 팝업으로 연결한다. /Applications, /System/Applications(Utilities 포함), 사용자 Applications를 백그라운드에서 탐색한다. 앱 번들 내부 helper·숨김 항목은 제외하고 실제 경로를 중복 제거한다. 검색 필드에 초기 포커스를 주고 이름 검색과 클릭 실행, Finder 열기, 실행 실패 안내를 제공한다. Apps 자체를 다시 목록에 포함하지 않고 45초 실행 중 표시를 남기지 않는다.
+com.apple.apps.launcher 및 이전 Launchpad 식별자는 일반 창 앱으로 취급하지 않는다. Dock 클릭·메뉴 열기는 NSWorkspace로 시스템 Apps 실행기를 새 인스턴스로 실행해 Spotlight의 앱 화면을 연다. everyDock 자체 앱 목록은 제거한다. 이전 실행기 프로세스 활성화만으로 요청이 누락되지 않게 하며 AX 창 최소화와 45초 실행 중 표시를 사용하지 않는다. 실행기를 찾을 수 없거나 실행 오류가 나면 실제 오류와 Spotlight ⌘1 안내를 제공한다.
 
 ### FR-23 확대 창의 Dock 영역 확보 — P-02 / P1
 
-활성 외부 앱 하나에 AXObserver를 등록해 크기 변경·창 생성 알림을 받는다. 창마다 resize를 구독해 앱별 전달 차이를 보완한다. 알림을 100ms 병합하고 창별 0.5초 내 중복 보정을 제한한다. UI 스레드에서는 AX 메시지를 실행하지 않는다.
+활성 외부 앱 하나에 AXObserver를 등록해 크기·위치 변경·창 생성 알림을 받는다. 창별 resize/move를 구독하며 마지막 알림에서 약 100ms 뒤 처리한다. 창별 읽기·보정 작업은 직렬화하고 자체 보정 알림은 다시 보정하지 않는다. UI 스레드에서는 AX 메시지를 실행하지 않는다.
 
-아래 Dock은 창의 위·아래가 화면 visibleFrame 경계에서 각 12pt 이내일 때 높이만 줄인다. 양옆 Dock은 왼쪽·오른쪽 경계가 각 12pt 이내일 때 해당 방향 폭과 필요 위치를 보정한다. 예약 경계는 실제 패널 위치 + 정지 Dock 두께(iconSize+12pt) + 4pt 여유다. 최대 확대·툴팁용 투명 영역은 예약하지 않는다. 겹치는 면적이 가장 큰 화면을 선택하고 AX의 위쪽 원점으로 변환한다. 숨긴 화면·일시 숨김에는 예약하지 않는다.
+아래 Dock은 창의 위·아래가 화면 visibleFrame 경계에서 각 12pt 이내일 때 높이만 줄인다. 양옆 Dock은 왼쪽·오른쪽 경계가 각 12pt 이내일 때 해당 방향 폭과 필요 위치를 보정한다. 예약 경계는 실제 패널 위치 + 정지 Dock 두께(iconSize+12pt)다. 별도 4pt 여유를 추가하지 않아 창 경계와 Dock 배경 경계를 맞춘다. 최대 확대·툴팁용 투명 영역은 예약하지 않는다. 겹치는 면적이 가장 큰 화면을 선택하고 AX의 위쪽 원점으로 변환한다. 숨긴 화면·일시 숨김에는 예약하지 않는다.
 
 표준 AX 창·크기 변경 지원 창만 보정하고 AXFullScreen 또는 전체 화면 여부를 읽을 수 없는 창, 최소화, 대화상자, 일반 크기 창을 제외한다. 앱 활성 전환·레이아웃 변경·종료에서 관찰과 대기 작업을 정리한다. 전역 NSScreen.visibleFrame은 변경하지 않으며 AX를 제공하지 않거나 최소 크기 제약이 있는 앱에 동일한 결과를 보장하지 않는다. 선택적 EVERYDOCK_TRACE_WINDOWS 진단은 상태·geometry만 기록한다.
 
+확대 전 위치·크기를 AX 창 객체별로 메모리에서 기억한다. 보정된 창이 다시 같은 화면 크기로 확대되면 기존 위치·크기로 복원한다. 앱 자체 복원이나 수동 resize/move는 정상 크기를 갱신한다. 앱 전환에는 복원 정보를 유지하고 창 닫힘·앱 종료·화면 레이아웃 변경에 정리한다. everyDock이 관찰하기 전에 이미 확대된 창은 원래 크기를 추측하지 않는다. 전체 화면·최소화 상태에서는 복원을 실행하지 않는다.
+
+### FR-24 앱 고유 Dock 메뉴 — P-02 / P1
+
+everyDock 메뉴의 ‘앱의 macOS Dock 메뉴…’ 또는 Option-우클릭으로 실제 Dock 항목에 AXShowMenu를 요청한다. URL로 앱을 식별하고 이름만으로 다른 앱을 선택하지 않는다. 앱 제공 명령의 실행은 macOS Dock이 담당한다. 고정·모든 창 닫기 등 everyDock 메뉴는 유지한다. 시스템 메뉴의 위치·내용은 macOS가 결정하며 다른 모니터의 everyDock 위치로 복제하지 않는다. 손쉬운 사용 권한이 필요하며 기본 Dock에 항목이 없으면 안내한다. 조회는 백그라운드에서 깊이·항목 수·시간을 제한한다. ShowMenu 응답 시간 초과는 메뉴 추적 중에도 발생할 수 있으므로 권한 거부로 분류하지 않는다.
+
+### FR-25 파일 썸네일 — P-04 / P1
+
+바탕화면·다운로드는 Quick Look Thumbnailing으로 파일 내용 썸네일을 비동기 생성한다. 동시에 최대 3개 요청, 48pt/2x 이미지, 비율 유지, 폴더·미지원·실패 시 파일 아이콘을 유지한다. 팝업 종료 시 요청 취소 및 세대 토큰으로 지연 결과를 버린다. URL·수정일 캐시는 현재 목록 최대 80개로 제한하고 다음 열기에서 변경 파일을 갱신한다. 앱은 썸네일을 저장·전송하지 않으며 OS Quick Look 자체 캐시 정책은 시스템이 관리한다. 정렬은 생성일·다운로드 시각이 아닌 수정일 내림차순이며, 동률은 자연스러운 파일명 순으로 결정하고 UI에 기준을 표시한다.
+
 ## 4. 비기능 요구사항
+
 
 | ID | 요구 | 측정·인수 기준 | v0.3 상태 |
 |---|---|---|---|
@@ -224,3 +235,7 @@ CPU는 Activity Monitor의 프로세스 CPU(논리 코어 하나=100%) 기준으
 ## v0.3.3 구현 근거
 
 [NSScreen.visibleFrame](https://developer.apple.com/documentation/appkit/nsscreen/visibleframe)은 시스템 Dock과 메뉴 막대가 제외된 읽기 전용 작업 영역이다. everyDock은 표시 중인 패널을 기준으로 AX 지원 확대 창을 보정한다. 결과와 미검증 조합은 [QA-v0.3.3](QA-v0.3.3.md)을 따른다.
+
+2026-09-10 보완 근거: [Apple의 Spotlight 앱 화면 안내](https://support.apple.com/en-gb/guide/mac-help/-mh35840/mac), [앱이 제공하는 Dock 메뉴](https://developer.apple.com/documentation/appkit/nsapplicationdelegate/applicationdockmenu(_:)), [AXShowMenu](https://developer.apple.com/documentation/applicationservices/kaxshowmenuaction), [Quick Look Thumbnailing](https://developer.apple.com/documentation/quicklookthumbnailing/qlthumbnailgenerator).
+
+FR-23 복원 애니메이션: 크기 보정 후 원래 크기로 돌아갈 때 해당 화면 CADisplayLink의 최신 tick만 소비해 약 180ms 동안 위치·크기를 보간한다. AX 요청은 백그라운드에서 직렬 실행하고 최대 60Hz, backlog 1개다. 동작 줄이기에서는 즉시 복원하며 앱 전환·작업 취소·중간 외부 크기 변경 시 중단한다. display link가 멈추면 400ms에 최종 tick을 전달하고 정리한다. 이는 AppKit 내부의 네이티브 zoom 애니메이션과 동일한 구현이 아니다.
