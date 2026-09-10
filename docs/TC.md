@@ -9,7 +9,7 @@
 
 ## 1. 실행 원칙과 환경
 
-자동 테스트 36개, 기능 수동 케이스 47개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
+자동 테스트 37개, 기능 수동 케이스 47개, 성능·개인정보 케이스 4개, 배포 케이스 6개를 관리한다. PASS는 해당 절차와 환경에서만 유효하다. PARTIAL/BLOCKED/NOT RUN은 전체 통과로 집계하지 않는다.
 
 | 환경 | 구성 |
 |---|---|
@@ -23,7 +23,7 @@
 
 ## 2. 자동 테스트
 
-실행: `swift test --arch arm64`. 현재 36개 PASS(2026-09-10). 이름은 실제 Swift Testing 함수와 일치한다.
+실행: `swift test --arch arm64`. 현재 37개 PASS(2026-09-10). 이름은 실제 Swift Testing 함수와 일치한다.
 
 | ID | 함수·소스 | 검증 입력과 기대 결과 | 연결 |
 |---|---|---|---|
@@ -209,7 +209,7 @@ FR-10의 이전 바탕화면 숨김/복원 결과는 과거 버전 QA에 보존�
 | TC-A34 | `observerReattachmentPreservesRestoreAndUnknownHistoryIsNotInvented` / WindowZoomStateTests | 앱 전환 후 유지, 사전 이력 없으면 복원 크기 추측 안 함 | FR-23 |
 | TC-A35 | `sideZoomRestoresPositionAndSizeWithoutMovingToDisconnectedDisplay` / WindowZoomStateTests | 왼쪽 Dock 보정·복원, 다른 화면의 과거 위치로 이동 안 함 | FR-23 |
 | TC-A36 | `newestModifiedFilesSortFirstWithStableNameTies` / WindowZoomStateTests | 수정일 최신순, 같은 날짜는 자연스러운 파일명 순 | FR-10/FR-11/FR-25 |
-| TC-M46 | 카카오톡의 ‘앱의 macOS Dock 메뉴…’, Option-우클릭, 기본 Dock 항목 없는 앱 | 앱 제공 메뉴, everyDock 메뉴 유지, 없는 항목 안내; 메뉴 위치는 macOS 관리 | FR-24 |
+| TC-M46 | 카카오톡의 ‘시스템 Dock 메뉴… (기본 Dock 위치)’, Option-우클릭, 기본 Dock 항목 없는 앱 | 앱 제공 메뉴, everyDock 메뉴 유지, 없는 항목 안내; 메뉴 위치는 macOS 관리 | FR-24 |
 | TC-M47 | 바탕화면·다운로드의 이미지/PDF/미지원 파일, 수정 후 재개방·빠른 개폐 | 비율 유지 썸네일·아이콘 fallback, 최대 3개 병렬, 취소 결과 무시, 최신순 | FR-25 |
 
 TC-M44는 창의 확대/복원 3회와 경계의 추가 4pt 제거를 함께 확인한다. 창이 이미 확대된 채 everyDock을 시작한 경우 원래 크기 복원은 제외한다. 자동 좌표 테스트로 실제 앱의 AX 동작을 PASS 처리하지 않는다.
@@ -217,3 +217,7 @@ TC-M44는 창의 확대/복원 3회와 경계의 추가 4pt 제거를 함께 확
 | TC-A37 | `restoreAnimationHasExactEndpointsAndMonotonicGeometry` / WindowZoomStateTests | 시작·종료 좌표 정확, 중간 크기·위치가 역행하지 않음 | FR-23 |
 
 TC-M44 추가: 복원 전환 중 점프·멈춤, 동작 줄이기, 앱 전환 취소를 확인한다. TC-A37은 실제 프레임 간격이나 AX 응답 속도 PASS를 의미하지 않는다.
+
+| TC-A38 | `nativeMenuNeverOpensOnAnotherMonitor` / NativeMenuScreenTests | 숨긴 Dock의 화면 밖 좌표를 가까운 화면에 연결, 다른 화면에서는 거부, 잘못된 좌표 거부 | FR-24 |
+
+TC-M46 추가: 기본 Dock과 everyDock이 다른 화면일 때 메뉴를 실행하지 않고 안내하는지 확인한다. 최초 위임 구현에서 다른 화면 표시가 발생했다는 사용자 보고를 PASS로 기록하지 않는다.

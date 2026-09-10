@@ -172,7 +172,7 @@ com.apple.apps.launcher 및 이전 Launchpad 식별자는 일반 창 앱으로 �
 
 ### FR-24 앱 고유 Dock 메뉴 — P-02 / P1
 
-everyDock 메뉴의 ‘앱의 macOS Dock 메뉴…’ 또는 Option-우클릭으로 실제 Dock 항목에 AXShowMenu를 요청한다. URL로 앱을 식별하고 이름만으로 다른 앱을 선택하지 않는다. 앱 제공 명령의 실행은 macOS Dock이 담당한다. 고정·모든 창 닫기 등 everyDock 메뉴는 유지한다. 시스템 메뉴의 위치·내용은 macOS가 결정하며 다른 모니터의 everyDock 위치로 복제하지 않는다. 손쉬운 사용 권한이 필요하며 기본 Dock에 항목이 없으면 안내한다. 조회는 백그라운드에서 깊이·항목 수·시간을 제한한다. ShowMenu 응답 시간 초과는 메뉴 추적 중에도 발생할 수 있으므로 권한 거부로 분류하지 않는다.
+everyDock 메뉴의 ‘시스템 Dock 메뉴… (기본 Dock 위치)’ 또는 Option-우클릭으로 실제 Dock 항목에 AXShowMenu를 요청한다. URL로 앱을 식별하고 이름만으로 다른 앱을 선택하지 않는다. 앱 제공 명령의 실행은 macOS Dock이 담당한다. 고정·모든 창 닫기 등 everyDock 메뉴는 유지한다. 시스템 메뉴의 위치·내용은 macOS가 결정하며 다른 모니터의 everyDock 위치로 복제하지 않는다. 손쉬운 사용 권한이 필요하며 기본 Dock에 항목이 없으면 안내한다. 조회는 백그라운드에서 깊이·항목 수·시간을 제한한다. ShowMenu 응답 시간 초과는 메뉴 추적 중에도 발생할 수 있으므로 권한 거부로 분류하지 않는다.
 
 ### FR-25 파일 썸네일 — P-04 / P1
 
@@ -239,3 +239,5 @@ CPU는 Activity Monitor의 프로세스 CPU(논리 코어 하나=100%) 기준으
 2026-09-10 보완 근거: [Apple의 Spotlight 앱 화면 안내](https://support.apple.com/en-gb/guide/mac-help/-mh35840/mac), [앱이 제공하는 Dock 메뉴](https://developer.apple.com/documentation/appkit/nsapplicationdelegate/applicationdockmenu(_:)), [AXShowMenu](https://developer.apple.com/documentation/applicationservices/kaxshowmenuaction), [Quick Look Thumbnailing](https://developer.apple.com/documentation/quicklookthumbnailing/qlthumbnailgenerator).
 
 FR-23 복원 애니메이션: 크기 보정 후 원래 크기로 돌아갈 때 해당 화면 CADisplayLink의 최신 tick만 소비해 약 180ms 동안 위치·크기를 보간한다. AX 요청은 백그라운드에서 직렬 실행하고 최대 60Hz, backlog 1개다. 동작 줄이기에서는 즉시 복원하며 앱 전환·작업 취소·중간 외부 크기 변경 시 중단한다. display link가 멈추면 400ms에 최종 tick을 전달하고 정리한다. 이는 AppKit 내부의 네이티브 zoom 애니메이션과 동일한 구현이 아니다.
+
+FR-24 제한 보완: 사용자 실기기에서 네이티브 메뉴가 다른 모니터에 표시됨을 확인했다. 메뉴 요청 전 실제 Dock 아이콘의 AXPosition을 조회해 가장 가까운 화면과 선택한 everyDock 화면을 비교한다. 다르면 메뉴를 열지 않고 이유를 안내한다. 위치 조회 실패도 실행하지 않는다. 같은 화면에서도 메뉴의 정확한 위치는 macOS가 결정한다. 이 기능은 다중 모니터용 앱 고유 메뉴 복제 기능이 아니며 완전 지원으로 표시하지 않는다.

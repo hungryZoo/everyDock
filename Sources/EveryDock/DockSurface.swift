@@ -425,7 +425,7 @@ private final class DockIndicators: NSView {
     private func showAppMenu() {
         let menu = NSMenu(title: app.name)
         add(menu, "열기", #selector(openApp))
-        add(menu, "앱의 macOS Dock 메뉴…", #selector(nativeMenu))
+        add(menu, "시스템 Dock 메뉴… (기본 Dock 위치)", #selector(nativeMenu))
         if app.isRunning {
             add(menu, "열린 창 보기…", #selector(showWindows))
             add(menu, "모든 창 닫기", #selector(closeWindows))
@@ -447,9 +447,15 @@ private final class DockIndicators: NSView {
     @objc private func openApp() { model.launch(app, toggle: false, anchor: self) }
     @objc private func nativeMenu() {
         let url = app.url
+        guard let screen = window?.screen else { return }
+        let originY = NSScreen.screens.first?.frame.maxY ?? 0
+        func axFrame(_ screen: NSScreen) -> CGRect {
+            CGRect(x: screen.frame.minX, y: originY - screen.frame.maxY, width: screen.frame.width, height: screen.frame.height)
+        }
+        let target = axFrame(screen), screens = NSScreen.screens.map(axFrame)
         DispatchQueue.main.async { [weak self] in
             Task { @MainActor in
-                if let message = await NativeDockMenu.show(for: url) { self?.model.report(message) }
+                if let message = await NativeDockMenu.show(for: url, screen: target, screens: screens) { self?.model.report(message) }
             }
         }
     }
