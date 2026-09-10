@@ -19,3 +19,5 @@
 배포 검증: Homebrew style/audit PASS. 공개 ZIP을 인증 없이 다시 다운로드해 SHA-256 `216fb6e10529cbd5f6be06296b4c094484da20e1ad5b48d2777adeced50c40f0` 일치를 확인했다. Homebrew의 리디렉션 다운로드 지연으로 첫 fetch를 중단한 뒤, 이 검증된 공개 ZIP을 캐시에 넣고 Homebrew 자체 체크섬 검증을 거쳐 업그레이드했다. 설치 앱과 dist 앱의 실행 파일 SHA-256은 모두 `3c7d770a5df0aacdfba5dadce1a02c9f8bb3c441bb950a68cefb35af20afd0eb`이며 codesign strict 검증을 통과했다.
 
 최종 배포본을 기존 손쉬운 사용·화면 기록 항목에 재등록한 뒤 두 실제 접근 검사가 ‘사용 가능’인 것을 확인했다. 디버그 trace 없이 정상 실행 중이다. 전체 디스크 접근 설정은 변경하지 않았다. 테스트용 WindowFixture는 종료했다.
+
+다운로드 대기 추가 진단: 설치 앱을 1초 sample한 결과 FolderContents.load → NSFileManager.contentsOfDirectoryAtURL → DirEnumRead → open/__open에서 백그라운드 작업이 대기했다. 썸네일 생성 이전의 OS 디렉터리 열기 단계이며, 이것만으로 권한 거부인지 파일 시스템 응답 지연인지 단정하지 않는다. 원본 sample은 커밋하지 않았다.
