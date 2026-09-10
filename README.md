@@ -15,7 +15,7 @@ open -a everyDock
 
 `brew trust`는 이 cask만 신뢰하도록 지정합니다. 앱은 `/Applications/everyDock.app`에 설치됩니다. [Homebrew 설치](https://brew.sh/) · [공개 릴리스](https://github.com/hungryZoo/everyDock/releases) · [Homebrew cask](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb)
 
-현재 배포본은 ad-hoc 서명이며 Apple 공증은 없습니다. 첫 실행이 차단되면 출처를 확인한 뒤 **시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기**에서 직접 승인하세요. 설치 과정에서 Gatekeeper나 quarantine을 해제하지 않습니다. 최소화·창 선택에는 손쉬운 사용, 썸네일에는 화면 기록, 다운로드 목록에는 폴더 접근 허용이 필요합니다.
+현재 배포본은 ad-hoc 서명이며 Apple 공증은 없습니다. 첫 실행이 차단되면 출처를 확인한 뒤 **시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기**에서 직접 승인하세요. 설치 과정에서 Gatekeeper나 quarantine을 해제하지 않습니다. 최소화·창 선택에는 손쉬운 사용, 창 미리보기 이미지에는 화면 기록, 바탕화면·다운로드 파일 목록과 파일 썸네일에는 해당 폴더 접근 허용이 필요합니다.
 
 업데이트 전 메뉴 막대에서 everyDock을 정상 종료한 뒤 실행합니다.
 
