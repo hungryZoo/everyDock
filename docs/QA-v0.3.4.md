@@ -11,4 +11,6 @@
 
 원래 시스템 메뉴가 조회·명령 전달 중 잠시 나타날 수 있다. 앱이 제공하는 접근성 메뉴를 읽는 방식으로, 네이티브 메뉴의 모든 시각 효과·키보드 보조키 변형을 그대로 복제하지는 않는다. 기본 Dock에 해당 항목이 없거나 메뉴를 읽을 수 없는 앱은 일반 everyDock 메뉴를 사용한다. 진단은 opt-in `EVERYDOCK_TRACE_WINDOWS=1`에서 메뉴 단계·개수·결과 코드만 기록한다. 개인 메뉴 제목·화면 이미지·권한 DB는 저장소에 올리지 않는다.
 
-공개 배포·Homebrew 설치 결과는 완료 후 갱신한다. 현재 검증은 동일한 ZIP에서 추출한 /Applications 설치 후보로 수행했다.
+소스 `706cbed66d95a13626bfa50da17c0707deb79dcb`의 [GitHub CI](https://github.com/hungryZoo/everyDock/actions/runs/34429251279)는 테스트·패키징·검증 산출물 업로드 PASS다. 로컬 `swift test --arch arm64`도 최종 소스에서 37개 PASS였다. 동일 ZIP에서 추출한 /Applications 설치 후보를 권한 목록에 재등록한 뒤 실제 손쉬운 사용·화면 기록 검사 모두 ‘사용 가능’을 확인했다.
+
+공개 배포·Homebrew 설치 결과는 완료 후 갱신한다.
