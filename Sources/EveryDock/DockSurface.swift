@@ -415,15 +415,18 @@ private final class DockIndicators: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func rightMouseDown(with event: NSEvent) {
-        if event.modifierFlags.contains(.option) { nativeMenu() }
-        else { showAppMenu() }
+        showAppMenu()
     }
     override func accessibilityPerformShowMenu() -> Bool { showAppMenu(); return true }
     override func mouseDown(with event: NSEvent) {
         if event.modifierFlags.contains(.control) { showAppMenu() }
         else { super.mouseDown(with: event) }
     }
-    private func showAppMenu(message: String? = nil) {
+    private func showAppMenu() {
+        if app.isRunning { readNativeMenu(path: []) }
+        else { showFallbackMenu() }
+    }
+    private func showFallbackMenu(message: String? = nil) {
         menuGeneration += 1
         let menu = NSMenu(title: app.name)
         if let message {
@@ -431,8 +434,11 @@ private final class DockIndicators: NSView {
             notice.isEnabled = false
             menu.addItem(.separator())
         }
+        appendAppActions(to: menu)
+        (superview as? DockSurface)?.presentMenu(menu, anchor: self)
+    }
+    private func appendAppActions(to menu: NSMenu) {
         add(menu, "열기", #selector(openApp))
-        add(menu, "앱 고유 메뉴…", #selector(nativeMenu))
         if app.isRunning {
             add(menu, "열린 창 보기…", #selector(showWindows))
             add(menu, "모든 창 닫기", #selector(closeWindows))
@@ -448,13 +454,9 @@ private final class DockIndicators: NSView {
             menu.addItem(.separator())
             add(menu, "종료", #selector(quitApp))
         }
-        (superview as? DockSurface)?.presentMenu(menu, anchor: self)
     }
     private func add(_ menu: NSMenu, _ title: String, _ action: Selector) { menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = self }
     @objc private func openApp() { model.launch(app, toggle: false, anchor: self) }
-    @objc private func nativeMenu() {
-        readNativeMenu(path: [])
-    }
     private func readNativeMenu(path: [NativeMenuStep]) {
         menuGeneration += 1
         let generation = menuGeneration
@@ -463,7 +465,7 @@ private final class DockIndicators: NSView {
             let result = await NativeDockMenu.read(for: url, path: path)
             guard let self, menuGeneration == generation, app.url == url, window?.isVisible == true else { return }
             switch result {
-            case .failure(let failure): showAppMenu(message: failure.message)
+            case .failure(let failure): showFallbackMenu(message: failure.message)
             case .success(let entries): presentNativeMenu(entries, path: path, url: url)
             }
         }
@@ -493,13 +495,14 @@ private final class DockIndicators: NSView {
                     Task { @MainActor [weak self] in
                         let failure = await NativeDockMenu.select(for: url, path: entry.path)
                         guard let self, app.url == url, window?.isVisible == true else { return }
-                        if let failure { showAppMenu(message: failure.message) }
+                        if let failure { showFallbackMenu(message: failure.message) }
                     }
                 }
             }
         }
-        menu.addItem(.separator())
-        command("everyDock 메뉴…") { [weak self] in self?.showAppMenu() }
+        if !entries.isEmpty { menu.addItem(.separator()) }
+        menu.addItem(.sectionHeader(title: "everyDock"))
+        appendAppActions(to: menu)
         withExtendedLifetime(commands) { (superview as? DockSurface)?.presentMenu(menu, anchor: self) }
     }
     @objc private func showWindows() { (superview as? DockSurface)?.showWindows(self) }
