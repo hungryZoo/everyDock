@@ -24,6 +24,21 @@ import AppKit
         NSApp.activate(ignoringOtherApps: true)
     }
     @objc func toggleConfirmation(_ sender: NSButton) { confirmsClose = sender.state == .on }
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.addItem(withTitle: "Mark Test Window", action: #selector(markWindow), keyEquivalent: "").target = self
+        let disabled = menu.addItem(withTitle: "Disabled Test Command", action: #selector(markWindow), keyEquivalent: "")
+        disabled.target = self
+        disabled.isEnabled = false
+        let parent = menu.addItem(withTitle: "Nested Test Menu", action: nil, keyEquivalent: "")
+        let nested = NSMenu()
+        nested.addItem(withTitle: "Mark Nested Test Window", action: #selector(markNestedWindow), keyEquivalent: "").target = self
+        parent.submenu = nested
+        return menu
+    }
+    @objc func markWindow() { windows.last?.title = "Dock menu command received" }
+    @objc func markNestedWindow() { windows.last?.title = "Nested Dock menu command received" }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard confirmsClose else { return true }
         let alert = NSAlert()

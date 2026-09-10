@@ -403,6 +403,7 @@ private final class DockIndicators: NSView {
 @MainActor final class DockAppButton: DockIconButton {
     var app: DockApplication
     private let model: AppModel
+    private var menuGeneration = 0
     init(app: DockApplication, model: AppModel) {
         self.app = app
         self.model = model
@@ -422,10 +423,16 @@ private final class DockIndicators: NSView {
         if event.modifierFlags.contains(.control) { showAppMenu() }
         else { super.mouseDown(with: event) }
     }
-    private func showAppMenu() {
+    private func showAppMenu(message: String? = nil) {
+        menuGeneration += 1
         let menu = NSMenu(title: app.name)
+        if let message {
+            let notice = menu.addItem(withTitle: message, action: nil, keyEquivalent: "")
+            notice.isEnabled = false
+            menu.addItem(.separator())
+        }
         add(menu, "열기", #selector(openApp))
-        add(menu, "시스템 Dock 메뉴… (기본 Dock 위치)", #selector(nativeMenu))
+        add(menu, "앱 고유 메뉴…", #selector(nativeMenu))
         if app.isRunning {
             add(menu, "열린 창 보기…", #selector(showWindows))
             add(menu, "모든 창 닫기", #selector(closeWindows))
@@ -446,18 +453,54 @@ private final class DockIndicators: NSView {
     private func add(_ menu: NSMenu, _ title: String, _ action: Selector) { menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = self }
     @objc private func openApp() { model.launch(app, toggle: false, anchor: self) }
     @objc private func nativeMenu() {
+        readNativeMenu(path: [])
+    }
+    private func readNativeMenu(path: [NativeMenuStep]) {
+        menuGeneration += 1
+        let generation = menuGeneration
         let url = app.url
-        guard let screen = window?.screen else { return }
-        let originY = NSScreen.screens.first?.frame.maxY ?? 0
-        func axFrame(_ screen: NSScreen) -> CGRect {
-            CGRect(x: screen.frame.minX, y: originY - screen.frame.maxY, width: screen.frame.width, height: screen.frame.height)
-        }
-        let target = axFrame(screen), screens = NSScreen.screens.map(axFrame)
-        DispatchQueue.main.async { [weak self] in
-            Task { @MainActor in
-                if let message = await NativeDockMenu.show(for: url, screen: target, screens: screens) { self?.model.report(message) }
+        Task { @MainActor [weak self] in
+            let result = await NativeDockMenu.read(for: url, path: path)
+            guard let self, menuGeneration == generation, app.url == url, window?.isVisible == true else { return }
+            switch result {
+            case .failure(let failure): showAppMenu(message: failure.message)
+            case .success(let entries): presentNativeMenu(entries, path: path, url: url)
             }
         }
+    }
+    private func presentNativeMenu(_ entries: [NativeMenuEntry], path: [NativeMenuStep], url: URL) {
+        let menu = NSMenu(title: app.name)
+        menu.autoenablesItems = false
+        var commands: [DockMenuCommand] = []
+        func command(_ title: String, enabled: Bool = true, marked: Bool = false, action: @escaping @MainActor () -> Void) {
+            let handler = DockMenuCommand(action)
+            commands.append(handler)
+            let item = menu.addItem(withTitle: title, action: #selector(DockMenuCommand.invoke), keyEquivalent: "")
+            item.target = handler
+            item.isEnabled = enabled
+            item.state = marked ? .on : .off
+        }
+        if !path.isEmpty {
+            command("‹ 이전 메뉴") { [weak self] in self?.readNativeMenu(path: Array(path.dropLast())) }
+            menu.addItem(.separator())
+        }
+        for entry in entries {
+            if entry.title.isEmpty { menu.addItem(.separator()); continue }
+            command(entry.title + (entry.submenu ? "…" : ""), enabled: entry.enabled, marked: entry.marked) { [weak self] in
+                guard let self, app.url == url else { return }
+                if entry.submenu { readNativeMenu(path: entry.path) }
+                else {
+                    Task { @MainActor [weak self] in
+                        let failure = await NativeDockMenu.select(for: url, path: entry.path)
+                        guard let self, app.url == url, window?.isVisible == true else { return }
+                        if let failure { showAppMenu(message: failure.message) }
+                    }
+                }
+            }
+        }
+        menu.addItem(.separator())
+        command("everyDock 메뉴…") { [weak self] in self?.showAppMenu() }
+        withExtendedLifetime(commands) { (superview as? DockSurface)?.presentMenu(menu, anchor: self) }
     }
     @objc private func showWindows() { (superview as? DockSurface)?.showWindows(self) }
     @objc private func closeWindows() { model.closeAllWindows(app) }
@@ -466,6 +509,15 @@ private final class DockIndicators: NSView {
     @objc private func moveLater() { model.movePin(app, offset: 1) }
     @objc private func reveal() { NSWorkspace.shared.activateFileViewerSelecting([app.url]) }
     @objc private func quitApp() { model.quit(app) }
+}
+
+@MainActor private final class DockMenuCommand: NSObject {
+    private let action: @MainActor () -> Void
+    init(_ action: @escaping @MainActor () -> Void) { self.action = action }
+    @objc func invoke() {
+        // Finish NSMenu tracking before opening another menu or contacting the system Dock.
+        DispatchQueue.main.async { [action] in action() }
+    }
 }
 
 @MainActor final class DockUtilityButton: DockIconButton {

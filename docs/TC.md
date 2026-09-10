@@ -2,8 +2,8 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.4 / 2026-09-10 |
-| 대상 | everyDock v0.3.3, Apple Silicon, macOS 26+ |
+| 문서 버전·기준일 | 1.5 / 2026-09-10 |
+| 대상 | everyDock v0.3.4, Apple Silicon, macOS 26+ |
 | 요구사항 | [SRS](SRS.md), [추적표](README.md) |
 | 기존 실행 근거 | [QA.md](../QA.md), Swift Testing 실행 결과 |
 
@@ -209,7 +209,7 @@ FR-10의 이전 바탕화면 숨김/복원 결과는 과거 버전 QA에 보존�
 | TC-A34 | `observerReattachmentPreservesRestoreAndUnknownHistoryIsNotInvented` / WindowZoomStateTests | 앱 전환 후 유지, 사전 이력 없으면 복원 크기 추측 안 함 | FR-23 |
 | TC-A35 | `sideZoomRestoresPositionAndSizeWithoutMovingToDisconnectedDisplay` / WindowZoomStateTests | 왼쪽 Dock 보정·복원, 다른 화면의 과거 위치로 이동 안 함 | FR-23 |
 | TC-A36 | `newestModifiedFilesSortFirstWithStableNameTies` / WindowZoomStateTests | 수정일 최신순, 같은 날짜는 자연스러운 파일명 순 | FR-10/FR-11/FR-25 |
-| TC-M46 | 카카오톡의 ‘시스템 Dock 메뉴… (기본 Dock 위치)’, Option-우클릭, 기본 Dock 항목 없는 앱 | 앱 제공 메뉴, everyDock 메뉴 유지, 없는 항목 안내; 메뉴 위치는 macOS 관리 | FR-24 |
+| TC-M46 | 카카오톡의 ‘앱 고유 메뉴…’, Option-우클릭, 기본 Dock 항목 없는 앱 | 현재 아이콘 옆 앱 메뉴, 없는 항목은 같은 메뉴에서 안내; 설정 창 열지 않음 | FR-24 |
 | TC-M47 | 바탕화면·다운로드의 이미지/PDF/미지원 파일, 수정 후 재개방·빠른 개폐 | 비율 유지 썸네일·아이콘 fallback, 최대 3개 병렬, 취소 결과 무시, 최신순 | FR-25 |
 
 TC-M44는 창의 확대/복원 3회와 경계의 추가 4pt 제거를 함께 확인한다. 창이 이미 확대된 채 everyDock을 시작한 경우 원래 크기 복원은 제외한다. 자동 좌표 테스트로 실제 앱의 AX 동작을 PASS 처리하지 않는다.
@@ -218,6 +218,17 @@ TC-M44는 창의 확대/복원 3회와 경계의 추가 4pt 제거를 함께 확
 
 TC-M44 추가: 복원 전환 중 점프·멈춤, 동작 줄이기, 앱 전환 취소를 확인한다. TC-A37은 실제 프레임 간격이나 AX 응답 속도 PASS를 의미하지 않는다.
 
-| TC-A38 | `nativeMenuNeverOpensOnAnotherMonitor` / NativeMenuScreenTests | 숨긴 Dock의 화면 밖 좌표를 가까운 화면에 연결, 다른 화면에서는 거부, 잘못된 좌표 거부 | FR-24 |
+| TC-A38 (폐기) | v0.3.3 같은 화면 제한 테스트 | v0.3.4에서 제한 제거. ID 재사용하지 않음 | FR-24 |
 
-TC-M46 추가: 기본 Dock과 everyDock이 다른 화면일 때 메뉴를 실행하지 않고 안내하는지 확인한다. 최초 위임 구현에서 다른 화면 표시가 발생했다는 사용자 보고를 PASS로 기록하지 않는다.
+TC-M46 추가: v0.3.3의 다른 화면 요청 차단은 폐기했다. 아래 TC-M48에서 현재 화면 표시와 실제 명령 전달을 별도로 검증한다.
+
+## 14. v0.3.4 앱 고유 메뉴 회귀
+
+| ID | 테스트 | 기대 결과 | 요구사항 |
+|---|---|---|---|
+| TC-A39 | `nativeMenuSelectionRejectsChangedCommands` / NativeMenuIdentityTests | 인덱스·제목·식별자·하위 메뉴 여부 변경 시 일치 거부 | FR-24 |
+| TC-M48 | WindowFixture의 앱 메뉴를 각 모니터에서 열고 Mark Test Window 선택 | 로컬 아이콘 옆 표시, 실제 fixture 제목 변경, 설정 창 열리지 않음 | FR-21/FR-24 |
+| TC-M49 | fixture 비활성 항목·하위 메뉴·이전 메뉴·Escape·외부 클릭 | 비활성 명령 실행 안 함, 하위 명령 전달, 닫기 후 다른 입력 정상 | FR-24 |
+| TC-M50 | 메뉴를 읽은 뒤 대상 앱 종료·내용 변경·AX 거부·시간 초과 | 잘못된 명령 실행 안 함, 오류 구분, 로컬 일반 메뉴 사용 가능 | FR-24 |
+
+실기기 수행 범위와 미검증 조합은 [QA-v0.3.4](QA-v0.3.4.md)를 따른다.
