@@ -19,11 +19,11 @@ enum NativeMenuFailure: Error, Sendable {
     case denied, timedOut, unavailable, changed, api(Int32)
     var message: String {
         switch self {
-        case .denied: "앱 메뉴 접근이 거부되었습니다. 손쉬운 사용 권한을 확인해 주세요."
-        case .timedOut: "앱 메뉴가 응답하지 않습니다. 다시 시도해 주세요."
-        case .unavailable: "이 앱의 Dock 메뉴를 읽을 수 없습니다. 아래의 everyDock 메뉴를 사용할 수 있습니다."
-        case .changed: "앱 메뉴가 변경되었습니다. 다시 열어 선택해 주세요."
-        case .api(let code): "앱 메뉴 오류: \(code). 아래의 everyDock 메뉴를 사용할 수 있습니다."
+        case .denied: "App menu access was denied. Check Accessibility permission."
+        case .timedOut: "The app menu is not responding. Try again."
+        case .unavailable: "This app’s Dock menu is unavailable. You can use the everyDock commands below."
+        case .changed: "The app menu has changed. Open it again to choose a command."
+        case .api(let code): "App menu error: \(code). You can use the everyDock commands below."
         }
     }
 }

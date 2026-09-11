@@ -28,12 +28,12 @@ enum WindowCloseResult: Sendable {
     var message: String? {
         switch self {
         case .closed: nil
-        case .awaitingApplication: "앱에서 저장 확인이나 창 닫기를 완료해 주세요. 나머지 창은 닫지 않았습니다."
-        case .failed(.permissionDenied): "macOS가 창 제어를 거부했습니다. 손쉬운 사용 권한을 확인해 주세요."
-        case .failed(.noWindow): "이 창은 이미 닫혔습니다."
-        case .failed(.unsupported): "이 창은 닫기 기능을 제공하지 않습니다."
-        case .failed(.timedOut): "앱이 응답하지 않습니다. 잠시 후 다시 시도해 주세요."
-        case .failed(.apiError(let code)): "창을 닫지 못했습니다. macOS 오류: \(code)"
+        case .awaitingApplication: "Finish saving or closing the window in the app. The remaining windows were left open."
+        case .failed(.permissionDenied): "macOS denied window control. Check Accessibility permission."
+        case .failed(.noWindow): "This window is already closed."
+        case .failed(.unsupported): "This window does not support closing."
+        case .failed(.timedOut): "The app is not responding. Try again in a moment."
+        case .failed(.apiError(let code)): "Could not close the window. macOS error: \(code)"
         }
     }
 }

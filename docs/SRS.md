@@ -1,277 +1,250 @@
 # SRS — Software Requirements Specification
 
-| 항목 | 내용 |
+| Field | Value |
 |---|---|
-| 문서 버전·기준일 | 1.12 / 2026-09-11 |
-| 제품 기준 | everyDock v0.3.10 |
-| 상위 문서 | [PRD](PRD.md) |
-| 검증 명세 | [TC](TC.md) |
+| Document version | 1.13 / 2026-09-11 |
+| Baseline | everyDock v0.4.0 |
+| Parent / verification | [PRD](PRD.md) / [TC](TC.md) |
 
-‘해야 한다’는 요구사항이다. 구현과 실제 검증 완료는 별개이며 상태는 TC를 따른다. 수치가 ‘목표’인 경우 현재 성능을 주장하지 않는다.
+Requirements describe intended behavior. Implementation and observed PASS results are separate; numeric performance targets are not measured achievements.
 
-## 1. 시스템 경계와 의존성
+## 1. System boundary
 
-- 지원 실행 환경: arm64 Apple Silicon, macOS 26.0 이상. Intel 코드는 컴파일 단계에서 차단한다.
-- 개발 환경: Swift 6.2 이상, Xcode 26 이상과 macOS 26 SDK. 외부 Swift 패키지 없음.
-- 앱 식별자: `app.everydock.mac`. 메뉴 막대의 accessory 앱이며 일반 앱 Dock 타일을 만들지 않는다.
-- UI: AppKit `NSPanel`, `NSGlassEffectView`, SwiftUI 설정·팝업.
-- OS 연동: `NSWorkspace`, `NSScreen`, Accessibility API, ScreenCaptureKit, `SMAppService`.
-- 기본 Dock: `com.apple.dock` 환경설정 및 Dock 재시작. 해당 저장 형식은 공개 호환성 계약이 아니다.
-- 네트워크: 실행 앱은 서버·계정·분석 SDK를 사용하지 않는다. GitHub/Homebrew 다운로드는 배포 단계다.
-- 시스템 보안·권한을 자동 승인하거나 Gatekeeper/SIP를 해제하지 않는다.
+- Apple Silicon arm64, macOS 26.0+; Intel compilation is rejected.
+- Swift 6.2+, Xcode 26+, macOS 26 SDK; no external Swift packages.
+- Bundle ID `app.everydock.mac`; accessory app with a menu bar item rather than a normal app Dock tile.
+- AppKit panels, controls, `NSGlassEffectView`, and SwiftUI settings/popovers.
+- `NSWorkspace`, `NSScreen`, Accessibility, ScreenCaptureKit, Quick Look Thumbnailing, and `SMAppService` integration.
+- Native Dock preferences use `com.apple.dock`, whose storage format is not a public compatibility contract.
+- No runtime accounts, servers, analytics, or remote image transfer. Distribution downloads are separate.
+- No automatic OS permission approval or system-wide Gatekeeper/SIP changes. README documents user-run, app-scoped quarantine removal.
 
-## 2. 구성 요소
+UI mutations use MainActor. AX and filesystem work run separately. Retain observed NSRunningApplication objects and invalidate KVO before releasing them.
 
-| 구성 | 책임 | 주요 소스 |
-|---|---|---|
-| AppDelegate | 앱 수명, 중복 실행 차단, 메뉴 막대·설정 창 | `EveryDockApp.swift` |
-| AppModel | 설정 저장, 앱 목록, 실행 요청·상태, 권한 상태 | `AppModel.swift` |
-| DockCoordinator | 화면 UUID별 패널 생성·배치·종료, 포인터 좌표 변환 | `DockPanel.swift` |
-| AppPermissions | 실제 AX/SCK 결과 기반 3상태, 재검사·진단 | `AppPermissions.swift`, `OperationFailure.swift` |
-| ApplicationSnapshot | 앱 속성 백그라운드 조회·이벤트 병합 | `ApplicationSnapshot.swift` |
-| DockSurface | 아이콘·점·구분선·확대·바운스·히트 테스트 | `DockSurface.swift` |
-| NativeDockStyle | 시스템 아이콘/확대 크기 읽기 | `NativeDockStyle.swift` |
-| WindowActions | 백그라운드 AX 최소화·복원·창 목록·전면 표시·개별/일괄 닫기 | `WindowActions.swift` |
-| NativeDockManager | 복원 기록·파일 잠금·Dock 설정·감시 자식 프로세스 | `NativeDockManager.swift` |
-| DockUtilities | 바탕화면, 폴더 목록, 복사·휴지통, 확인 대화상자 | `DockUtilities.swift` |
-| WindowPreview | 창 캡처·캐시·호버/메뉴 팝업·선택·닫기 | `WindowPreview.swift` |
-| DockCore | 설정, 치수·모션, 복원 값 모델 | `Sources/DockCore` |
+## 2. Components
 
-모든 UI 변경은 MainActor에서 실행한다. AX와 디렉터리 읽기는 분리된 작업으로 수행한다. `NSRunningApplication` KVO 대상 객체는 강하게 보관하고, 객체를 해제하기 전에 관찰을 무효화해야 한다.
-
-## 3. 기능 요구사항
-
-### FR-01 화면 패널 관리 — P-01 / P0
-
-선택된 `NSScreen`마다 안정적인 디스플레이 식별자를 키로 패널을 하나만 유지해야 한다. 화면 변경·Spaces 변경·시스템 및 화면 깨어남을 관찰하고, 연결 해제된 패널과 미리보기·타이머를 정리한다. 음수 원점과 포인트 좌표를 지원해야 한다. 5초 주기(허용 오차 1초)의 geometry 확인은 이벤트 누락을 보완한다. 화면 배율로 픽셀 정렬한 요청 frame을 기억하고, 동일 요청은 WindowServer의 반올림 결과와 무관하게 다시 적용하지 않는다.
-
-### FR-02 표시·위치 제어 — P-01 / P0
-
-아래·왼쪽·오른쪽과 화면별 표시, 전체 일시 숨기기를 지원해야 한다. 모든 화면을 해제해도 메뉴 막대의 설정으로 복구할 수 있어야 한다. 전체 화면 표시 옵션은 창 collection behavior에 반영하되 OS 보안 공간 표시를 보장하지 않는다. 기본 Dock 관리 중이 아니면 `visibleFrame`을 기준으로 배치한다.
-
-### FR-03 공통 치수와 시스템 크기 — P-02 / P0
-
-크기 연동 시 native `tilesize`를 16~96pt, `largesize`를 기본 크기 이상~128pt 범위에서 읽는다. magnification 설정이 꺼져 있으면 배율 1, 켜져 있으면 큰 크기/기본 크기를 적용한다. 읽기 실패 시 기본값을 사용한다.
-
-| 항목 | v0.3 구현 치수 |
+| Component | Responsibility |
 |---|---|
-| 아이콘 간격 | 2pt |
-| 바깥 축 방향 패딩 | 7pt |
-| 아이콘 기준선 | 8pt |
-| 상단 기본 여백 | 4pt |
-| 유틸리티 앞 구분 공간 | 12pt |
-| 기본 바 두께 | 아이콘 크기 + 12pt |
-| 연동 모드 화면 가장자리 간격 | 3pt |
+| AppDelegate | Lifetime, duplicate-instance prevention, menu bar, Settings/setup windows. |
+| AppModel / ApplicationSnapshot | Preferences, event-driven app state, background snapshots, launch requests. |
+| DockCoordinator / DockPanel | Display identity, panel geometry, lifecycle, pointer conversion. |
+| DockSurface | Cached icons/layers, controls, magnification, drag targets, menus. |
+| AppPermissions | Permission hints, actual failures, explicit capture consent, request/cache coordination. |
+| WindowActions / WindowWorkArea | AX window identity, minimize/restore/select/close, supported zoom correction. |
+| NativeDockManager / NativeDockMenu | Recovery journals/watchdog and native menu snapshot/dispatch. |
+| DockUtilities / WindowPreview | Folder and Trash actions, file thumbnails, window previews. |
+| DockCore | Persistent models, geometry, motion, matching, ordering, recovery, failure classification. |
 
-길이는 `(실제 앱 수 + 3) × (아이콘 크기 + 2) - 2 + 14 + 12 + 임의 구분선 수 × 14 + 실행 영역 경계가 있으면 12`다. 임의 구분선 폭은 12pt이며 확대하지 않는다. 이는 everyDock의 구현 기준으로, Apple 내부 치수를 측정한 공식 값이 아니다. 아이콘은 셀 없는 NSControl의 bounds에 맞춘 CALayer에 표시한다. NSButtonCell의 크기별 레이아웃을 실행하지 않는다. 드래그 후 바깥에서 놓으면 클릭 취소, 안으로 돌아와 놓으면 실행하며 Space/Return 및 접근성 Press를 지원한다. 누르는 동안 패널의 마우스 입력을 유지한다. NSImage가 변경될 때만 CGImage를 만들며 확대 중 재래스터화하지 않는다. 표시 점·구분선도 재사용 레이어다. 좁은 화면에서는 크기를 줄이고 목록 스크롤을 제공한다.
+## 3. Functional requirements
 
-### FR-04 모션과 입력 — P-02 / P0
+### FR-01 Display panels — P-01 / P0
 
-포인터 거리에 따른 연속 cosine 감쇠로 중심과 이웃 아이콘을 확대해야 한다. NSView에 연결한 CADisplayLink를 변화 중에만 실행하고 안정되면 해제한다. 화면 최대 주사율(60/120Hz 등)을 요청하되 실제 전달은 OS가 결정한다. 보간은 `1-exp(-20×경과초)`로 계산하여 주사율·일시 지연에 따라 동작 속도가 달라지지 않아야 한다. 아이콘·유리 배경의 geometry 변경은 암묵적 레이어 애니메이션을 비활성화한 하나의 트랜잭션에서 처리한다. 실행 바운스와 클릭 반응을 제공하고, 동작 줄이기 시 이동 효과를 줄인다. 포인터 진단 환경값은 시작 시 한 번만 읽고, 마우스 통과 설정은 값이 바뀔 때만 WindowServer에 전달한다. 이벤트 좌표와 실제 포인터 좌표를 올바르게 변환하고 투명 애니메이션 공간의 클릭은 아래 앱으로 통과시킨다.
+Maintain one panel per enabled NSScreen using stable display IDs. Observe display/Space changes and system/display wake; clean up removed panels, previews, and timers. Support negative origins and point coordinates. A five-second geometry check with one-second tolerance supplements notifications. Cache the pixel-aligned requested frame so WindowServer rounding does not cause repeated frame writes.
 
-### FR-05 앱 실행·활성화 — P-02 / P0
+### FR-02 Visibility and position — P-01 / P0
 
-고정 또는 실행 앱을 클릭하면 NSWorkspace로 실행/활성화해야 한다. 실행 요청 즉시 pending 상태를 추가하며, 요청 실패는 오류로 알린다. 종료되거나 없는 앱의 상태를 활성 상태로 표시하지 않는다. 앱별 진행 중 클릭을 중복 수행하지 않는다.
+Support Bottom, Left, Right, per-display selection, and hiding all Docks. Keep Settings reachable with every display disabled. Apply the full-screen option through collection behavior without promising secure-screen visibility. Use visibleFrame placement when native Dock management is off.
 
-### FR-06 최소화·복원 — P-02 / P0
+### FR-03 Shared metrics and native sizing — P-02 / P0
 
-AXWindow 중 standard/dialog/system dialog 및 subrole이 없으나 창 버튼이 있는 창만 취급하고 CFEqual로 같은 객체를 중복 제거한다. 활성 앱 재클릭 옵션이 켜져 있으면 이 목록에 속한 AX focused window, main window, 최소화되지 않은 첫 창 순으로 대상을 찾고 minimize button에 Press를 요청하고, 지원하지 않으면 minimized 속성을 설정한다. 최소화 창 복원 시 minimized=false 및 raise를 요청한다. 현재 구현은 앱 클릭 복원 시 앱의 최소화 창들을 복원하며, 개별 창 선택은 FR-15를 사용한다.
+Read native tilesize within 16–96pt and largesize between the base size and 128pt. Disabled native magnification means scale 1; otherwise use large/base. Fall back to defaults on read failure.
 
-사전 AX 신뢰 검사가 false여도 실제 요청을 차단하지 않는다. 실제 apiDisabled만 권한 거부로, noValue는 창 없음, unsupported 계열은 미지원, cannotComplete는 응답 지연으로 분류한다. 앱 숨김으로 위장하지 않는다. AX messaging timeout은 개별 메시지당 0.5초이며 전체 요청의 시간 상한을 뜻하지 않는다. 모든 AX 메시지는 UI 스레드 밖에서 호출한다. 시스템이 요술램프 효과와 도착 위치를 결정하며 everyDock별 도착점 지정은 범위 밖이다.
-
-유효한 창이 없으면 오류 설정 창 대신 앱의 다시 열기를 요청한다. Finder의 바탕화면·도우미 창은 대상에서 제외한다.
-
-### FR-07 앱 상태 일관성 — P-02 / P0
-
-실행·종료·활성화·숨김 알림과 KVO를 주 경로로 사용하고 5초 재확인(허용 오차 1초)으로 보완해야 한다. 전체 NSRunningApplication 속성 조회는 백그라운드 snapshot 작업 하나로 병합한다. UI에는 변경된 앱 목록만 적용하고, 권한·설정 창 상태 변화는 Dock 전체 재동기화를 유발하지 않는다. pending 요청은 최대 45초 보관한다. 앱 목록·순서·실행/활성/숨김/launching 상태가 같으면 목록을 재발행하지 않는다. 포커스 변화만으로 앱 순서가 바뀌면 안 된다.
-
-### FR-08 기본 Dock 설정 관리 — P-03 / P0
-
-사용자가 관리를 켜면 아래 키의 값과 존재 여부를 백업한 뒤 적용해야 한다. 감시 프로세스를 시작하지 못하면 시스템 값을 바꾸지 않는다. 끄기·일시 숨기기·표시 화면 0개·정상 종료는 복원을 요청한다.
-
-| 키 | 적용값 |
+| Metric | Value |
 |---|---|
-| `autohide` | true |
-| `autohide-delay` | 3600 |
-| `autohide-time-modifier` | 0 |
-| `mineffect` | `genie` |
+| Icon spacing | 2pt |
+| Outer axial padding | 7pt per side |
+| Icon baseline / top resting space | 8pt / 4pt |
+| Utility boundary | 12pt |
+| Resting thickness | Icon size + 12pt |
+| Native-follow edge inset | 3pt |
+| Custom separator width | 12pt, not magnified |
 
-Dock 재시작은 해당 bundle ID 프로세스에 한정한다. Dock의 시스템 기능을 비활성화하지 않는다.
+Length is `(app count + 3) × (icon size + 2) − 2 + 14 + 12 + separator count × 14`, plus 12 when a running-section boundary exists. These are implementation metrics, not official measurements of Apple internals.
 
-### FR-09 복원 내구성 — P-03 / P0
+Use cell-free NSControl icons with cached CALayers; rasterize only when the image changes. Reuse dots and separator layers. A release outside cancels a click; dragging back inside and releasing activates once. Space, Return, and accessibility Press must work. Keep input tracking while pressed. Fit and scroll overflowing contents.
 
-원자적 JSON journal과 프로세스 간 파일 잠금을 사용해야 한다. 감시 프로세스는 `kqueue`로 주 프로세스 종료를 감지하며 불가 시 확인 루프를 사용한다. 복원 시 현재 값이 everyDock 적용값과 같은 키만 원래 값으로 바꾸고, 사용자가 변경한 키는 유지한다. 원래 없던 키는 제거한다. 성공 후 journal을 제거하고, 실패 기록은 다음 관리 시작의 재시도 대상으로 남긴다.
+### FR-04 Motion and input — P-02 / P0
 
-### FR-10 바탕화면 파일 스택 — P-04 / P1
+Use continuous cosine distance falloff for the hovered icon and neighbors. Run an NSView-linked CADisplayLink only while changing, request the display’s maximum rate, and stop when settled. The OS determines actual delivery. Interpolate with `1 − exp(−20 × elapsedSeconds)` so time, rather than refresh count, determines progress. Update icon/background geometry in one transaction without implicit animations. Provide launch bounce and click feedback; respect Reduce Motion. Read tracing configuration once and update mouse-through state only when changed. Transparent animation space passes clicks through.
 
-v0.3.3에서 사용자 요구에 따라 앱 숨김/복원을 제거하고 바탕화면 폴더의 임시 파일 팝업으로 변경한다. 다운로드와 같은 FolderStack을 사용하며 폴더 이름·아이콘·빈 상태·오류 안내를 구분한다. 최근 수정일 순 최대 80개, 숨김 파일 제외, 파일 클릭과 Finder 열기를 지원한다. 폴더별 요청은 하나로 병합하고 디렉터리·파일 아이콘 읽기는 백그라운드에서 처리한다. 바탕화면 버튼으로 앱의 숨김 상태를 바꾸지 않는다.
+### FR-05 Launch and activation — P-02 / P0
 
-### FR-11 다운로드 파일 스택 — P-04 / P1
+Launch/activate pins and running apps through NSWorkspace, publish pending feedback immediately, and report launch failures. Do not mark missing or terminated apps active. Serialize pending clicks per app.
 
-사용자의 Downloads 폴더에서 숨김 항목을 제외하고 수정일 역순 최대 80개를 4열로 표시해야 한다. 클릭하면 기본 앱으로 열며 Finder 열기를 제공한다. 로딩·비어 있음·실패·접근 응답 대기 상태를 구분한다. 2초 이상 대기하면 접근 안내를 표시한다. 팝업을 반복 개방해도 진행 중 디렉터리 요청은 폴더별 하나만 유지한다.
+### FR-06 Minimize and restore — P-02 / P0
 
-### FR-12 휴지통 — P-04 / P1
+Use standard/dialog/system-dialog AX windows, or windows with controls and no subrole. Deduplicate with CFEqual. Choose a focused window in the valid list, then the main window, then the first non-minimized window. Press AXMinimizeButton, falling back to setting minimized. Restore with minimized=false and raise. App-level restore currently restores the app’s minimized windows; individual selection follows FR-15.
 
-현재 사용자 `~/.Trash`를 열고 내용 변화에 따라 빈/찬 아이콘을 갱신해야 한다. 폴더 아이콘은 캐시하며 휴지통 디렉터리 조회는 백그라운드 작업 하나로 병합한다. 렌더링 함수에서 디렉터리를 읽지 않는다. 비우기는 대상 범위·영구 삭제·취소 불가를 알리고 명시적 확인 후 수행한다. 취소가 기본 키 응답이어야 하며 취소는 아무 항목도 삭제하지 않는다. 외장 드라이브의 휴지통은 포함하지 않는다. 읽기·삭제 실패는 오류로 표시한다.
+AX preflight is not a veto over actual AX operations. Classify apiDisabled as denied, noValue as no window, unsupported families as unsupported, and cannotComplete as timeout. Never substitute hiding the app. A 0.5-second AX messaging timeout applies per message, not to the whole operation. AX messages run off the UI thread. macOS controls the minimize animation and destination. If no valid window exists, reopen the app; exclude Finder’s desktop/helper windows.
 
-### FR-13 파일 드롭 — P-04 / P1
+### FR-07 App state — P-02 / P0
 
-file URL 드롭만 처리한다. 바탕화면·다운로드에는 원본을 유지한 복사를, 휴지통에는 `NSWorkspace.recycle`을 사용한다. 원본과 목적지가 같으면 중복 처리하지 않고 기존 이름을 덮어쓰지 않는다. 실패를 알리며, 다중 항목 작업의 부분 성공은 가능하다. 트랜잭션처럼 모두 취소된다고 안내하면 안 된다.
+Use launch/terminate/activate/hide notifications and KVO, supplemented by a five-second check with one-second tolerance. Coalesce full property reads into a background snapshot. Publish only changed lists; permission/settings changes must not synchronize every Dock. Expire pending launches after 45 seconds. Preserve app order across focus-only changes.
 
-### FR-14 호버 창 미리보기 — P-05 / P1
+### FR-08 Native Dock management — P-03 / P0
 
-실행 앱에 대해 설정 지연 후 앱 PID의 AX 일반 창 목록을 기준으로 카드와 개수를 결정해야 한다. SC 목록을 추가 카드로 합치지 않는다. 같은 PID·layer 0의 캡처 창을 위치와 크기 차이 각 8pt 이내에서 점수순으로 1:1 연결하고 제목 일치는 보조 점수로만 사용한다. 동명 창은 독립 AX 객체로 유지한다. 첫 8개 카드까지 이미지를 캡처하고 나머지도 제목으로 선택·닫기를 제공한다. AX 조회가 실패하면 정확한 목록을 읽지 못했다는 안내를 표시한다. 이미지 크기는 최대 440×330 픽셀 설정이며 오디오·포인터는 캡처하지 않는다.
+Before changes, record values and key presence and start the watchdog. If the watchdog cannot start, do not change system preferences. Apply `autohide=true`, `autohide-delay=3600`, `autohide-time-modifier=0`, and `mineffect=genie`. Turning management off, hiding all Docks, disabling all displays, or quitting requests restoration. Restart only the native Dock’s process; do not disable its system features.
 
-팝업이 열린 동안 약 2초 간격 갱신한다. 캐시는 최근 32개, 조회 시 60초 넘은 항목을 정리하는 메모리 캐시다. 앱 종료 시 소멸한다. CGPreflight가 false이면 자동 조회·미리보기 캡처를 차단하고 permissionRequired로 분류한다. 이는 실제 거부와 구분한다. 화면 권한 버튼만 명시적으로 SCShareableContent 접근을 요청할 수 있다. 실제 거부 후에는 긍정적인 힌트가 와도 버튼을 누르기 전까지 자동 재시도를 막는다. 캡처 이미지 API 직전에도 허용 상태를 확인하며, 상태 값이 달라질 때만 게시해 불필요한 UI 갱신을 만들지 않는다. 여러 패널의 동시 요청은 하나로 합친다(목록 캐시 1초). 실제 SCStreamErrorDomain의 userDeclined(-3801)만 권한 거부로 분류한다. 거부 후에는 자동 재요청하지 않고 사용자가 화면 권한 버튼을 누르기를 기다린다. 다른 API 오류·빈 창·보호된 창은 각각 오류 또는 제목/대체 이미지로 대응한다. 공개 API가 제공하지 않는 창 캡처를 우회하지 않는다.
+### FR-09 Durable restoration — P-03 / P0
 
-미리보기 카드가 1개면 1열·222pt, 2개 이상이면 2열·424pt로 배치한다. 썸네일은 190×118pt, 열 간격 12pt, 외곽 패딩 16pt다. 빈 상태는 300pt다. 갱신 후 hosting view의 fittingSize를 NSPopover.contentSize에 반영하고 스크롤 높이는 최대 340pt다.
+Use atomic JSON journals and an interprocess file lock. The watchdog observes parent exit with kqueue, with a polling fallback. Restore only keys whose current value still equals everyDock’s applied value, preserving user edits. Remove originally absent keys. Delete the journal after successful restoration; retain failures for the next management session.
 
-### FR-15 미리보기 수명·창 선택 — P-05 / P1
+### FR-10 Desktop stack — P-04 / P1
 
-아이콘에서 팝업으로 포인터를 옮길 때 약 260ms의 닫힘 유예를 제공하고 팝업 안에서는 유지한다. 대상 변경·클릭·화면 제거·기능 끄기 때 이전 지연·갱신 작업을 취소한다. 카드에 보관한 PID+AX 객체를 현재 앱 창 목록과 CFEqual로 재검증한 뒤 최소화를 해제·raise한다. 제목이나 geometry로 조작 대상을 추측하지 않는다. 사라진 창은 앱 활성화로 대응한다. 팝업이 실제 표시 중일 때만 포인터가 팝업 위에 있는지 검사하며 닫힘 delegate에서도 대상과 작업을 초기화한다. ‘열린 창 보기…’는 호버 설정과 무관하게 즉시 열고 외부 클릭으로 닫을 때까지 유지한다.
+Use the Desktop folder’s file popover, not app hiding/show-desktop. Reuse FolderStack with distinct name, icon, empty, and error states. Exclude hidden files, show up to 80 by newest modification date, open files and Finder. Coalesce reads per folder; read directories/icons in the background.
 
-### FR-16 고정 앱 — P-06 / P0
+### FR-11 Downloads stack — P-04 / P1
 
-초기 기본 Dock 가져오기, 수동 가져오기, 파일 선택 및 `.app` 드롭, 고정/해제·순서 이동을 제공해야 한다. 경로 또는 bundle ID 중복을 제거한다. 경로가 바뀌면 bundle ID로 재탐색하고 실패한 핀도 사용자가 제거할 수 있도록 유지한다.
+Show up to 80 non-hidden Downloads entries in four columns, newest modification date first. Open with the default app and provide Open in Finder. Distinguish loading, empty, failed, and awaiting access; show waiting guidance after two seconds. Reopening must not multiply outstanding directory requests.
 
-### FR-17 설정·로그인·중복 실행 — P-06 / P0
+### FR-12 Trash — P-04 / P1
 
-설정을 변경할 때 저장하고 화면에 적용해야 한다. 같은 bundle ID의 두 번째 앱은 패널을 추가하지 않고 종료한다. 로그인 항목은 `SMAppService.mainApp`을 통해 사용자가 제어하며, 승인 필요 상태를 표시한다. 앱은 설치 위치에서 실행한 뒤 로그인 항목을 등록하도록 안내한다.
+Open the current user’s `~/.Trash` and update cached empty/full icons as contents change. Coalesce directory reads off the UI thread. Emptying explains scope, permanence, and irreversibility and requires confirmation. Cancel is the default keyboard response and deletes nothing. External-drive Trash is excluded. Report read/delete failures.
 
-### FR-18 권한 및 오류 안내 — P-06 / P0
+### FR-13 File drops — P-04 / P1
 
-권한 상태를 확인 전/사용 가능/macOS에서 거부됨으로 구분하고 사용자가 시스템 설정을 열 수 있어야 한다. 사전 검사는 힌트이며 실제 성공이 우선한다. 시간 초과나 일반 API 오류로 권한 허용/거부를 단정하지 않는다. ‘권한 다시 확인’은 실제 AX 창 목록·SCK 접근을 재검사하며 ‘현재 앱 위치 보기’는 실행 중인 번들을 Finder에 표시한다. 기능별 필요 이유를 설명하며 승인 자체는 OS에서 사용자가 수행한다. ad-hoc 재빌드/업데이트 후 권한 재등록 가능성을 설치 문서에 알린다. 거부 상태에서도 기본 앱 실행·설정·종료를 제공한다.
+Accept file URLs. Copy to Desktop/Downloads while preserving source and existing destination files; reject identical source/destination. Use NSWorkspace.recycle for Trash. Report errors and possible partial success; do not claim transactional rollback.
 
-### FR-19 배포 — P-07 / P1
+### FR-14 Window previews — P-05 / P1
 
-소스·MRD·PRD·SRS·TC를 공개 GitHub 저장소에 제공한다. 태그와 번들 버전을 일치시키고, arm64 ZIP과 SHA-256 파일을 Release에 올린다. Homebrew tap cask는 버전 고정 URL·체크섬·arm64·macOS 26 이상·앱 설치 항목을 선언한다. README는 설치·실행·업데이트·제거 및 권한을 안내한다. 베타는 prerelease로 표시한다. 복원 journal을 자동 zap 대상으로 등록하지 않는다.
+After the configured delay, derive cards solely from the app’s valid AX windows. Do not append ScreenCaptureKit metadata as extra cards. Match same-PID, layer-zero capture entries one-to-one, using frame differences within 8pt and title as a secondary score. Keep same-title windows distinct. Capture the first eight cards at up to 440×330 pixels; remaining cards still support selection/closing. Capture no audio or cursor.
 
-### FR-20 개별 및 모든 창 닫기 — P-09 / P1
+Refresh approximately every two seconds while open. Keep at most 32 images in memory; discard entries older than 60 seconds when queried. Coalesce content requests, with a one-second metadata cache.
 
-미리보기 카드마다 접근성 이름과 도움말이 있는 24pt × 버튼을 제공한다. 닫기 버튼이 없는 창은 비활성화한다. 이미지 선택과 별도 버튼으로 처리하여 닫기 클릭이 창 선택으로 전달되지 않아야 한다. 닫는 동안 중복 요청을 막고 AX 목록과 캡처 메타데이터 캐시를 갱신한다.
+When CGPreflight is false, block automatic content/image capture with permissionRequired, distinct from an actual denial. Only a screen-permission button may explicitly request SCShareableContent. A real userDeclined in SCStreamErrorDomain is denied; do not turn other errors into permission denial. After denial, a positive hint must not enable automatic retries before another explicit request. Check permission again immediately before the image API. Publish status only when changed. Protected/unavailable windows use a title, icon, or cached image; never bypass OS protection.
 
-앱 우클릭 메뉴는 Finder를 포함한 실행 앱에 ‘모든 창 닫기’를 제공한다. 시작 시 창 객체 목록을 고정하고 순서대로 정상 AXCloseButton Press를 실행한다. 새 창은 포함하지 않는다. 이미 닫힌 창은 건너뛰고 오류는 중지·안내한다. 모달 대화상자/저장 sheet가 있거나 Press 후 최대 1.2초 동안 창이 사라지지 않으면 남은 창을 닫지 않고 앱을 전면에 표시해 사용자 응답을 기다린다. 저장·삭제·확인 버튼을 자동으로 누르거나 강제 종료하지 않는다.
+One card uses one column and 222pt width; two or more use two columns and 424pt. Thumbnails are 190×118pt, column gap 12pt, outside padding 16pt. Empty width is 300pt; scroll height is capped at 340pt. Update popover size from the hosting view’s fitting size after content changes.
 
-### FR-21 메뉴와 이름 레이블 — P-02 / P1
+### FR-15 Preview lifecycle and selection — P-05 / P1
 
-우클릭, Control-클릭, 접근성 ShowMenu에 같은 앱 메뉴를 제공한다. 메뉴의 크기와 선택 아이콘의 화면 좌표로 아래 Dock에서는 위쪽, 양옆에서는 안쪽에 6pt 간격으로 배치한다. 음수 좌표와 화면 visibleFrame 경계를 보정하며 최종 배치는 NSMenu에 맡긴다. 메뉴 추적 중 호버·미리보기·확대·목록 배치를 멈추고 종료 후 최신 상태를 반영한다. 이름 상자의 배경은 별도 뷰로 그리고 레이블의 intrinsic 높이를 기준으로 세로 중앙에 놓는다.
+Allow roughly 260ms to move from icon to popover; keep it open while inside. Cancel old delay/refresh tasks on target change, click, screen removal, or feature disable. Validate the stored PID and AX object with CFEqual against current windows before restoring/raising it. Never identify an action target by title or frame alone. If it disappeared, activate the app. Only inspect popover hit state while actually shown, and clear targets/tasks on close. Show Windows opens immediately independent of hover settings and stays until outside dismissal.
 
-### FR-22 Spotlight Apps 연결 — P-02/P-04 / P1
+### FR-16 Pins — P-06 / P0
 
-com.apple.apps.launcher 및 이전 Launchpad 식별자는 일반 창 앱으로 취급하지 않는다. Dock 클릭·메뉴 열기는 NSWorkspace로 시스템 Apps 실행기를 새 인스턴스로 실행해 Spotlight의 앱 화면을 연다. everyDock 자체 앱 목록은 제거한다. 이전 실행기 프로세스 활성화만으로 요청이 누락되지 않게 하며 AX 창 최소화와 45초 실행 중 표시를 사용하지 않는다. 실행기를 찾을 수 없거나 실행 오류가 나면 실제 오류와 Spotlight ⌘1 안내를 제공한다.
+Support initial/manual import from the native Dock, file selection, `.app` drops, pin/unpin, and order changes. Deduplicate paths/bundle IDs. Resolve moved apps by bundle ID; retain removable missing pins.
 
-### FR-23 확대 창의 Dock 영역 확보 — P-02 / P1
+### FR-17 Preferences, login, and instances — P-06 / P0
 
-활성 외부 앱 하나에 AXObserver를 등록해 크기·위치 변경·창 생성 알림을 받는다. 창별 resize/move를 구독하며 마지막 알림에서 약 100ms 뒤 처리한다. 창별 읽기·보정 작업은 직렬화하고 자체 보정 알림은 다시 보정하지 않는다. UI 스레드에서는 AX 메시지를 실행하지 않는다.
+Persist changed settings and apply them to displays. A second app with the same bundle ID must exit without adding panels. Manage login through SMAppService.mainApp and show approval-required state. Register from the installed app location.
 
-아래 Dock은 창의 위·아래가 화면 visibleFrame 경계에서 각 12pt 이내일 때 높이만 줄인다. 양옆 Dock은 왼쪽·오른쪽 경계가 각 12pt 이내일 때 해당 방향 폭과 필요 위치를 보정한다. 예약 경계는 실제 패널 위치 + 정지 Dock 두께(iconSize+12pt)다. 별도 4pt 여유를 추가하지 않아 창 경계와 Dock 배경 경계를 맞춘다. 최대 확대·툴팁용 투명 영역은 예약하지 않는다. 겹치는 면적이 가장 큰 화면을 선택하고 AX의 위쪽 원점으로 변환한다. 숨긴 화면·일시 숨김에는 예약하지 않는다.
+### FR-18 Permission and error guidance — P-06 / P0
 
-표준 AX 창·크기 변경 지원 창만 보정하고 AXFullScreen 또는 전체 화면 여부를 읽을 수 없는 창, 최소화, 대화상자, 일반 크기 창을 제외한다. 앱 활성 전환·레이아웃 변경·종료에서 관찰과 대기 작업을 정리한다. 전역 NSScreen.visibleFrame은 변경하지 않으며 AX를 제공하지 않거나 최소 크기 제약이 있는 앱에 동일한 결과를 보장하지 않는다. 선택적 EVERYDOCK_TRACE_WINDOWS 진단은 상태·geometry만 기록한다.
+Show Not Checked, Allowed, and Denied by macOS distinctly. Do not infer approval/denial from generic errors or timeouts. Check Permission Status inspects AX access and screen preflight without calling ScreenCaptureKit; Allow Screen Recording explicitly requests capture access. Show App Location reveals the running bundle. Explain the need for each permission and possible re-registration after ad-hoc updates. Keep launch, Settings, and Quit available when capture is denied.
 
-확대 전 위치·크기를 AX 창 객체별로 메모리에서 기억한다. 보정된 창이 다시 같은 화면 크기로 확대되면 기존 위치·크기로 복원한다. 앱 자체 복원이나 수동 resize/move는 정상 크기를 갱신한다. 앱 전환에는 복원 정보를 유지하고 창 닫힘·앱 종료·화면 레이아웃 변경에 정리한다. everyDock이 관찰하기 전에 이미 확대된 창은 원래 크기를 추측하지 않는다. 전체 화면·최소화 상태에서는 복원을 실행하지 않는다.
+### FR-19 Distribution — P-07 / P1
 
-### FR-24 앱 고유 Dock 메뉴 — P-02 / P1
+Publish source, MRD, PRD, SRS, and TC. Match bundle and tag versions; publish an arm64 ZIP and SHA-256 file. Pin the cask URL/checksum and declare arm64/macOS 26+. Provide install, launch, update, removal, and permission instructions. Mark beta releases as prereleases. Never overwrite published tags/assets or automatically zap unfinished recovery journals.
 
-우클릭·Control-클릭·접근성 메뉴 요청은 같은 통합 메뉴를 연다. 실행 중인 앱은 실제 Dock 항목의 AXShowMenu를 요청하고 메뉴 스냅샷을 읽은 뒤 닫는다. 로컬 메뉴에 앱 제공 항목과 everyDock 기본 기능을 구분선·섹션 제목으로 나란히 포함하며 별도 ‘앱 고유 메뉴…’ 진입 항목은 두지 않는다. 실행하지 않은 앱은 AX 조회 없이 기본 기능을 즉시 표시한다. URL로 앱을 식별하며 표시 이름만으로 다른 앱을 선택하지 않는다. 스냅샷은 선택한 everyDock 아이콘 옆의 로컬 NSMenu에 표시한다. 기본 Dock과 다른 모니터에서도 같은 경로를 사용한다. 제목·활성 상태·체크 표시를 유지하며 하위 메뉴는 선택 시 다시 읽고 이전 메뉴로 이동할 수 있다. 명령 실행 때 실제 메뉴를 다시 열고 각 경로의 인덱스·제목·AX 식별자·하위 메뉴 여부 및 활성 상태를 대조한 뒤 AXPress를 전달한다. 변경된 메뉴는 실행하지 않는다. 닫힌 메뉴의 AX 객체를 재사용하지 않는다. 조회는 백그라운드에서 깊이·항목 수·시간을 제한하고 중복 세션을 방지한다. 읽기·실행 실패는 같은 위치의 everyDock 메뉴에서 안내하며 설정 창을 열지 않는다. 손쉬운 사용 권한과 기본 Dock의 해당 앱 항목이 필요하다. 실제 시스템 메뉴가 조회·전달 중 잠시 보일 수 있으며 픽셀 단위 네이티브 메뉴 복제는 보장하지 않는다. 시간 초과·지원 불가·메뉴 변경·API 오류를 권한 거부와 구분한다.
+### FR-20 Individual and all-window closing — P-09 / P1
 
-### FR-25 파일 썸네일 — P-04 / P1
+Each preview has a separate 24pt close button with accessibility text, disabled if unsupported. A close click must not select the window. Prevent duplicate close requests and invalidate window/content caches afterward.
 
-바탕화면·다운로드는 Quick Look Thumbnailing으로 파일 내용 썸네일을 비동기 생성한다. 동시에 최대 3개 요청, 48pt/2x 이미지, 비율 유지, 폴더·미지원·실패 시 파일 아이콘을 유지한다. 팝업별 UUID 소유권을 확인한 뒤 종료 시 요청을 취소한다. 이전 팝업의 늦은 onDisappear/onAppear는 새 팝업에 영향을 주지 않는다. 작업 세대와 활성 요청 확인으로 취소·시간 초과 결과를 버린다. 개별 썸네일이 8초간 응답하지 않으면 취소하고 슬롯을 해제해 후속 파일을 처리한다. 폴더별 디렉터리 조회는 여전히 하나로 병합한다. 재열기 시 기존 그리드를 유지하고 메타데이터 갱신 결과에 유효한 URL·수정일 캐시 이미지를 먼저 적용해 아이콘으로 되돌아가는 중간 상태를 피한다. 같은 폴더 아이콘을 다시 누르면 열려 있는 팝업을 닫고, 다른 폴더는 기존 세션을 끝낸 뒤 연다. URL·수정일 캐시는 현재 목록 최대 80개로 제한하고 다음 열기에서 변경 파일을 갱신한다. 앱은 썸네일을 저장·전송하지 않으며 OS Quick Look 자체 캐시 정책은 시스템이 관리한다. 정렬은 생성일·다운로드 시각이 아닌 수정일 내림차순이며, 동률은 자연스러운 파일명 순으로 결정하고 UI에 기준을 표시한다.
+Close All Windows is available for running apps, including Finder. Snapshot window objects at the start, close normally with AXCloseButton Press, skip already-closed windows, and stop on errors. Exclude new windows. If a modal/save sheet is present or a window remains after up to 1.2 seconds, stop the remaining closes and bring the app forward. Never automatically answer a save/delete dialog or force-quit.
 
-## 4. 비기능 요구사항
+### FR-21 Menus and name labels — P-02 / P1
 
+Right-click, Control-click, and accessibility ShowMenu share one path. Anchor menus six points inward from the selected icon: above a bottom Dock or inside a side Dock. Clamp negative/display-edge coordinates and let NSMenu finalize placement. Freeze hover, previews, magnification, and list layout while tracking; synchronize afterward. Draw the name background separately and vertically center the label using its intrinsic height.
 
-| ID | 요구 | 측정·인수 기준 | v0.3 상태 |
-|---|---|---|---|
-| NFR-01 | 호환성 | arm64 단일 아키텍처, LSMinimumSystemVersion=26.0, SDK 빌드 성공. 2대 이상 혼합 배율 검증 | 빌드 확인, 화면 행렬 일부 |
-| NFR-02 | 반응·성능 | 기준 환경: Apple Silicon, 2화면, 앱 20개. 목표 유휴 CPU 평균≤2%/5분, RSS≤200MiB, 확대 프레임 P95≤16.7ms, 상태 변경 95%≤1초 | 미측정 목표 |
-| NFR-03 | 복구 | 목표 프로세스 종료 감지 후 5초 내 정상 Dock 복원. 사용자 변경 보존. 앱 재실행·화면 변경 후 패널 중복 없음 | 자동 모델·v0.2 관찰, 종합 미검증 |
-| NFR-04 | 개인정보 | 네트워크·분석 전송 없음. 창 이미지 파일 저장 없음. 실제 거부 후 자동 재시도 없음, 최초 실제 API 검사는 OS 승인 흐름 사용 | 코드 확인, 런타임 관찰 필요 |
-| NFR-05 | 파일·설정 보존 | 복사 원본/동명 파일 보존, 취소 후 삭제 0개, 백업 전 Dock 변경 없음, journal 복원 시 사용자 수정 보존 | 일부 자동·수동 확인 |
-| NFR-06 | 접근성 | 핵심 버튼 레이블·상태 제공, 동작 줄이기 반영, 라이트/다크·배율·VoiceOver 검사 | 레이블 관찰, 전체 미검증 |
-| NFR-07 | 배포 재현성 | CI 테스트·release 빌드, 태그=번들 버전, 다운로드 SHA-256 일치, brew fetch 성공 | TC-R 참조 |
-| NFR-08 | 추적 가능성 | 코드·docs를 같은 변경 단위에서 갱신하고 요구 변경 시 구현·테스트를 대조.  모든 P 요구에 FR/NFR과 TC 연결, PASS에 날짜·환경·근거 명시, 제약 공개 | 문서 검토 대상 |
+### FR-22 Spotlight Apps — P-02/P-04 / P1
 
-CPU는 Activity Monitor의 프로세스 CPU(논리 코어 하나=100%) 기준으로 측정한다. RSS는 주 프로세스와 감시 프로세스를 합산한다. 성능 목표를 넘으면 실패 원인과 측정 환경을 기록하며 측정 전 달성했다고 주장하지 않는다.
+Treat `com.apple.apps.launcher` and legacy Launchpad identifiers as launchers, not normal window apps. Launch a new system Apps instance via NSWorkspace to open Spotlight’s app browser. Do not show an internal catalog, minimize launcher windows, or retain 45-second pending state for them. Report missing launcher/launch errors with a Spotlight ⌘1 fallback.
 
-## 5. 데이터와 저장
+### FR-23 Zoomed-window work area — P-02 / P1
 
-| 데이터 | 형식·위치 | 수명 |
-|---|---|---|
-| DockPreferences | JSON Data, UserDefaults `everyDock.preferences.v1`, domain `app.everydock.mac` | 사용자 설정 유지 |
-| 고정 앱/구분선 | path, optional bundleIdentifier, optional separatorID(UUID) | 설정과 함께 저장 |
-| 실행 상태 | id, URL, 이름, 아이콘, pinned/running/active/launching/hidden | 프로세스 메모리 |
-| 미리보기 | PID+AX 객체(CFEqual/CFHash), 제목, frame, NSImage?, minimized, canClose | 메모리 캐시 |
-| 복원 snapshot | `original`/`applied`, bool/number/string/absent | 복원 완료까지 journal 유지 |
-| 폴더·앱 스택 | URL·표시 이름·날짜·캐시한 아이콘·검색 문자열 | 메모리 |
+Observe the active external app’s AX window creation, moves, and resizes. Debounce about 100ms and serialize reads/writes off the UI thread, ignoring notifications generated by the correction itself.
 
-설정의 누락 키는 구버전 기본값으로 채우고 정규화한다. 수동 iconSize 32~72, inset 0~40, magnification 1~4, previewDelay 0.2~2이며 비유한 수는 기본값으로 대체한다. 사용자 데이터·절대 개인 경로·권한 DB·복원 journal을 소스 저장소나 배포 ZIP에 포함하지 않는다.
+For bottom Docks, a window whose top/bottom are within 12pt of visibleFrame is a height-correction candidate. For side Docks, use left/right edges and adjust width/position. Reserve actual panel position plus resting thickness, without an extra 4pt gap or magnification/tooltip space. Choose the display with greatest overlap and convert to AX top-origin coordinates. Reserve nothing for hidden displays or paused Docks.
 
-## 6. 상태 전이와 실패 처리
+Only correct resizable standard windows; exclude minimized, dialogs, ordinary-sized, fullscreen, and unknown-fullscreen windows. Clean up observers/work on app/layout changes and exit. Do not change global NSScreen.visibleFrame. AX support and app minimum sizes limit results.
 
-| 대상 | 정상 전이 | 실패/취소 |
-|---|---|---|
-| 앱 실행 | 중지 → 요청중 → 실행 → 활성 | 실행 오류 안내, stale pending 만료 |
-| 창 | 활성 → 최소화 요청 → 최소화 → 복원 | 권한·AX 오류 안내, 숨김 대체 금지 |
-| 기본 Dock | 미관리 → 백업 → 감시 시작 → 적용 → 복원 | 적용 전 실패 시 원래 값 유지, 복원 실패 시 journal 유지 |
-| 미리보기 | 닫힘 → 지연 → 조회 → 표시 → 갱신 | 이전 Task 취소, 창 없음/권한 안내 |
-| 다운로드 | 미조회 → 읽기 → 목록/빈 폴더/오류 | 대기 안내, Finder 열기, 중복 요청 금지 |
-| 휴지통 비우기 | 대기 → 확인 → 삭제 → 완료/오류 | 확인 취소 시 즉시 종료, 삭제 없음 |
+Remember observed normal frames by AX identity. A corrected window zoomed again restores its remembered frame. Native restore and manual movement update normal history; app switches preserve it, while closed windows, terminated apps, and display layout changes clear it. Never invent an unknown earlier frame.
 
-## 7. 기술적 한계와 미해결 검증
+Interpolate restore position/size over about 180ms using the display link’s newest tick, serial AX work, at most 60Hz, and a one-item backlog. Reduce Motion restores immediately. Cancel on app switch, task cancellation, or external resize. If ticks stop, send a final tick after 400ms and clean up. This is not AppKit’s internal zoom animation.
 
-시스템 요술램프 도착점, 다른 앱 최대화 영역 예약, 보호된 창 캡처, 모든 앱 AX 구현, 잠금·보안 공간 위 표시는 보장하지 않는다. `DockLayout.frame` 테스트는 레거시 함수에 한정되며 런타임 배치는 `DockCoordinator` 수동 테스트가 필요하다. 기본 Dock 설정 복원 오류, 동명 창 선택, 최소화 창 이미지 품질과 대용량 폴더는 반드시 후속 TC로 검증한다.
+### FR-24 App-provided Dock menus — P-02 / P1
 
-참고 API: [NSWorkspace](https://developer.apple.com/documentation/appkit/nsworkspace), [NSGlassEffectView](https://developer.apple.com/documentation/appkit/nsglasseffectview), [SCScreenshotManager](https://developer.apple.com/documentation/screencapturekit/scscreenshotmanager), [SMAppService](https://developer.apple.com/documentation/servicemanagement/smappservice), [Homebrew Cask Cookbook](https://docs.brew.sh/Cask-Cookbook).
+For a running app, identify its native Dock item by URL, request AXShowMenu, snapshot the menu, then close it. Render app-provided and everyDock commands together beside the selected everyDock icon, including on another monitor. Non-running apps show ordinary commands without AX lookup.
 
-## 9. v0.3.1 변경 근거
+Preserve source titles, enabled/checked state, and submenus. Re-read submenus on navigation, providing Back. Before dispatch, reopen the real menu and validate every path index, title, AX identifier, submenu flag, and enabled state; reject changed commands. Never reuse stale closed-menu AX objects. Bound depth, count, and time off the UI thread and prevent overlapping sessions. Report denial, timeout, unsupported, changed, and API errors in place, without opening Settings. The native menu may briefly appear during reading/dispatch.
 
-권한 스위치가 켜져 있어도 현재 앱의 실제 AX/SCK 요청은 거부될 수 있으므로, UI 상태만으로 원인을 단정하지 않는다. ad-hoc 재빌드의 실행 파일 식별 변경은 가능한 원인이며 권한 DB를 우회하거나 변경하지 않는다. 성능 수정은 메인 스레드 반복 IPC와 프레임마다 아이콘 그리기를 제거한다. [검증 기록](QA-v0.3.1.md)을 참조한다. 화면 동기화 API 근거: [Apple NSView.displayLink](https://developer.apple.com/documentation/appkit/nsview/displaylink(target:selector:)).
+### FR-25 File thumbnails — P-04 / P1
 
-## v0.3.2 구현 근거
+Use Quick Look Thumbnailing asynchronously for Desktop/Downloads: up to three requests, 48pt at 2×, aspect ratio preserved, icon fallback. Track popover UUID ownership, task generations, and active requests. Ignore old disappear/appear events and canceled/timed-out results. After eight seconds, cancel a stalled thumbnail and release its slot. Coalesce directory reads per folder.
 
-메뉴 좌표는 [Apple NSMenu.popUp](https://developer.apple.com/documentation/appkit/nsmenu/popup(positioning:at:in:))의 뷰/화면 좌표 규약을 따른다. 창 닫기는 [표준 닫기 버튼](https://developer.apple.com/documentation/applicationservices/kaxclosebuttonsubrole)을 사용한다. [QA-v0.3.2](QA-v0.3.2.md)에 검증 범위와 제한을 기록한다.
+Keep the old grid while refreshing and apply valid URL/modification-date cached images before publishing the new list. Clicking the same folder toggles its popover; switching folders ends the old session. Cache only the current list, up to 80 items. everyDock does not store/transmit thumbnails; OS Quick Look caches are system-managed. Sort by modification date descending, then natural filename order, and label the sort basis.
 
-## v0.3.3 구현 근거
+### FR-26 Pinned separators — P-06 / P1
 
-[NSScreen.visibleFrame](https://developer.apple.com/documentation/appkit/nsscreen/visibleframe)은 시스템 Dock과 메뉴 막대가 제외된 읽기 전용 작업 영역이다. everyDock은 표시 중인 패널을 기준으로 AX 지원 확대 창을 보정한다. 결과와 미검증 조합은 [QA-v0.3.3](QA-v0.3.3.md)을 따른다.
+Persist pins and custom separators in one ordered list. Old path/bundleIdentifier entries remain apps unless separatorID exists. Store separators using UUIDs and normalized internal paths; do not resolve them as files/apps. Put unpinned running apps between pins and utilities, with automatic section boundaries that are not stored as pins.
 
-2026-09-10 보완 근거: [Apple의 Spotlight 앱 화면 안내](https://support.apple.com/en-gb/guide/mac-help/-mh35840/mac), [앱이 제공하는 Dock 메뉴](https://developer.apple.com/documentation/appkit/nsapplicationdelegate/applicationdockmenu(_:)), [AXShowMenu](https://developer.apple.com/documentation/applicationservices/kaxshowmenuaction), [Quick Look Thumbnailing](https://developer.apple.com/documentation/quicklookthumbnailing/qlthumbnailgenerator).
+Support insertion in gaps or before/after a pin, plus Settings insertion/reorder/removal. Custom separators belong only to the pinned section. Adapt separator hit areas and reusable layers to all three edges, fitting and scrolling with fixed separator widths.
 
-FR-23 복원 애니메이션: 크기 보정 후 원래 크기로 돌아갈 때 해당 화면 CADisplayLink의 최신 tick만 소비해 약 180ms 동안 위치·크기를 보간한다. AX 요청은 백그라운드에서 직렬 실행하고 최대 60Hz, backlog 1개다. 동작 줄이기에서는 즉시 복원하며 앱 전환·작업 취소·중간 외부 크기 변경 시 중단한다. display link가 멈추면 400ms에 최종 tick을 전달하고 정리한다. 이는 AppKit 내부의 네이티브 zoom 애니메이션과 동일한 구현이 아니다.
+### FR-27 Command-drag ordering — P-06 / P1
 
-FR-24 v0.3.4 변경: v0.3.3의 같은 화면 제한은 사용자 보고에서 메뉴 사용 자체를 막았으므로 제거했다. v0.3.4 로컬 표시·명령 전달 검증은 [QA-v0.3.4](QA-v0.3.4.md), v0.3.5 통합 진입 검증은 [QA-v0.3.5](QA-v0.3.5.md)에 기록한다.
+Distinguish Command mouse-down from movement beyond 4pt before NSDraggingSession. Preserve ordinary click/Control-click. Validate both private pasteboard type `app.everydock.pinned-item` and a genuine dragging source from the same AppModel; reject external imitation. Keep fileURL drops separate.
 
-### FR-26 고정 영역 구분선 — P-06 / P1
+Compute insertion slots from displayed item centers, including magnified pins outside the background. Bottom order is horizontal; side order is vertical. Beyond the midpoint separating pinned/running regions, permit unpinning an app with an orange indicator. Reject folders, outside drops, and separator unpinning. Adjust indices after removal; adjacent slots are no-ops, and preserve existing IDs and unaffected order. Pin running apps without bundle duplicates.
 
-고정 목록의 앱과 임의 구분선을 같은 순서로 표시한다. 기존 path/bundleIdentifier 설정은 그대로 읽고 separatorID가 없는 항목은 앱으로 해석한다. 구분선은 UUID와 정규화된 내부 식별 경로로 저장하며 파일·앱으로 조회하지 않는다. 고정하지 않은 실행 앱이 있으면 고정 영역과 폴더 사이에 배치하고 자동 경계를 표시한다. 폴더 앞 경계도 유지한다. 자동 경계는 설정의 고정 앱 목록에 넣지 않는다.
+Collapse magnification on Command-grab and pause list synchronization, bounce, previews, and intermediate preference writes. Validate app existence at drop time, save only actual changes, then synchronize all panels. Cancel with the normal drag return, without launching/unpinning. Scroll before a drag; no drag auto-scroll or synchronous global scans in the input path.
 
-고정 앱 사이 우클릭으로 해당 위치에 삽입하고, 좁은 간격을 누르기 어려울 때는 앱 우클릭의 앞/뒤 추가를 사용할 수 있다. 구분선 우클릭에서 이동·삭제하며 설정의 고정 앱에서도 같은 동작을 제공한다. 임의 구분선은 고정 영역에만 저장한다. 고정되지 않은 실행 앱 사이에는 임의 구분선을 저장하지 않는다. 실행 앱을 고정하면 임의 구분선으로 정리할 수 있다. 선과 히트 영역은 아래·왼쪽·오른쪽 방향을 반영하고 CALayer를 재사용한다. 좁은 화면에서는 고정 폭 구분선을 반영해 아이콘 크기·스크롤 범위를 계산한다.
+### FR-28 Startup setup — P-06 / P0
 
-### FR-27 Command-드래그 정렬 — P-06 / P1
+Show OnboardingView when `everyDock.hasLaunched` is false. Set it true only through Get Started or Set Up Later; closing alone is not completion. Preserve existing history and do not reset it when reopening the guide.
 
-DockAppButton은 Command mouse-down과 4pt 이동을 구분하고 NSDraggingSession을 시작한다. 일반 클릭·Control-클릭 경로는 유지한다. 내부 pasteboard type `app.everydock.pinned-item`과 동일 AppModel의 실제 dragging source를 함께 검증하며 외부 프로세스의 같은 문자열은 거부한다. 기존 fileURL 앱 추가·폴더 복사 드롭과 구분한다.
+Every launch/reopen/general check reads AX and CGPreflight status without ScreenCaptureKit. Missing/denied/error status shows one guide regardless of setup history; a check lasting three seconds can show its progress there. A user-dismissed guide is not reopened by that same check. Activation refreshes hints and login status.
 
-DockSurface는 확대되어 배경 밖으로 나온 고정 아이콘까지 드롭 대상으로 인정하며, 현재 표시된 고정 항목의 중심을 기준으로 삽입 슬롯을 구하고 재사용 CALayer로 위치를 표시한다. 아래는 왼쪽→오른쪽, 좌우는 위→아래 좌표다. 고정 영역의 끝과 다음 영역 시작 사이의 중점을 넘으면 고정 앱에만 unpin 드롭을 허용한다. 폴더 시작 이후·Dock 밖·구분선의 unpin은 거부한다. unpin은 주황 삽입선과 안내를 표시하고 드롭 시 해당 고정 항목만 제거한다. DockReordering은 원본 제거 전 슬롯을 원본 제거 후 위치로 보정하고, 인접 슬롯은 no-op, 기존 UUID·경로와 다른 항목 순서는 보존한다. 미고정 앱은 새 PinnedApplication으로 삽입하며 bundle ID 중복은 만들지 않는다.
+First setup selects login by default; later reopening reflects current registration. Get Started changes registration only if needed and stays open on errors/pending approval. Set Up Later keeps registration. Show only Window Control, Window Previews, and login setup, with detailed location/recovery help in Settings/README. Default height 620pt, minimum 520pt. Never modify the permission database.
 
-Command mouse-down부터 공통 정렬 상태를 유지하고 확대 배율을 1로 재배치한다. 드래그 중 목록 동기화·확대·바운스·미리보기를 보류하고 사용자 설정을 쓰지 않는다. 드롭 시 AppModel에서 최신 앱 존재 여부를 확인한 후 변경이 있을 때만 저장한다. 종료·취소 후 모든 화면에 동기화 신호를 보낸다. 취소는 NSDraggingSession의 원위치 복귀를 사용하며 고정 해제·앱 실행을 유발하지 않는다. 스크롤은 드래그 전에 수행하고 드래그 중에는 멈춘다. UI 이동 경로에서 앱·파일 전체 조회를 추가하지 않는다.
+### FR-29 Menu bar visibility — P-06 / P1
 
-### FR-28 첫 실행 권한·자동 실행 안내 — P-06 / P0
+Default `hideMenuBarIcon` to false, including migration from missing keys. Observe it through Combine and apply NSStatusItem.isVisible. Keep panels/app menus. Explain: “To open Settings, find everyDock in Apps and launch it. Settings opens even if everyDock is already running.”
 
-AppDelegate는 기존 `everyDock.hasLaunched`가 false이면 별도 NSWindow/OnboardingView를 표시한다. ‘시작하기’ 또는 ‘나중에 설정’에서만 true로 기록한다. 창 닫기는 완료로 취급하지 않는다. 기존 true 값은 그대로 이전한다. 설정의 재열기 버튼은 값을 초기화하지 않는다.
+StartupPresentation prioritizes required setup, then Settings for a manual launch with hidden menu icon, otherwise background launch. Detect login startup from the Apple open event’s keyAEPropData/lgit or explicit login-item parameter. Reopening reuses one Settings/guide window, raising an existing guide. Validate real login and Apps workflows separately.
 
-OnboardingView는 기존 AppPermissions의 상태·오류 분류와 AppModel 권한 요청을 사용한다. 매 프로세스 시작·앱 재열기·일반 재확인은 AX 접근과 CGPreflightScreenCaptureAccess로 상태만 확인하며 ScreenCaptureKit을 호출하지 않는다. 화면 권한 버튼에서만 명시적 요청을 허용한다. 미확인·거부·API 오류이면 hasLaunched와 무관하게 안내 창 하나를 표시한다. 검사에 3초 이상 걸리면 안내 창에서 진행 상태를 보여 준다. 사용자가 나중에 설정을 선택한 같은 실행의 검사는 창을 다시 열지 않는다. 일반 설정에 재확인 버튼을 제공하고, 앱 활성화 때 권한 힌트와 SMAppService 상태를 갱신한다. 처음에는 자동 실행 선택이 true이고 재열기에서는 현재 loginEnabled 값을 사용한다. 시작 시 선택과 현재 상태가 다를 때만 SMAppService 등록/해제를 실행한다. 적용 실패 또는 requiresApproval 상태에서는 완료하지 않고 오류·시스템 승인 버튼을 표시한다. 나중에 설정은 현재 로그인 상태를 유지한다. 초기 안내는 창 제어·창 미리보기·자동 실행만 표시한다. 중복 상태 재확인·앱 위치·재등록·폴더 안내 영역은 제거하고 해당 도움말은 일반 설정과 README에 유지한다. 기본 창 높이는 620, 최소 520이다. 권한 DB를 수정하지 않는다.
+### FR-30 Homebrew reset removal — P-07 / P1
 
-### FR-29 메뉴 막대 아이콘 표시와 설정 복귀 — P-06 / P1
+The cask preflight invokes `--reset-for-uninstall` only for uninstall/reinstall. Upgrade and unknown commands preserve settings. Homebrew uses the installed cask snapshot; older installations need upgrading to adopt new removal rules.
 
-DockPreferences.hideMenuBarIcon은 기본 false이고 기존 설정에서 누락 시 false로 복원한다. AppDelegate가 Combine으로 이 값의 변경을 관찰하고 NSStatusItem.isVisible에 반영한다. Dock 패널과 일반 앱 메뉴는 유지한다. 설정 설명은 ‘설정을 열려면 앱 메뉴(Apps)에서 everyDock을 찾아 실행하세요. 이미 실행 중이어도 설정 창이 열립니다.’이다.
+The helper terminates other instances with the same bundle ID and waits up to ten seconds; restores native Dock journals under the existing lock; unregisters SMAppService; clears the entire app UserDefaults domain with removePersistentDomain/synchronize; and removes caches/saved window state. Failure stops removal. Retain the lock inode for racing watchdogs; it contains no options.
 
-StartupPresentation은 첫 실행 또는 권한 설정이 필요한 경우 안내를 우선하고, 아이콘 숨김 상태의 수동 시작 시 설정, 그 외 백그라운드 시작을 구분한다. 로그인 실행 여부는 현재 Apple open-application event의 keyAEPropData/lgit 또는 명시적 login-item 파라미터로 판별한다. 실행 중 재열기는 applicationShouldHandleReopen으로 기존 설정 창 하나를 재사용하며, 안내 창이 이미 보이면 그 창을 앞으로 가져온다. 실제 로그아웃·로그인과 Apps 시작 전체 경로의 검증은 별도로 기록한다.
+Without a bundle, require no running app before defaults deletion/path cleanup. Zap targets only app preferences, caches, and saved state, not unfinished journals. OS privacy decisions remain separate. Test temporary domains/cask fixtures separately from actual login/recovery behavior.
 
-### FR-30 Homebrew 설정 초기화 제거 — P-07 / P1
+### FR-31 English presentation — P-10 / P1
 
-v0.3.9 이상 cask의 uninstall_preflight는 Homebrew 실행 명령이 uninstall 또는 reinstall인 경우에만 앱의 `--reset-for-uninstall`을 실행한다. upgrade와 알 수 없는 명령에서는 설정을 보존한다. Homebrew가 설치 당시 cask를 사용하므로 이전 설치본은 새 버전으로 업그레이드해야 한다. 원본은 [Homebrew tap](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb)이다.
+Use English for all everyDock-owned visible and accessibility text, including errors, menus, setup, settings, utilities, drag hints, and preview actions. Declare `CFBundleDevelopmentRegion=en` and English supported localization. Use singular/plural display/window counts. Retain external app/menu/file/window names and OS-owned dialogs/diagnostics. Preserve stored enum raw values, identifiers, paths, settings keys, and separator UUIDs.
 
-도우미는 같은 bundle ID의 실행 앱을 정상 종료하고 최대 10초 기다린다. 기존 잠금 아래 기본 Dock journal 복원을 마친 뒤 SMAppService 로그인 등록을 해제한다. UserDefaults.removePersistentDomain과 synchronize로 app.everydock.mac 도메인 전체(첫 실행 기록·고정 목록·옵션·창 상태)를 초기화하고 캐시 및 Saved Application State를 정리한다. 종료·복원·로그인 해제·파일 정리 실패 시 오류로 제거를 중단한다. 복원 lock은 경쟁 방지를 위해 유지하며 사용자 설정을 포함하지 않는다.
+Publish the current README, MRD, PRD, SRS, TC, and release instructions in English. Preserve historical QA evidence rather than rewriting old PASS claims as current results. Keep v0.4.0 a public beta. Validate text coverage, current-document links/anchors, settings migration, and actual layout separately.
 
-앱이 이미 없으면 실행 프로세스가 없는지 확인한 뒤 defaults delete와 경로 정리로 남은 설정을 제거한다. zap.trash는 앱 설정 plist·캐시·저장된 창 상태에 한정하고 미복원 journal은 포함하지 않는다. macOS 권한 DB는 수정하지 않는다. 이전 OS 승인 여부와 앱 첫 실행 기록을 구분한다. 임시 도메인과 Homebrew fixture로 삭제/재설치 초기화 및 업그레이드 보존을 검증하고 실제 앱의 로그인 해제·Dock 복원은 별도 검증 범위로 기록한다.
+## 4. Nonfunctional requirements
+
+| ID | Requirement / acceptance target |
+|---|---|
+| NFR-01 | arm64 only, LSMinimumSystemVersion=26.0, successful SDK build; mixed-scale multi-display validation. |
+| NFR-02 | Target: Apple Silicon, 20 apps, two displays; idle CPU average ≤2% over five minutes, combined RSS ≤200MiB, magnification frame P95 ≤16.7ms, 95% of app state changes ≤1 second. These remain measurement targets. |
+| NFR-03 | Target: native Dock restored within five seconds of detected process exit; user edits preserved; no duplicate panels after recovery. |
+| NFR-04 | No network/analytics/image-file output. No unapproved automatic capture or retry after denial. |
+| NFR-05 | Preserve source/existing destination files, delete nothing on cancellation, back up before Dock edits, preserve user changes during restoration. |
+| NFR-06 | English accessibility labels/state, keyboard support, Reduce Motion, light/dark, scale, and VoiceOver validation. |
+| NFR-07 | CI/package integrity, tag/bundle agreement, public download checksum, Homebrew fetch/install verification. |
+| NFR-08 | Code/docs together, stable requirement IDs, linked tests, dated evidence, explicit limitations. |
+
+CPU uses Activity Monitor’s convention of 100% per logical core. RSS includes app and watchdog. Display-link callback/render duration is not proof of visible frame rate or GPU/WindowServer timing.
+
+## 5. Data and transitions
+
+Preferences are JSON Data under `app.everydock.mac` / `everyDock.preferences.v1`. Pins store path, optional bundle ID, and optional separator UUID. Normalize missing/invalid values: manual icon size 32–72, inset 0–40, magnification 1–4, preview delay 0.2–2; non-finite numbers use defaults. App/window/thumbnail state is in memory. Recovery snapshots retain original/applied bool, number, string, or absent values until restoration succeeds. Do not publish user data, permission databases, private paths, journals, or window images.
+
+| State machine | Failure / cancellation |
+|---|---|
+| App: stopped → pending → running → active | Report failure and expire stale pending state. |
+| Window: active → minimize → restore | Classify AX failures; never substitute app hiding. |
+| Dock: unmanaged → backup → watchdog → apply → restore | Keep originals on pre-apply failure; retain failed journals. |
+| Preview: closed → delay → query → show → refresh | Cancel stale tasks; distinguish empty/permission/error. |
+| Folder: unread → loading → content/empty/error | Waiting guidance, Finder access, one read per folder. |
+| Empty Trash: idle → confirmation → deletion → done/error | Cancellation performs no deletion. |
+
+## 6. Limits and references
+
+Legacy DockLayout frame tests do not prove runtime DockCoordinator placement. Device validation remains necessary for Spaces, secure/fullscreen contexts, restoration failures, app AX compatibility, large folders, and minimized/protected images.
+
+Primary API references: [NSWorkspace](https://developer.apple.com/documentation/appkit/nsworkspace), [NSGlassEffectView](https://developer.apple.com/documentation/appkit/nsglasseffectview), [NSView display link](https://developer.apple.com/documentation/appkit/nsview/displaylink(target:selector:)), [SCScreenshotManager](https://developer.apple.com/documentation/screencapturekit/scscreenshotmanager), [NSMenu placement](https://developer.apple.com/documentation/appkit/nsmenu/popup(positioning:at:in:)), [AX close button](https://developer.apple.com/documentation/applicationservices/kaxclosebuttonsubrole), [visibleFrame](https://developer.apple.com/documentation/appkit/nsscreen/visibleframe), [AXShowMenu](https://developer.apple.com/documentation/applicationservices/kaxshowmenuaction), [Quick Look](https://developer.apple.com/documentation/quicklookthumbnailing/qlthumbnailgenerator), [SMAppService](https://developer.apple.com/documentation/servicemanagement/smappservice), [Cask Cookbook](https://docs.brew.sh/Cask-Cookbook).

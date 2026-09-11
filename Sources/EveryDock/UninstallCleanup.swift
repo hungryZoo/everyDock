@@ -14,7 +14,7 @@ import ServiceManagement
             RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         }
         guard others.allSatisfy(\.isTerminated) else {
-            throw NSError(domain: domain, code: 1, userInfo: [NSLocalizedDescriptionKey: "실행 중인 everyDock을 종료한 뒤 다시 제거해 주세요."])
+            throw NSError(domain: domain, code: 1, userInfo: [NSLocalizedDescriptionKey: "Quit everyDock before trying to uninstall it again."])
         }
         try NativeDockManager.recoverForUninstall()
         if SMAppService.mainApp.status == .enabled || SMAppService.mainApp.status == .requiresApproval {

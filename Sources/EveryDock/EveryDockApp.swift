@@ -55,17 +55,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         coordinator = DockCoordinator(model: model)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(systemSymbolName: "dock.rectangle", accessibilityDescription: "everyDock")
-        statusItem.button?.toolTip = "everyDock — 모든 화면의 Dock"
+        statusItem.button?.toolTip = "everyDock — A Dock on every display"
         let menu = NSMenu()
         menu.delegate = self
-        menu.addItem(withTitle: "everyDock 설정…", action: #selector(openSettings), keyEquivalent: ",").target = self
-        menu.addItem(withTitle: "앱 추가…", action: #selector(addApps), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "everyDock Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
+        menu.addItem(withTitle: "Add Apps…", action: #selector(addApps), keyEquivalent: "").target = self
         menu.addItem(.separator())
-        pauseItem = menu.addItem(withTitle: "모든 Dock 일시 숨기기", action: #selector(togglePause), keyEquivalent: "")
+        pauseItem = menu.addItem(withTitle: "Hide All Docks", action: #selector(togglePause), keyEquivalent: "")
         pauseItem.target = self
-        menu.addItem(withTitle: "디스플레이 다시 감지", action: #selector(refreshDisplays), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Detect Displays Again", action: #selector(refreshDisplays), keyEquivalent: "").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "everyDock 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit everyDock", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
         statusObservation = model.$preferences.map(\.hideMenuBarIcon).removeDuplicates().sink { [weak self] hidden in
             self?.statusItem.isVisible = !hidden
@@ -101,30 +101,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        pauseItem.title = model.paused ? "모든 Dock 다시 표시" : "모든 Dock 일시 숨기기"
+        pauseItem.title = model.paused ? "Show All Docks" : "Hide All Docks"
     }
 
     private func installMainMenu() {
         let main = NSMenu()
         let appItem = NSMenuItem()
         let appMenu = NSMenu(title: "everyDock")
-        appMenu.addItem(withTitle: "everyDock 설정…", action: #selector(openSettings), keyEquivalent: ",").target = self
+        appMenu.addItem(withTitle: "everyDock Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "everyDock 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit everyDock", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
         let editItem = NSMenuItem()
-        let edit = NSMenu(title: "편집")
-        edit.addItem(withTitle: "잘라내기", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        edit.addItem(withTitle: "복사", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        edit.addItem(withTitle: "붙여넣기", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        edit.addItem(withTitle: "모두 선택", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        let edit = NSMenu(title: "Edit")
+        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editItem.submenu = edit
         main.addItem(editItem)
         let windowItem = NSMenuItem()
-        let windows = NSMenu(title: "윈도우")
-        windows.addItem(withTitle: "닫기", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        windows.addItem(withTitle: "최소화", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        let windows = NSMenu(title: "Window")
+        windows.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windows.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowItem.submenu = windows
         main.addItem(windowItem)
         NSApp.mainMenu = main
@@ -136,7 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 760),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
-            window.title = "everyDock 설정"
+            window.title = "everyDock Settings"
             window.contentView = NSHostingView(rootView: SettingsView(model: model))
             window.minSize = NSSize(width: 540, height: 620)
             window.isReleasedWhenClosed = false
@@ -155,7 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if onboardingWindow == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 620),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-            window.title = "everyDock 시작하기"
+            window.title = "Welcome to everyDock"
             window.minSize = NSSize(width: 540, height: 520)
             window.isReleasedWhenClosed = false
             window.center()

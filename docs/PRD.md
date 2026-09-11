@@ -1,196 +1,104 @@
 # PRD — Product Requirements Document
 
-| 항목 | 내용 |
+| Field | Value |
 |---|---|
-| 문서 버전·기준일 | 1.12 / 2026-09-11 |
-| 제품 기준 | everyDock v0.3.10 공개 베타 |
-| 상위 문서 | [MRD](MRD.md) |
-| 상세 명세·검증 | [SRS](SRS.md), [TC](TC.md) |
+| Document version | 1.13 / 2026-09-11 |
+| Product baseline | everyDock v0.4.0 public beta |
+| Parent | [MRD](MRD.md) |
+| Implementation and tests | [SRS](SRS.md), [TC](TC.md) |
 
-## 1. 제품 목표
+## 1. Product outcome
 
-연결된 모든 작업 화면에서 동일한 Dock으로 앱을 실행·전환하고, 필요하면 창을 미리 보고 선택한다. 기본 macOS Dock에 익숙한 크기·확대·실행 반응을 제공하며, 종료하면 사용자의 Dock 설정으로 돌아간다.
+Provide a persistent, familiar app bar on each enabled display, with reliable app switching, window selection, everyday file access, and a reversible relationship with the macOS Dock. v0.4.0 makes everyDock’s interface and current documentation English while preserving saved preferences and existing interactions.
 
-‘네이티브처럼’은 AppKit UI, 예측 가능한 입력, OS 창 조작, 원래 설정 복원을 뜻한다. 시스템 Dock과 픽셀 단위로 동일하거나 각 everyDock 아이콘을 목표로 요술램프를 재생한다는 약속은 아니다.
+The supported target is Apple Silicon with macOS 26+. The app is local, without accounts, analytics, remote window-image storage, or runtime network services. Public beta status remains in place before the proposed 1.0 release.
 
-## 2. 범위
+## 2. Scope
 
-| 포함 | 제외 또는 후속 검토 |
-|---|---|
-| Apple Silicon, macOS 26 이상 | Intel, 이전 macOS, 다른 OS |
-| 화면별 독립 패널, 공통 앱 목록·모양 | 화면마다 다른 앱 목록/테마 |
-| 실행·전환·최소화·복원, 고정 앱 | 시스템 Dock의 모든 메뉴·배지·Handoff 복제 |
-| 확대·바운스·시스템 유리 배경 | 120Hz 보장, 픽셀 단위 동일성 |
-| 기본 Dock 관리 및 복원 감시 | Dock 프로세스 비활성화, 시스템 보안 설정 해제 |
-| 바탕화면·다운로드 파일 팝업, 사용자 휴지통 | 외장 드라이브 휴지통 일괄 관리 |
-| 창 미리보기, 개별 창 선택·닫기, 앱의 모든 창 닫기 | 보호된 창 캡처, 프리뷰 이미지 영구 보관 |
-| Homebrew tap 및 GitHub Release | Homebrew 공식 저장소 채택 보장, 앱 내 자동 업데이트 |
+Included: multiple displays, Bottom/Left/Right placement, native size following, magnification and launch feedback, app activation and supported minimize/restore, previews, close actions, app Dock menus, file stacks, Trash, pins, separators, Command-drag, setup and permissions, login launch, native Dock restoration, and Homebrew distribution.
 
-## 3. 주요 사용자 흐름
+Excluded: Intel, earlier macOS, a pixel-exact Dock clone, independent system Genie destinations for every monitor, notification badges, minimized-window tiles, Mission Control, drag auto-scroll, and per-display app lists. OS-protected content and unsupported AX windows are not bypassed.
 
-### 설치와 첫 실행
+## 3. Product requirements
 
-1. 사용자가 README의 Homebrew 명령으로 설치한다.
-2. 앱을 실행하면 선택 가능한 화면마다 Dock이 나타나고 최초 권한·자동 실행 안내 창이 열린다.
-3. 기존 macOS Dock 고정 앱을 가져온다. 실패하면 수동 추가가 가능하다.
-4. 기본 Dock 관리는 최초 기본값으로 켜며, 기존 설치자의 켬/끔 선택은 유지한다.
-5. 최소화·창 미리보기 권한은 필요한 기능과 연결해 안내한다. 사용자가 macOS에서 직접 승인한다.
+Implementation is not equivalent to verification. Current execution scope is recorded in [QA-v0.4.0](QA-v0.4.0.md); historical results remain version-specific.
 
-### 앱 실행과 반복 클릭
-
-1. 실행하지 않은 앱을 클릭하면 즉시 실행 중 반응을 보인다.
-2. 비활성 앱을 클릭하면 활성화한다.
-3. 활성 앱 재클릭 옵션이 켜져 있으면 실제 창 최소화를 요청한다.
-4. 일반 창이 없는 앱은 다시 열기를 요청한다. Finder의 바탕화면은 최소화 대상으로 취급하지 않는다. 다음 클릭은 최소화 창 복원을 시도한다. 권한 부재를 숨김 동작으로 대체하지 않는다.
-
-활성 앱 재클릭 최소화는 everyDock의 편의 기능이며, 기본 Dock과 완전히 같은 클릭 정책이라고 표현하지 않는다.
-
-### 창 미리보기
-
-1. 실행 중인 앱 위에서 설정된 시간만큼 머무른다.
-2. 창 이미지·제목 팝업이 나타난다. 권한이 없으면 승인 안내 또는 제목 목록을 제공한다.
-3. 포인터를 팝업으로 옮겨도 팝업이 유지된다.
-4. 창 카드를 클릭하면 해당 창을 복원·전면 표시한다. 창이 사라졌으면 앱 활성화로 대응한다.
-5. 개별 카드의 ×로 해당 창을 닫는다. 저장 확인이 나오면 앱을 앞으로 가져와 사용자가 결정한다.
-6. 우클릭 또는 Control-클릭의 ‘열린 창 보기…’로 호버 없이도 팝업을 열고, ‘모든 창 닫기’로 Finder를 포함한 앱의 창을 닫는다. 앱 종료와 창 닫기를 구분한다.
-
-### 파일 작업과 종료
-
-바탕화면과 다운로드 클릭은 각 폴더의 파일 목록 팝업을, 휴지통 클릭은 Finder를 연다. 바탕화면 클릭으로 다른 앱을 숨기지 않는다. 파일 드롭은 바탕화면·다운로드에서 복사, 휴지통에서 이동이다. 비우기는 대상과 영구 삭제를 알린 별도 확인 후 수행한다. 종료·일시 숨기기 때 기본 Dock 설정을 복원한다.
-
-## 4. 기능 요구와 인수 기준
-
-| ID | 우선순위 | 요구 | 인수 기준 | v0.3 상태 |
-|---|---|---|---|---|
-| P-01 | P0 | 다중 화면 상시 접근 | 선택된 화면당 패널 1개, 중복 실행·재연결 시 중복 없음. 모든 화면 해제 후에도 메뉴 막대 접근 가능 | 2대 표시 관찰, 연결·Spaces 행렬 미검증 |
-| P-02 | P0 | 익숙하고 즉각적인 앱 조작 | 시스템 크기 연동, 연속 확대, 실행 표시, 클릭 전환. 최소화 불가 시 이유 안내 | v0.3.1 사용자 확대·최소화 정상 확인; 전체 수동 행렬 미완료 |
-| P-03 | P0 | 기본 Dock와의 관계 제어 | 관리 끔은 기존 Dock 유지. 켬은 백업 후 적용. 종료·충돌 시 복원하며 사용자가 바꾼 값은 유지 | v0.2 실기기 복원 기록, v0.3 효과 키 자동 검증 |
-| P-04 | P1 | 일상 유틸리티 | 바탕화면·다운로드 목록·열기. Apps는 시스템 Spotlight 앱 화면. 휴지통 이동·취소 가능한 비우기 확인. 복사 덮어쓰기 없음 | 바탕화면 동작 변경; v0.3.3 QA에서 검증 범위 구분 |
-| P-05 | P1 | 호버 창 선택 | 기본 0.55초 지연, 팝업 이동 유지, 이미지 권한 안내, 선택 창 활성화 | v0.3.1 사용자 미리보기 정상 확인; 전체 창 선택 행렬 미완료 |
-| P-06 | P0 | 설정·권한 제어 | 고정 순서·표시 화면·위치·일시 숨김·로그인 실행 저장. 권한 거부 시 앱 지속 사용 | 일부 관찰, 로그인·이전 설정 행렬 미검증 |
-| P-07 | P1 | 재현 가능한 공개 배포 | 공개 저장소·릴리스 ZIP·SHA-256·arm64/26+ cask. README 설치·업데이트·제거 명령 제공 | 배포 검증은 TC-R 기록 참조 |
-| P-08 | P0 | 데이터 보호 | 창 이미지 메모리 처리, 네트워크 전송 없음, 파일 복사 원본 보존, 영구 삭제 전 확인 | 코드 검토, 종합 실기기 검증 필요 |
-| P-09 | P1 | 정확한 창 관리와 닫기 | 실제 AX 창당 카드 1개, 동명 창 구분, 개별 ×, Finder 포함 모든 창 닫기, 저장 확인 시 중지 | 구현·자동 회귀, 실기기 범위는 QA-v0.3.2 참조 |
-
-## 5. 기본 경험과 설정
-
-| 항목 | 최초 기본값 | 사용자 선택 |
+| ID | Priority | Requirement and acceptance |
 |---|---|---|
-| Dock 위치 | 아래 | 아래·왼쪽·오른쪽 |
-| 크기·확대 | 기본 Dock 설정 따름 | 연동 해제 시 수동 크기·확대 |
-| 실행 중 앱 표시 | 켬 | 켬/끔 |
-| 전체 화면 표시 | 켬 | OS가 허용하는 범위에서 켬/끔 |
-| 표시 화면 | 연결된 모든 화면 | 개별 해제, 새 화면 자동 포함 |
-| 활성 앱 재클릭 최소화 | 켬 | 켬/끔 |
-| 미리보기 | 켬, 0.55초 | 켬/끔, 0.2~2초 |
-| 기본 Dock 관리 | 켬 | 기존 사용자의 선택 보존 |
-| 로그인 시 실행 | 자동 등록하지 않음 | 사용자가 등록·해제 |
+| P-01 | P0 | One Dock per enabled display. Reconnect and repeated launch must not duplicate panels. Settings remains reachable when all displays are disabled. |
+| P-02 | P0 | Follow native sizing, magnify continuously, reflect launch state promptly, and activate supported windows. Explain unsupported actions. Anchor menus and labels to icons. Correct supported zoomed windows and restore an observed earlier size. |
+| P-03 | P0 | Native Dock management is optional. Back up before applying settings; restore on exit/recovery without overwriting user edits. |
+| P-04 | P1 | Desktop and Downloads show file stacks. Apps opens Spotlight’s app browser. Trash supports reversible moves and confirmed emptying. Copies preserve source and existing destination files. |
+| P-05 | P1 | Show previews after a default 0.55-second hover delay, retain them while entering the popover, and select the exact window. Explain absent capture access without requesting it in the background. |
+| P-06 | P0 | Save pins, order, separators, displays, position, visibility, and preferences. Expose setup, permissions, login launch, and a path back to Settings when the menu icon is hidden. |
+| P-07 | P1 | Public source, requirements, arm64 release ZIP, SHA-256, and macOS 26+ cask. Installation, update, and removal instructions must match the package. |
+| P-08 | P0 | Keep images in memory, send no personal content, preserve original files, and confirm irreversible deletion. |
+| P-09 | P1 | One card per actual AX window, distinct same-title windows, individual × buttons, and Close All Windows including Finder. Stop at save confirmation. |
+| P-10 | P1 | English app-owned menus, settings, setup, utility names, tooltips, accessibility labels, and messages. English README/current requirements; stable storage IDs and unchanged user/third-party text. |
 
-실행 중인 앱에는 점, 활성 앱에는 더 진한 점, 실행 요청에는 바운스·상태 문구를 제공한다. 앱 수가 화면 길이를 넘으면 축소 후 스크롤한다. 앱 목록은 포커스가 바뀌어도 순서를 유지한다.
+## 4. Default experience
 
-## 6. 예외 경험
+| Option | New configuration |
+|---|---|
+| Position | Bottom; Left and Right available. |
+| Size and magnification | Follow the macOS Dock; manual controls available. |
+| Running apps / full-screen display | On, within system restrictions. |
+| Enabled displays | All connected displays; new displays included automatically. |
+| Click active app to minimize | On. |
+| Previews | On; 0.55 seconds, adjustable 0.2–2 seconds. |
+| Native Dock management | On; preserve an existing user choice. |
+| Launch at login | Selected in first-time setup, registered only after Get Started. |
+| Menu bar icon | Visible by default. |
+| Interface | English. External content and system dialogs keep their source language. |
 
-- 권한 스위치와 실행 파일의 승인 상태 불일치: 실제 API 재검사와 현재 앱 위치를 제공한다. 창 없음·미지원·응답 지연을 권한 오류로 표시하지 않는다.
-- 손쉬운 사용 미허용: 최소화 안내를 표시하고 창을 유지한다. 실행·전환은 계속 제공한다.
-- 화면 기록 미허용: 권한 안내를 표시하고 가능하면 창 제목으로 대체한다.
-- 다운로드 접근 거부·대기: 읽기 오류/대기 안내와 Finder 열기를 제공한다. 팝업 재개방이 읽기 작업을 무한히 늘리지 않는다.
-- 앱 파일 이동·삭제: bundle ID로 위치를 다시 찾고, 찾지 못한 고정 항목은 삭제할 수 있도록 유지한다.
-- 휴지통·복사 오류: 성공으로 표시하지 않고 오류를 알린다. 여러 파일 중 일부 처리 뒤 실패할 수 있으며 전체 원자성을 보장하지 않는다.
-- 전체 화면·잠금 화면: OS 제한을 존중하고 표시를 보장한다고 홍보하지 않는다.
-- 기본 Dock 복원 실패: 복원 기록을 보존하고 다음 관리 시작에 복구를 시도한다.
+Running apps have an indicator; active state is distinguished. A launch request gets immediate feedback. Focus changes alone must not reorder apps. Overflow is handled by fitting and scrolling.
 
-## 7. 비기능 품질 목표
+## 5. Interaction acceptance
 
-정량 목표와 측정 방법은 SRS NFR 및 TC-P에 정의한다. 현재 수치는 미측정 목표다. 유휴 시 불필요한 UI 재생성을 피하고, 앱 전체 조회·창 조작·파일 읽기는 UI 스레드를 장시간 막지 않아야 한다. 확대는 화면 주사율에 맞춰 갱신하고 60Hz와 120Hz에서 같은 시간 곡선을 사용한다. 현재 측정 범위는 QA-v0.3.1을 따른다. 동작 줄이기, 배율, 라이트/다크 모드, VoiceOver와 실제 포인터 입력으로 검증한다.
+### Windows and menus — P-02/P-05/P-09
 
-## 8. 출시 기준
+Use real Accessibility window identities for cards and actions. Do not merge extra ScreenCaptureKit entries into the list. Same-title windows remain distinct. One preview uses one column; multiple previews use two columns and resize after closing a card.
 
-### 공개 베타
+Minimization presses the actual yellow button when supported, with a minimized-attribute fallback. Do not hide the app as a substitute for a failed minimize. Finder with no normal windows is reopened. Close All Windows snapshots the original list, excludes newly opened windows, and stops on a save sheet or failed close.
 
-- 자동 테스트와 arm64 빌드·번들 서명 검사 통과.
-- 기본 앱 조작, 두 화면 표시, 바탕화면 파일 팝업에 대한 관찰 기록 존재.
-- 미허용 권한 경로·비공증 상태·시스템 애니메이션 도착점 제약을 문서와 릴리스에 표시.
-- 배포물의 버전·태그·체크섬 일치, Homebrew 다운로드 검증.
-- 미검증 기능은 PASS로 계산하지 않고 재현 절차를 공개.
+Right-click, Control-click, and accessibility menu requests use the same icon-anchored menu. App-provided commands appear alongside everyDock commands without a separate entry step. Validate command identity again before dispatch. Unsupported menus keep ordinary commands available in place.
 
-### 안정 버전 승격
+Supported screen-sized windows leave room for the resting Dock without an extra four-point gap. Preserve an observed normal frame across app switches and restore it on a subsequent zoom request. Never invent the prior size of an already-zoomed window. The short restore transition respects Reduce Motion; actual smoothness needs device testing.
 
-- P0 전체와 파일 손실·설정 복원 관련 P1 테스트 PASS.
-- 권한을 승인한 최소화·복원·캡처·창 선택·파일 처리 실기기 테스트 PASS.
-- 화면 배치·Spaces·Stage Manager·잠자기 행렬과 성능 목표 확인.
-- Developer ID 서명·공증 및 배포 설치 경로 검증.
+### Organization — P-06
 
-## 9. 후속 우선순위
+Order pinned items, unpinned running apps, then folders. Persist custom separator UUIDs alongside pins. Insert separators from gaps, app context menus, or Settings; reorder and remove them in both places. Separators do not launch, magnify, or preview.
 
-1. P0: 권한 허용 경로, 안정적인 앱 전환과 복원, 최소화 호환성.
-2. P0/P1: 공증 배포, 재연결·잠자기·권한 갱신 검증, 파일 처리 결함 해소.
-3. P1: 배율·간격 비교와 포인터에서 팝업으로 이동하는 품질, 캡처 실패 표시 개선.
-4. P2: 화면별 앱 필터·모양, 더 풍부한 파일 스택·창 타일은 수요 확인 후 검토.
+Command-grab collapses magnification. A drag exceeding four points can move a pin to a blue insertion line, pin a running app, or unpin an app in the orange running-section target. Preserve other item order and IDs. Escape, outside/folder drops, or separator unpin attempts cancel. Command-click alone does not launch. Dragging performs no intermediate preference writes.
 
-라이선스와 수익화 정책은 이 문서에서 임의로 확정하지 않는다. 기능 범위 변경은 관련 MRD·SRS·TC ID를 함께 갱신한다.
+### Files — P-04/P-08
 
-## v0.3.2 인수 보완
+Desktop is a file stack, not a show-desktop gesture. Both stacks use modification date descending, natural filename ties, and at most 80 visible items. Keep valid thumbnails and the previous grid while refreshing. An old popover must not cancel a new session. Limit thumbnail concurrency to three; release a stalled slot after eight seconds. Unsupported content keeps its icon.
 
-우클릭 메뉴는 포인터 위치 대신 선택한 아이콘과 Dock 방향을 기준으로 배치하고, 메뉴 추적 중 확대·배치를 고정한다. 앱 이름은 배경과 분리한 레이블로 세로 중앙에 배치한다. 창 목록은 제목을 기준으로 두 API 목록을 합치지 않는다. 닫기 요청은 선택 당시의 창 객체만 대상으로 하며 새로 생긴 창을 일괄 닫기에 포함하지 않는다. 세부 검증은 [QA-v0.3.2](QA-v0.3.2.md)를 따른다.
+Trash emptying explains its current-user scope and irreversibility; Cancel is the default. External-drive Trash is excluded. File operations may partially succeed; do not describe them as an all-or-nothing transaction.
 
-## v0.3.3 인수 보완
+### Setup, permissions, and removal — P-06/P-07
 
-- P-05: 창 1개는 1열, 여러 창은 2열. 개별 닫기 후에도 컨텐츠에 맞게 팝업 크기를 갱신한다.
-- P-04: 바탕화면은 다운로드와 동일한 파일 스택이다. 파일 클릭·Finder 열기·권한 대기·빈 상태를 제공한다.
-- P-02/P-04: Apps 아이콘은 시스템 실행기를 통해 Spotlight의 앱 화면을 연다. 자체 앱 목록 팝업을 사용하지 않는다.
-- P-02: 화면 크기로 확대된 일반 창은 표시 중인 everyDock의 정지 크기 영역을 제외한다. 진짜 전체 화면, 최소화, 일반 크기의 창은 유지한다. 별도 화면과 Dock 방향을 반영한다. 공개 API로 전역 visibleFrame을 변경하는 방식은 아니며 AX 크기 보정이다.
+Show one setup window on first launch or when permission guidance is needed, including after setup was previously completed. Startup/reopen/general checks read screen permission status without calling the capture API. Missing permission blocks background capture; only an explicit screen-permission button may request it. A real denial stops background retries even with a stale positive hint.
 
-검증: [QA-v0.3.3](QA-v0.3.3.md).
+The setup window contains Window Control, Window Previews, and Launch at Login. Detailed recovery/location help remains in Settings. Get Started applies the login choice and waits for necessary OS approval; Set Up Later keeps registration unchanged. Closing the window alone does not complete first setup.
 
-2026-09-10 추가 인수: P-02는 추가 4pt 틈 제거와 관찰한 원래 크기로 반복 확대/복원을 포함한다. 앱 고유 명령은 macOS Dock에서 읽은 메뉴를 현재 아이콘 옆에 표시하고 선택 시 실제 메뉴를 검증해 전달한다. P-04 파일 팝업은 수정일 최신순 표시와 비동기 내용 썸네일을 제공한다. 미지원 파일은 아이콘을 유지하고 팝업을 닫으면 작업을 취소한다. 구현 상세는 FR-22~FR-25와 TC-M43~TC-M47에 연결한다.
+Hide Menu Bar Icon must explain that launching everyDock from Apps reopens Settings. Permission guidance takes priority when needed; a permitted login launch remains quiet.
 
-P-02 복원 전환은 화면 동기화된 짧은 위치·크기 애니메이션을 제공한다. 동작 줄이기를 존중하고 일반 Dock 호버 렌더링을 막지 않는다. 실제 부드러움은 자동 좌표 테스트와 별도로 검증한다.
+Homebrew uninstall and reinstall reset preferences and setup history, unregister login, and clean caches after native Dock recovery. Upgrade preserves preferences. macOS privacy decisions are separate. Installed cask snapshots determine removal behavior; older installations need an upgrade to receive new rules. Failed cleanup stops removal.
 
-v0.3.4 P-02 인수: 기본 Dock이 다른 모니터에 있어도 앱 고유 메뉴를 현재 아이콘 옆에서 사용할 수 있다. 활성·비활성·체크 표시와 하위 메뉴를 구분한다. 메뉴가 변경되면 잘못된 명령을 실행하지 않으며 실패 안내와 일반 everyDock 기능을 같은 메뉴에 유지한다. 설정 창으로 강제 이동하지 않는다. 원래 시스템 메뉴가 조회·전달 중 잠시 보이는 제한과 실기기 결과는 [QA-v0.3.4](QA-v0.3.4.md)에 공개한다.
+### English presentation — P-10
 
-## v0.3.5 인수 보완
+Translate everyDock-owned visible text and accessibility descriptions. Display counts use singular/plural English. Declare English bundle localization. Preserve app names, filenames, window titles, third-party commands, system-owned dialogs, and OS diagnostic text. Do not rename persisted enum values, preference keys, bundle identifiers, separator IDs, or user files.
 
-P-02/FR-21/FR-24: 우클릭 한 번에 앱 제공 메뉴와 everyDock 기본 기능을 함께 표시한다. 별도 앱 고유 메뉴 진입 단계를 제거한다. Control-클릭·접근성 메뉴 요청도 같은 동작이다. 실행 중인 앱은 비동기 조회 후 표시하며 조회 실패 시 기본 기능을 유지한다. 실행하지 않은 앱은 조회를 생략한다. 하위 메뉴와 실제 명령 전달 검증은 기존 경로를 유지한다.
+README uses the owner’s [agents-dev-skills](https://github.com/hungryZoo/agents-dev-skills) header/navigation and Homebrew guidance. Do not fabricate screenshots, videos, license grants, test results, or 1.0 readiness claims.
 
-## v0.3.6 인수 보완
+## 6. Failures and quality
 
-- P-02/P-06: 고정 앱 → 고정하지 않은 실행 앱 → 폴더 순으로 자동 구분한다. 아래 Dock은 좌→우, 양옆 Dock은 위→아래 순이다.
-- P-06: 임의 구분선은 고정 앱 목록에 UUID로 저장한다. 고정 앱 사이 우클릭, 앱 메뉴의 앞/뒤 추가, 설정의 구분선 추가를 지원한다. 설정에서 앱과 함께 순서를 바꾸고 삭제할 수 있다. 구분선은 앱처럼 확대·실행·미리보기하지 않는다.
-- P-04: 폴더 재열기 중 기존 그리드와 유효한 썸네일을 유지하며, 이전 팝업의 늦은 종료가 새 팝업의 요청을 취소하지 않는다. 응답 없는 썸네일 요청은 8초 후 슬롯을 해제하고 다음 파일로 진행한다.
+Distinguish denied permission, missing registration, API failure, timeout, unsupported windows, and empty lists. Keep ordinary app launch, Settings, and Quit available without capture permission. Recover moved apps by bundle ID or retain removable missing pins. Preserve failed restoration journals. Long AX, application enumeration, file, and thumbnail work must not block animation.
 
-실제 수행 범위는 [QA-v0.3.6](QA-v0.3.6.md)에 기록한다.
+Performance targets are defined in SRS NFR-02 and are not claims of measured performance. Validate mixed scale, 60/120Hz, Reduce Motion/Transparency, light/dark mode, keyboard interaction, and VoiceOver separately.
 
-## v0.3.7 Command-드래그 인수 조건
+## 7. Release gates
 
-- Command를 누른 채 아이콘을 4pt 이상 끌면 앱 실행 대신 정렬을 시작한다. Command-클릭만으로 실행하지 않는다.
-- 고정 앱·구분선을 고정 영역의 파란 삽입선에 놓으면 순서를 저장하고 모든 화면·설정에 반영한다. 미고정 실행 앱을 고정 영역에 놓으면 그 자리에 고정한다.
-- 고정 앱을 고정 경계 뒤의 실행 앱 영역에 놓으면 주황 표시와 ‘Dock 고정 해제’ 안내 후 고정을 해제한다. 실행 중인 앱은 실행 영역에 남고, 종료된 앱은 사라진다. 구분선은 이 영역에서 삭제하지 않고 취소한다. Escape, Dock 밖 또는 폴더 영역에 놓으면 취소하고 설정을 유지한다. Command로 잡는 순간 원래 크기로 축소하고, 드래그 중 확대·미리보기·설정 쓰기를 멈추며 성공한 드롭에서만 한 번 저장한다.
-- 아래·좌우 Dock과 같은 앱의 다른 모니터 Dock을 대상으로 한다. 넘치는 항목은 드래그 전에 스크롤한다. 드래그 중 자동 스크롤과 실행 앱끼리의 임시 정렬은 범위에서 제외한다.
-
-요구사항 FR-27, 실제 수행 범위는 [QA-v0.3.7](QA-v0.3.7.md)에 기록한다.
-
-## v0.3.8 인수 조건
-
-- 신규 설치의 첫 실행에서 ‘everyDock 시작하기’ 창 하나를 표시한다. 손쉬운 사용·화면 녹화의 목적, 허용 상태, 등록 설정 버튼, 현재 앱 위치, 상태 재확인을 제공한다. 권한 요청은 버튼을 누를 때 수행하고 macOS가 승인한다.
-- 첫 안내에서는 로그인 자동 실행을 기본 선택하되 ‘시작하기’를 눌러야 적용한다. 등록 실패와 시스템 승인 대기는 창에 남겨 안내한다. ‘나중에 설정’은 로그인 상태를 변경하지 않고 완료 처리한다. 권한을 강제하지 않는다.
-- 완료 전 창만 닫았다면 다음 실행에서 다시 안내한다. 기존 hasLaunched 사용자는 업그레이드 시 안내를 강제하지 않는다. 설정에서 안내를 다시 열면 현재 로그인 상태를 기본값으로 사용한다.
-- ‘메뉴 막대 아이콘 가리기’는 즉시 반영·저장한다. 설명에 Apps에서 everyDock을 실행하면 설정이 열린다고 안내한다. 아이콘을 숨긴 상태에서 수동 실행하면 설정을 열고, 로그인 자동 실행은 조용히 시작한다. 실행 중 재실행도 설정을 열며 안내가 이미 보이면 그 창을 앞으로 가져온다.
-
-실제 수행 범위는 [QA-v0.3.8](QA-v0.3.8.md)에 기록한다.
-
-## v0.3.8 Homebrew cask 정리 보완
-
-v0.3.8 당시에는 일반 uninstall/install/upgrade가 사용자 설정을 보존했다. 다음 v0.3.9 조건이 이 제거 정책을 대체한다. 명시적인 uninstall --zap은 고정 목록·옵션·첫 실행 완료·캐시·저장된 창 상태를 제거해 다음 실행에서 초기 안내를 다시 제공한다. 앱이 이미 제거된 경우 --force 경로를 안내한다. macOS 권한 결정과 로그인 항목, 기본 Dock 복원 기록까지 모두 지웠다고 표시하지 않는다. 재설치 시 권한 질문 재현은 사용자 선택의 앱별 tccutil reset 절차와 안내의 권한 요청 버튼을 사용한다. 설치 스크립트에서 권한을 자동 초기화하거나 모든 앱의 권한을 변경하지 않는다.
-
-## v0.3.9 인수 조건
-
-- 일반 삭제 및 재설치는 앱 설정 전체와 첫 실행 기록을 초기화하고 로그인 등록을 해제한다. 재설치 후 최초 안내 및 기본 옵션으로 시작한다.
-- 업데이트는 기존 옵션을 유지한다. 설치 당시 cask의 제거 규칙이 사용되므로 이전 버전은 먼저 업그레이드하도록 안내한다.
-- 앱 시작·재열기 때 실제 권한을 검사한다. 미허용·오류·지연 시 안내 창 하나를 제공하고, 나중에 설정을 선택하면 해당 실행의 검사 완료로 다시 강제 표시하지 않는다.
-- macOS의 기존 승인은 유지될 수 있으며, 미복원 기본 Dock 기록을 무조건 삭제하지 않는다. 복원·종료 실패 시 제거를 중단한다.
-
-FR-28~FR-30 및 TC-A48~49, TC-R08, TC-M63에 연결한다. 실제 검증은 [QA-v0.3.9](QA-v0.3.9.md)를 따른다.
-
-## v0.3.10 인수 조건
-
-초기 안내 하단의 상태 재확인·앱 위치·재등록·폴더 설명 영역을 제거한다. 실행·재열기·호버·주기 갱신은 화면 권한이 없는 상태에서 캡처 API를 호출하지 않는다. 권한 버튼 클릭만 시스템 요청을 허용하며, 거부 후 자동 반복 요청을 막는다. 기존 허용 사용자는 미리보기를 계속 사용할 수 있다. FR-14/FR-28, TC-A50~51, TC-M65에 연결한다. v0.3.8/0.3.9의 초기 안내 및 자동 실접근 검사 조건은 이 조건으로 대체한다.
+A beta requires automated tests, arm64 packaging/signature integrity, public checksum agreement, relevant observations, and disclosure of untested areas. A stable release additionally requires the P0 manual matrix, permission-enabled window/file operations, recovery and file safety, display/sleep/Spaces coverage, measured performance, Developer ID signing, and notarization. The owner decides licensing. A version bump alone does not satisfy these gates.

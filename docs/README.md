@@ -1,44 +1,46 @@
-# everyDock 개발 문서
+# everyDock Documentation
 
-문서 기준: **v0.3.10 / 2026-09-11 / 공개 베타**. 문서는 현재 코드와 실제 확인 결과를 기준으로 작성하며, 목표를 달성한 실적으로 표현하지 않습니다.
+Baseline: **v0.4.0 / 2026-09-11 / public beta**. Current specifications are English and describe the implemented contract, with verification recorded separately. Targets are not reported as measured achievements.
 
-| 문서 | 목적 | 주요 독자 |
+| Document | Purpose | Audience |
 |---|---|---|
-| [MRD](MRD.md) | 해결할 문제, 대상 사용자, 시장 대안, 수요 검증 가설 | 제품 책임자 |
-| [PRD](PRD.md) | 제공할 경험, 우선순위, 범위, 인수 기준 | 기획·디자인·개발 |
-| [SRS](SRS.md) | 구현 가능한 요구사항, 인터페이스, 상태·데이터·오류 처리 | 개발·QA |
-| [TC](TC.md) | 재현 가능한 테스트 절차, 기대 결과, 검증 현황 | 개발·QA |
-| [릴리스 절차](RELEASING.md) | 앱 패키징, GitHub Release, Homebrew tap 갱신 | 유지보수자 |
+| [MRD](MRD.md) | Problem, users, alternatives, and validation hypotheses. | Product owner |
+| [PRD](PRD.md) | Experience, scope, priorities, and acceptance. | Product, design, engineering |
+| [SRS](SRS.md) | Implementable behavior, data, state, and failure handling. | Engineering, QA |
+| [TC](TC.md) | Stable test IDs, procedures, and expected results. | Engineering, QA |
+| [Releasing](RELEASING.md) | Packaging, GitHub releases, and the Homebrew tap. | Maintainers |
+| [v0.4.0 QA](QA-v0.4.0.md) | Tests actually performed and remaining checks. | Reviewers, testers |
 
-## 요구사항 추적
+## Traceability
 
-요구사항 ID는 삭제하거나 재사용하지 않습니다. 변경 시 문서 날짜와 변경 이유를 갱신하고 관련 TC를 함께 수정합니다. 검증 실패는 요구사항을 몰래 낮추는 대신 이슈로 기록합니다.
+Keep IDs stable; do not delete or reuse retired IDs. Update implementation and tests with requirement changes. Record failures rather than quietly lowering acceptance criteria.
 
-| 시장 요구 | 제품 요구 | 소프트웨어 요구 | 주요 테스트 |
+| Market | Product | Software | Tests |
 |---|---|---|---|
-| MR-01 모든 작업 화면에서 접근 | P-01 | FR-01, FR-02 | TC-M01~M05 |
-| MR-02 익숙한 조작·시각 반응 | P-02 | FR-03~FR-07 | TC-A05, A09, A11, A13, A14, M06~M11 |
-| MR-02 확대 창 영역 | P-02 | FR-23 | TC-A27~A29, M44~M45 |
-| MR-04 Apps 탐색 | P-04 | FR-22 | TC-A30~A31, M43 |
-| MR-03 기본 Dock와 복원 | P-03 | FR-08, FR-09 | TC-A07, A10, M12~M15 |
-| MR-04 일상 파일 작업 | P-04 | FR-10~FR-13 | TC-M16~M22 |
-| MR-05 창을 보고 선택 | P-05 | FR-14, FR-15 | TC-A12, M23~M27 |
-| MR-05 창 관리·닫기 | P-09 | FR-20 | TC-A18~A20, A23~A25, M35, M38~M40 |
-| MR-02 메뉴·레이블 정렬 | P-02 | FR-21 | TC-A21~A22, M34, M37 |
-| MR-06 사용자가 제어 | P-06 | FR-16~FR-18, FR-26~FR-29 | TC-A04, A06, A40~A41, A44~A47, M28~M33, M53~M54, M56~M63, TC-A48~A49 |
-| MR-07 설치·업데이트 접근성 | P-07 | FR-19, FR-30 | TC-R01~R08, TC-M64 |
-| MR-08 로컬 데이터 보호 | P-08 | NFR-04, NFR-05 | TC-M09, M20~M27, P04 |
+| MR-01: access on each screen | P-01 | FR-01/02 | TC-M01–05 |
+| MR-02: familiar interaction | P-02 | FR-03–07 | TC-A05/09/11/13/14, TC-M06–11 |
+| MR-02: zoomed work area | P-02 | FR-23 | TC-A27–29/32–35/37, TC-M44/45 |
+| MR-04: Apps browser | P-04 | FR-22 | TC-A30/31, TC-M43 |
+| MR-03: native Dock recovery | P-03 | FR-08/09 | TC-A07/10, TC-M12–15 |
+| MR-04: file access | P-04 | FR-10–13/25 | TC-A36/42/43, TC-M16–22/47/55 |
+| MR-05: window selection | P-05 | FR-14/15 | TC-A12/18–20/26/50/51, TC-M23–27/35/41/65 |
+| MR-05: window closing | P-09 | FR-20 | TC-A23–25, TC-M38–40 |
+| MR-02: menus and labels | P-02 | FR-21/24 | TC-A21/22/39, TC-M34/37/46/48–52 |
+| MR-06: user control | P-06 | FR-16–18/26–29 | TC-A04/06/40/41/44–49, TC-M28–33/53/54/56–63 |
+| MR-07: distribution | P-07 | FR-19/30 | TC-R01–08, TC-M64 |
+| MR-08: local data | P-08 | NFR-04/05 | TC-M09/20–27, TC-P04 |
+| MR-09: English presentation | P-10 | FR-31 | TC-M66, TC-R09 |
 
-## 상태 읽는 법
+## Reading results
 
-- **구현**: 해당 경로가 코드에 존재함. 실기기 성공을 의미하지 않음.
-- **PASS**: 명시한 환경과 절차에서 관찰하거나 실행한 결과.
-- **PARTIAL**: 일부 단계만 확인. 요구사항 전체 통과로 계산하지 않음.
-- **BLOCKED**: 권한 등 구체적인 조건이 충족되지 않아 실행하지 못함.
-- **NOT RUN**: 아직 실행하지 않음.
+- **Implemented:** a code path exists; not proof of success on a physical device.
+- **PASS:** observed in the specified environment and procedure.
+- **PARTIAL:** only part of the case was exercised.
+- **BLOCKED:** a specific missing condition prevented execution.
+- **NOT RUN:** no execution evidence yet.
 
-현재 기본 자동 검사는 44개 PASS 대상과 명시적 Quick Look 통합 검사 1개입니다. 통합 검사를 켜면 총 45개를 실행합니다. 그중 `DockLayout`을 호출하는 3개는 레거시 순수 좌표 함수 검증이며, 실제 `DockCoordinator`의 화면 배치를 검증하는 UI 테스트가 아닙니다. 기존 실기기 기록은 [QA.md](../QA.md)에 보존합니다. 성능 목표와 미허용 권한 경로는 별도 검증이 필요합니다.
+The suite currently contains 49 executable tests. Default runs omit the opt-in Quick Look integration; enabling it runs all 49. Test IDs include retired and historically grouped cases, so their highest number is not the test count. Legacy DockLayout tests are pure geometry checks rather than runtime multi-display UI tests.
 
-현재 바이너리는 ad-hoc 서명된 초기 배포본입니다. Developer ID 공증, 권한을 허용한 실제 최소화·캡처·파일 처리, 광범위한 모니터 조합 검증이 끝나기 전에는 안정 버전으로 표시하지 않습니다.
+Historical QA and release records retain their original language and scope. Start at [QA.md](../QA.md) or the version links in [TC](TC.md). Prior PASS results do not establish full v0.4.0 verification.
 
-코드와 문서는 [AGENTS.md](../AGENTS.md)의 정합 규칙을 따른다. 최신 수정·실행 근거는 [v0.3.10 QA](QA-v0.3.10.md)에 기록한다. 과거 버전 PASS는 새 버전 전체 검증을 뜻하지 않는다.
+The app remains an ad-hoc signed beta. Complete signing/notarization, permission-enabled workflows, restoration/file safety, and the device/performance matrix before claiming stable release readiness. Code and docs follow [AGENTS.md](../AGENTS.md).

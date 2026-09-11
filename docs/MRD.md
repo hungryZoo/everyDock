@@ -1,129 +1,83 @@
 # MRD — Market Requirements Document
 
-| 항목 | 내용 |
+| Field | Value |
 |---|---|
-| 제품 | everyDock |
-| 문서 버전 | 1.12 |
-| 기준일 | 2026-09-11 |
-| 대상 릴리스 | v0.3 공개 베타 및 후속 안정화 |
-| 의사결정 주체 | 저장소 소유자 / 제품 책임자 |
+| Product | everyDock |
+| Document version | 1.13 / 2026-09-11 |
+| Release | v0.4.0 public beta; preparation for 1.0 |
+| Decision owner | Repository owner / product owner |
 
-## 1. 문제와 기회
+## 1. Problem and evidence
 
-여러 모니터에서 작업하는 사용자는 현재 포인터가 있는 화면에서 앱 전환과 파일 작업을 시작하고 싶어 한다. 의뢰자는 기본 Dock의 여러 화면 사용 경험에 불편을 느꼈으며, 모든 모니터에서 항상 보이는 Dock을 요청했다. 초기 구현 후에는 확대·클릭 반응, 실행 상태 반영, 기본 Dock 처리, 요술램프, 폴더와 휴지통, 창 미리보기까지 기대 범위가 확장됐다.
+People working across monitors want to switch apps and find files on the display already under their pointer. The product owner requested a persistent Dock on every monitor, then identified problems with magnification, launch responsiveness, window selection, native Dock coexistence, and file access during daily use.
 
-이는 **현재 의뢰자의 정성적 피드백**이며 시장 전체 수요를 입증한 조사 결과가 아니다. “다중 모니터 지원”만으로 만족하지 않고, 일상 조작이 익숙하고 원래 설정으로 돌아갈 수 있어야 한다는 제품 가설을 세운다.
+This is qualitative feedback from the product owner, not a representative market study. The hypothesis is that familiar interactions and reliable restoration matter as much as displaying multiple bars. No market size, revenue, conversion, or adoption figures have been established.
 
-Apple은 ‘디스플레이마다 개별 Spaces 사용’ 설정과 Dock의 화면별 사용 관계, 크기·확대·최소화 효과를 설명한다. 모든 화면에 별도 바를 동시에 유지하려는 everyDock의 목표와 구분한다. [Apple Desktop & Dock 설정](https://support.apple.com/guide/mac-help/change-desktop-dock-settings-mchlp1119/26/mac/26)
+## 2. Audience
 
-## 2. 대상 사용자
+| Audience | Need |
+|---|---|
+| Apple Silicon users on macOS 26+ with external displays | Launch and switch apps without moving to another screen. |
+| People with several windows per app | Identify, select, and close the intended window. |
+| Laptop users who frequently connect displays | Recover their layout after connection changes and sleep. |
+| GitHub and Homebrew users | Reproduce installation, updates, and bug reports. |
 
-| 구분 | 환경·행동 | 해결할 일 |
+Intel Macs and macOS 25 or earlier are outside the supported target. Job titles do not determine priority; actual multi-monitor use does.
+
+## 3. Alternatives and positioning
+
+The earlier review of official product descriptions was conducted on 2026-09-07. It was not a comparative usability test, and does not establish that competitors lack a feature.
+
+| Alternative | Historical observation | Implication |
 |---|---|---|
-| 핵심 | Apple Silicon Mac, macOS 26+, 외장 화면 1대 이상 | 어느 화면에서든 앱을 전환하고 실행 상태를 파악 |
-| 핵심 | 여러 창을 사용하는 개발자·디자이너·사무 사용자 | 포인터를 옮겨 창 내용을 확인한 뒤 정확한 창 선택 |
-| 보조 | 노트북 단독/외장 연결을 자주 오가는 사용자 | 연결 변경·잠자기 후 설정을 다시 만들지 않기 |
-| 초기 배포 | GitHub와 Homebrew를 사용하는 사용자 | 명령으로 설치·업데이트하고 문제를 재현해 보고 |
-| 제외 | Intel Mac 또는 macOS 25 이하 사용자 | 본 제품의 호환성 범위 밖 |
+| [macOS Dock](https://support.apple.com/en-euro/guide/mac-help/-mh35859/mac) | Provides app, folder, Trash, magnification, placement, and minimize behaviors. | Use familiar interactions as the reference, without promising an exact clone. |
+| [HiDock](https://hidock.app/) | Described changing the native Dock configuration for display setups rather than simultaneous multiple Docks. | Configuration automation and multiple persistent bars solve different needs. |
+| [Sidebar](https://sidebarapp.net/) | Described multiple displays, window previews, folders, Trash, and configurable interactions. | Feature count alone is insufficient; defaults and reliability need validation. |
 
-직업별 규모, 시장 점유율, 유료 전환율은 조사하지 않았다. 초기 우선순위는 직업보다 실제 다중 모니터 사용 빈도로 정한다.
+Positioning hypothesis: a local Dock utility focused on Apple Silicon and macOS 26, offering immediate access on each display, inspectable source, and Homebrew distribution. Licensing and monetization remain separate decisions.
 
-## 3. 대안과 차별화 가설
+## 4. Market requirements
 
-공식 제품 설명을 2026-09-07 확인했다. 체감 품질을 비교 실험한 결과가 아니며, 경쟁 제품에 없는 기능이라고 추정하지 않는다.
+P0 blocks core use, P1 improves repeated use, and P2 is exploratory.
 
-| 대안 | 확인한 특성 | everyDock에 주는 시사점 |
+| ID | Priority | Requirement | Success signal |
+|---|---|---|---|
+| MR-01 | P0 | Access apps simultaneously on every enabled display. | Complete app-switching tasks on the current screen. |
+| MR-02 | P0 | Immediate, consistent magnification, clicks, and running state. | Fewer reproducible wrong clicks, stalls, and stale lists. |
+| MR-03 | P0 | Coexist with or manage the macOS Dock and restore it safely. | Original settings survive normal exit and recovery. |
+| MR-04 | P1 | Reach Desktop, Downloads, Apps, and Trash. | Complete everyday file tasks with fewer navigation steps. |
+| MR-05 | P1 | Identify and select windows through previews. | Select the intended window among several candidates. |
+| MR-06 | P0 | Control displays, appearance, organization, permissions, and login. | Disabling or hiding a feature leaves a reachable recovery path. |
+| MR-07 | P1 | Reproducible Homebrew installation and updates. | Public downloads, checksums, and instructions produce a working install. |
+| MR-08 | P0 | Keep window images and personal files local. | Explicit consent, no remote transmission, original files preserved. |
+| MR-09 | P1 | Provide an English interface and readable English project documentation. | App-owned labels and guidance are consistently English; existing user data remains intact. |
+
+MR-09 is the v0.4.0 request, linked to P-10, FR-31, TC-M66, and TC-R09. It does not imply that macOS dialogs or content owned by other apps is translated.
+
+## 5. Validation hypotheses
+
+These are future targets, not measured results. If 5–10 beta participants are recruited, assess two weeks of consented questionnaires and reproduction notes without adding analytics to the app.
+
+| Hypothesis | Method | Initial target |
 |---|---|---|
-| 기본 macOS Dock | 앱·다운로드·휴지통 접근, 확대와 위치·최소화 효과 설정 | 사용자가 익숙한 상호작용의 기준. 완전 복제를 약속하지 않기 |
-| HiDock | 디스플레이 구성에 따라 기본 Dock 설정을 변경. 동시 다중 화면 Dock은 제공하지 않는다고 명시 | 설정 자동화와 복수 바 동시 표시는 다른 문제 |
-| Sidebar | 여러 화면 배치, 호버 창 미리보기, 폴더·휴지통과 다양한 조작 제공 | 단순 기능 유무만으로 차별화할 수 없음. 단정한 기본값과 복원 신뢰성을 검증해야 함 |
+| Persistent access helps | Ten switching tasks on each of two screens. | At least 80% complete tasks on the current display. |
+| Familiar behavior matters | Five-point interaction survey. | Median at least 4; no serious wrong activation. |
+| Recovery builds trust | Exit, process termination, and settings edits in a test account. | No P0 restoration defects. |
+| Previews aid selection | Select a named target among three windows. | At least 90% success. |
+| Installation is understandable | Give a new user only the README. | First launch within ten minutes, excluding OS approval time. |
 
-근거: [Apple Dock 사용법](https://support.apple.com/en-euro/guide/mac-help/-mh35859/mac), [HiDock](https://hidock.app/), [Sidebar](https://sidebarapp.net/). 가격·사용자 수·매출 비교는 범위에 넣지 않았다.
+## 6. Risks and release decisions
 
-포지셔닝 가설: **Apple Silicon·macOS 26에 집중하고, 각 화면의 상시 앱 접근과 익숙한 반응을 제공하는 로컬 Dock 유틸리티**. 공개 소스 열람과 Homebrew 배포로 초기 사용 피드백을 받는다. 수익화·라이선스 정책은 별도 결정 사항이다.
+Private Dock preference formats, Accessibility implementation differences, protected windows, ad-hoc signing, and display/Spaces combinations limit compatibility. Document these limits, keep recovery records, preserve user edits, and validate a device matrix. Do not invent competitor pricing or business projections.
 
-## 4. 시장 요구사항
+The beta can ship with explicit untested cases after build, test, and distribution integrity checks. Stable release requires P0 acceptance, permission-enabled window and file operations, recovery, performance, signing, and notarization evidence. Licensing, Developer ID access, participant recruitment, and demand for per-display customization remain owner decisions.
 
-P0는 핵심 이용을 막는 문제, P1은 반복 사용 품질, P2는 추후 탐색을 뜻한다.
+## 7. Feedback incorporated into the baseline
 
-| ID | 우선순위 | 요구 | 판단 근거 | 성공 신호 |
-|---|---|---|---|---|
-| MR-01 | P0 | 활성화한 모든 화면에서 Dock을 동시에 이용 | 최초 요청 | 화면을 옮기지 않고 앱 실행·전환 과제 완료 |
-| MR-02 | P0 | 확대, 클릭, 실행 표시가 즉각적이고 일관됨 | 초기 버전 불만 | 앱 클릭 오작동·목록 지연 재현 감소 |
-| MR-03 | P0 | 기본 Dock과 함께 쓰거나 안전하게 대체하고 복원 | 기본 Dock 처리 요청 | 종료·충돌 뒤 원래 설정 유지 |
-| MR-04 | P1 | 바탕화면·다운로드·휴지통에 접근 | 추가 요청 | 일상 파일 과제를 Finder 경유 횟수를 줄여 완료 |
-| MR-05 | P1 | 호버로 창 내용을 확인하고 선택 | 추가 요청 | 여러 창 중 목표 창을 식별·활성화 |
-| MR-06 | P0 | 표시 화면·모양·동작·권한을 사용자가 제어 | 다중 화면 구성 차이 | 기능을 끄거나 종료해도 복구 경로가 남음 |
-| MR-07 | P1 | Homebrew 설치와 명시적인 업데이트 경로 | 배포 요청 | 공개 URL과 체크섬을 통해 설치 재현 |
-| MR-08 | P0 | 창 이미지·파일을 외부 전송하지 않음 | 미리보기·파일 접근의 신뢰 조건 | 로컬 처리, 명시적 권한, 원본 파일 보존 |
-
-## 5. 검증 계획과 목표
-
-아래 수치는 **향후 검증 목표**이며 현재 달성한 통계가 아니다. 초기 베타 사용자 5~10명을 모집할 경우, 2주간 동의를 받은 수동 설문과 문제 재현 기록으로 판단한다. 앱에 분석 SDK를 추가하지 않는다.
-
-| 가설 | 방법 | 초기 판단 기준 |
-|---|---|---|
-| 상시 접근이 도움이 된다 | 두 화면에서 각각 앱 전환 10회 과제 | 참가자 80% 이상이 현재 화면에서 과제 완료 |
-| 익숙한 반응이 반복 사용에 중요 | 확대·상태·최소화에 대한 5점 설문 | 중앙값 4점 이상, 심각한 오클릭 0회 |
-| 원상 복구가 신뢰를 만든다 | 테스트 계정에서 종료·프로세스 종료·설정 변경 | Dock 복원 관련 P0 결함 0건 |
-| 미리보기가 창 선택을 돕는다 | 창 3개 중 지정 창 선택 | 선택 성공률 90% 이상 |
-| 설치 안내가 충분하다 | 처음 쓰는 사용자에게 README만 제공 | OS 권한 승인 시간을 제외하고 10분 내 첫 실행 |
-
-## 6. 제약과 위험
-
-| 위험 | 영향 | 대응 방향 |
-|---|---|---|
-| 시스템 Dock의 비공개 동작 | 픽셀·애니메이션 도착점 동일성을 보장하기 어려움 | 지원 범위를 공개하고 공개 API 중심으로 구현 |
-| 손쉬운 사용·화면 기록 승인 | 첫 사용 단계 중단 | 기능별 필요 이유와 설정 바로가기, 거부 시 대체 화면 |
-| ad-hoc 서명 | Gatekeeper 첫 실행 차단, 업데이트 후 권한 재등록 가능 | 베타로 표시, 정상 OS 승인 안내, 정식 서명·공증 계획 |
-| 화면·Spaces·Stage Manager 조합 | 특정 환경 배치 실패 | 장치 행렬과 재현 템플릿으로 검증 |
-| 기본 Dock 설정 형식 변경 | 가져오기·복원 기능 장애 | 변경 키 최소화, 복원 기록, 사용자 변경 보존 |
-| 이미 기능이 풍부한 대안 존재 | 기능 개수만으로 선택받기 어려움 | 기본 경험·반응·설치·문제 해결 품질을 측정 |
-
-## 7. 출시 의사결정
-
-공개 베타는 알려진 제약과 미검증 항목을 공개하고, 빌드·테스트·배포 무결성이 확인된 경우 배포할 수 있다. 안정 버전은 P0 인수 기준, 권한 허용 경로, 복원·파일 처리, 성능과 서명·공증 확인을 통과해야 한다. 날짜보다 기준 충족을 우선한다.
-
-후속 결정: 배포 라이선스, Developer ID 제공, 베타 참여 모집, 화면별 앱 필터·개별 모양 설정의 수요. 검증 전 시장 규모나 수익을 가정해 구현 우선순위를 정하지 않는다.
-
-## v0.3.1 고객 피드백 반영
-
-사용자가 권한을 이미 허용했는데도 최소화·미리보기가 막히고 확대가 낮은 프레임레이트처럼 보인다고 보고했다. MR-02/MR-05/MR-06의 우선 검증 과제로 실제 OS 접근 결과와 안내의 일치, 프레임 전달 간격, 메인 스레드 차단을 포함한다. 기능 존재만으로 이 요구가 충족되었다고 판단하지 않는다. 수요·시장 규모에 대한 새 수치 추정은 추가하지 않는다.
-
-## v0.3.2 고객 피드백 반영
-
-MR-02/MR-05 범위를 정확한 창 개수, Finder의 빈 창 상태에서 다시 열기, 아이콘에 붙는 우클릭 메뉴와 이름 정렬로 구체화한다. P-09로 Finder를 포함한 앱별 모든 창 닫기와 미리보기 개별 닫기를 추가한다. 저장 확인을 건너뛰지 않는 것이 인수 조건이다. 같은 고객의 실사용 피드백이며 별도 시장 조사 결과로 확대하지 않는다.
-
-## v0.3.3 고객 피드백 반영
-
-MR-04의 바탕화면 접근은 앱 숨김이 아니라 바탕화면 파일 스택으로 명확히 한다. MR-02/MR-05에는 창 1개의 미리보기 맞춤 크기, Apps 실행 가능성, 창 확대 후 Dock과 겹치지 않는 작업 영역을 포함한다. 한 고객의 실사용 피드백이며 시장 전체 검증으로 확대하지 않는다.
-
-2026-09-10 MR-02/MR-04/MR-05 보완: Apps는 Spotlight 앱 화면이어야 하며, 카카오톡 등 앱 고유 Dock 명령 접근, 최대화 후 원래 크기 복원과 경계 틈 제거, 바탕화면·다운로드 파일 내용 썸네일과 명확한 최신순 기준을 요구한다. 자동 테스트 통과와 실제 앱 호환성 확인을 구분한다.
-
-## v0.3.4 고객 피드백 반영
-
-다른 모니터에서 앱 고유 메뉴 요청을 차단하는 경고는 작업을 막는다. P-02/FR-24는 읽은 앱 메뉴를 요청한 아이콘 옆에 표시하고 실제 명령을 검증해 전달하는 흐름으로 변경한다. 읽기 실패 시 일반 메뉴를 유지하고 설정 창으로 이동하지 않는다. 실제 시스템 메뉴의 일시 표시 등 제약은 QA에 분리한다.
-
-## v0.3.5 고객 피드백 반영
-
-MR-02/P-02: 앱 고유 메뉴를 별도로 선택하는 단계를 제거하고 우클릭에서 모든 기능에 접근하도록 통합한다. 앱 제공 항목과 everyDock 항목을 한 메뉴 안에서 구분한다.
-
-## v0.3.6 고객 피드백 반영
-
-고정 앱을 사용자가 구분선으로 정리하고, 고정하지 않은 실행 앱은 고정 영역과 폴더 사이에 모아 보여준다. 구분선은 설정의 고정 앱 목록과 Dock에서 동일하게 이동·삭제한다. 폴더 반복 열기로 기존 썸네일이 사라지거나 이전 팝업의 취소가 새 팝업에 영향을 주지 않아야 한다. FR-25/FR-26과 TC-A40~43, TC-M53~55에 연결한다.
-
-## v0.3.7 직접 정렬
-
-메뉴의 이동 명령을 반복하지 않고 Command-드래그로 고정 앱과 구분선을 원하는 위치에 배치한다. 고정하지 않은 실행 앱은 고정 영역에 놓아 고정할 수 있다. Command로 잡으면 확대를 풀고, 고정 영역 뒤로 옮기면 고정을 해제한다. 잘못 놓거나 취소했을 때 앱 실행·최소화·고정 해제가 일어나지 않아야 한다. FR-27과 TC-A44~45, TC-M56~58에 연결한다.
-
-## v0.3.8 설치 직후 안내와 메뉴 막대 정리
-
-새 사용자가 권한 설정과 로그인 시 실행을 한 창에서 준비할 수 있어야 한다. 메뉴 막대 아이콘은 사용자가 숨길 수 있고, Apps에서 everyDock을 다시 실행해 설정으로 돌아올 수 있어야 한다. 기존 사용자의 권한·로그인 선택은 유지한다. FR-28/FR-29, TC-A46~47, TC-M59~62에 연결한다.
-
-## Homebrew 재설치 테스트 피드백
-
-v0.3.9부터 일반 삭제·재설치는 설정과 첫 실행 기록을 초기화하고 로그인 등록을 해제한다. 업그레이드는 설정을 보존한다. 첫 실행 여부와 관계없이 시작 시 실제 권한을 확인하고 필요한 안내를 제공한다. macOS 권한 승인은 별도로 유지될 수 있다. FR-28/FR-30, TC-A48~49, TC-R08, TC-M63에 연결한다.
-
-## v0.3.10 사용자가 시작하는 권한 요청
-
-권한을 준비하는 첫 화면에서 시스템 화면 녹화 대화상자가 먼저 또는 반복해서 나타나지 않아야 한다. 권한 설정 버튼을 사용자가 눌렀을 때만 미허용 화면 접근을 요청하고 초기 안내의 중복 도움말을 줄인다. FR-14/FR-28, TC-A50~51, TC-M65에 연결한다.
+- Accurate AX window counts, Finder reopening, icon-anchored menus, centered tooltips, individual close buttons, and save-safe Close All Windows.
+- Desktop as a file stack, Spotlight Apps integration, supported window zoom correction and observed-size restoration, asynchronous thumbnails sorted by modification date.
+- App-provided commands integrated into one right-click menu, including on displays without the native Dock.
+- Pinned/running/folder sections, custom separators, and Command-drag with collapsed magnification and unpinning.
+- Setup guidance, optional login launch, recoverable menu bar hiding, uninstall/reinstall reset, and upgrade preservation.
+- Screen Recording requests initiated by a permission button rather than startup or unapproved background capture.
+- English app-owned text and current documentation for v0.4.0. These changes do not establish market-wide validation or readiness for 1.0.

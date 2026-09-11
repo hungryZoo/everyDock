@@ -1,12 +1,86 @@
-# everyDock
+<div align="center">
 
-모든 모니터에 항상 표시되는 macOS 앱 바. **Apple Silicon · macOS 26 이상**을 대상으로 하는 Swift 6 / AppKit / SwiftUI 메뉴 막대 앱입니다.
+# `everyDock`
 
-## Homebrew 설치
+**Your Dock. On every display.**
 
-**Apple Silicon · macOS 26 이상 · Homebrew 6 기준**입니다. 현재는 v0.3 공개 베타입니다.
+Keep apps, windows, and everyday files within reach on every monitor.
 
-```sh
+[![Release](https://img.shields.io/github/v/release/hungryZoo/everyDock?include_prereleases&style=flat-square)](https://github.com/hungryZoo/everyDock/releases) [![License](https://img.shields.io/badge/license-not%20specified-lightgrey?style=flat-square)](#9-license) [![Built with Swift](https://img.shields.io/badge/built%20with-Swift%206-F05138?style=flat-square&logo=swift&logoColor=white)](Package.swift)
+
+```bash
+brew install --cask hungryZoo/tap/everydock
+```
+
+**Apple Silicon · macOS 26+ · Homebrew 6**
+
+[First-time setup](#2-installation) · [Usage](#4-usage) · [Latest release](https://github.com/hungryZoo/everyDock/releases)
+
+</div>
+
+---
+
+everyDock puts an app bar on each enabled display, with shared pinned apps and familiar magnification.
+Click to launch or switch apps, hover to preview windows, and Command-drag to organize your Dock.
+Desktop and Downloads open file stacks, while Apps opens Spotlight’s app browser.
+The setup guide explains the permissions and offers launch at login.
+**v0.4.0 is an English-language public beta**, ahead of the planned 1.0 release.
+
+---
+
+## Table of Contents
+
+1. [Overview](#1-overview)
+   - [How it works](#how-it-works)
+2. [Installation](#2-installation)
+   - [Homebrew](#homebrew)
+   - [Update](#update)
+   - [Uninstall and reinstall](#uninstall-and-reinstall)
+   - [Manual download](#manual-download)
+3. [Quickstart](#3-quickstart)
+4. [Usage](#4-usage)
+   - [Apps and windows](#apps-and-windows)
+   - [Organize your Dock](#organize-your-dock)
+   - [Files and Trash](#files-and-trash)
+5. [Configuration](#5-configuration)
+   - [Permissions](#permissions)
+   - [The macOS Dock](#the-macos-dock)
+6. [Platform Support](#6-platform-support)
+   - [Known limitations](#known-limitations)
+7. [Development](#7-development)
+8. [Roadmap](#8-roadmap)
+9. [License](#9-license)
+
+## 1. Overview
+
+- A persistent Dock on each enabled monitor, with the same pinned app order.
+- Magnification, launch bounce, running indicators, and macOS 26 glass styling.
+- Click to launch, activate, minimize, or restore app windows.
+- Window previews with individual close buttons and **Close All Windows**.
+- App-provided Dock commands alongside everyDock’s own right-click menu.
+- Pinned apps, custom separators, and a separate section for unpinned running apps.
+- Desktop and Downloads stacks with file thumbnails, plus Trash access.
+- An English interface, permission setup, and optional launch at login.
+
+### How it works
+
+| Part | Behavior |
+|---|---|
+| Displays | One panel per enabled display; app order is shared across panels. |
+| Windows | Accessibility controls supported windows; ScreenCaptureKit provides still previews. |
+| Files | Folder contents and thumbnails load asynchronously. |
+| macOS Dock | Optional management hides it while everyDock runs and restores its previous settings afterward. |
+| Privacy | No accounts, analytics, or network requests. Window previews stay in memory; audio is not recorded. |
+
+<p align="right"><a href="#table-of-contents">↑ back to top</a></p>
+
+## 2. Installation
+
+### Homebrew
+
+Install [Homebrew](https://brew.sh/) first. On Homebrew 6, trust this cask before loading its custom installation rules:
+
+```bash
 brew tap hungryZoo/tap
 brew trust --cask hungryZoo/tap/everydock
 brew install --cask hungryZoo/tap/everydock
@@ -14,119 +88,214 @@ xattr -dr com.apple.quarantine /Applications/everyDock.app
 open -a everyDock
 ```
 
-`brew trust`는 이 cask만 신뢰하도록 지정합니다. 앱은 `/Applications/everyDock.app`에 설치됩니다. [Homebrew 설치](https://brew.sh/) · [공개 릴리스](https://github.com/hungryZoo/everyDock/releases) · [Homebrew cask](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb)
+The app is installed in `/Applications/everyDock.app`. The beta is ad-hoc signed and **not notarized**. The `xattr` step clears the quarantine attribute for this app. If macOS still blocks it, use **System Settings → Privacy & Security → Open Anyway**.
 
-현재 배포본은 ad-hoc 서명이며 Apple 공증은 없습니다. 위 `xattr` 명령은 설치한 everyDock 앱의 격리 속성을 해제합니다. 그래도 실행이 차단되면 **시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기**에서 직접 승인하세요. 최소화·창 선택에는 손쉬운 사용, 창 미리보기 이미지에는 화면 기록, 바탕화면·다운로드 파일 목록과 파일 썸네일에는 해당 폴더 접근 허용이 필요합니다.
+Inspect the package with `brew info --cask hungryZoo/tap/everydock`. Its definition lives in [hungryZoo/homebrew-tap](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb).
 
-업데이트 전 메뉴 막대에서 everyDock을 정상 종료한 뒤 실행합니다.
+### Update
 
-```sh
+Quit everyDock, including any development copy, then update. **Upgrade preserves your settings.** Repeat the quarantine step after upgrades while the app remains unnotarized.
+
+```bash
 brew update
-brew upgrade --cask everydock
+brew upgrade --cask hungryZoo/tap/everydock
 xattr -dr com.apple.quarantine /Applications/everyDock.app
 open -a everyDock
 ```
 
-**v0.3.9부터 일반 삭제와 재설치(`brew reinstall`)는 고정 앱·구분선·모양·메뉴 막대 옵션·첫 실행 기록을 초기화합니다.** 업데이트(`brew upgrade`)는 설정을 보존합니다. 제거 도우미가 실행 중인 앱을 종료하고 기본 Dock을 복원한 뒤 로그인 항목을 해제하고 설정 저장소·캐시·저장된 창 상태를 정리합니다. 복원이나 종료에 실패하면 제거를 중단합니다.
+### Uninstall and reinstall
 
-```sh
-brew uninstall --cask everydock
-brew install --cask hungryZoo/tap/everydock
-xattr -dr com.apple.quarantine /Applications/everyDock.app
-open -a everyDock
+**Uninstall and `brew reinstall` reset your settings**, including pinned apps, separators, appearance, menu bar visibility, and setup history. The cleanup helper quits everyDock, restores the macOS Dock, unregisters launch at login, and clears app preferences, caches, and saved window state. Cleanup failures stop removal.
+
+```bash
+brew uninstall --cask hungryZoo/tap/everydock
 ```
 
-**이전 버전 사용자는 먼저 `brew update`와 `brew upgrade --cask everydock`으로 v0.3.9 이상을 설치하세요.** Homebrew는 설치 당시의 제거 규칙을 저장하므로 tap만 갱신해서는 기존 설치본의 삭제 동작이 바뀌지 않습니다. 앱을 이미 제거한 상태의 잔여 설정은 `brew uninstall --cask --zap --force hungryZoo/tap/everydock`으로 정리할 수 있습니다.
+To start fresh, install again using the Homebrew instructions above. Homebrew stores the removal rules from the installed version: installations older than v0.3.9 need an upgrade before the new cleanup applies. If the app is already gone, remove remaining settings with:
 
-**macOS의 권한 승인 기록은 앱 설정과 별도**이므로 삭제 후에도 기존 승인이 남을 수 있습니다. 권한은 설치·제거 과정에서 자동 초기화하지 않습니다. 매번 실행할 때 권한 상태를 확인하고, 권한이 없거나 확인이 실패하면 권한 설정 안내 창을 표시합니다. 권한 질문 자체를 처음부터 테스트하려면 앱 종료 후 사용자가 다음 명령을 실행할 수 있습니다.
+```bash
+brew uninstall --cask --zap --force hungryZoo/tap/everydock
+```
 
-```sh
+macOS permission decisions are separate and may remain after removal. Unfinished Dock recovery journals are retained until restoration succeeds. An empty `recovery.lock`, development app copies, and Homebrew’s download cache can remain; they do not store your everyDock options. If the app was removed before its cleanup helper could run, check Login Items in System Settings.
+
+### Manual download
+
+Download the arm64 ZIP and `SHA256SUMS` from [Releases](https://github.com/hungryZoo/everyDock/releases). In the download directory, verify the archive before extracting it:
+
+```bash
+shasum -a 256 -c SHA256SUMS
+```
+
+Move `everyDock.app` to Applications, then use the same `xattr` and `open` commands shown above. Homebrew cleanup rules apply to Homebrew installations.
+
+<p align="right"><a href="#table-of-contents">↑ back to top</a></p>
+
+## 3. Quickstart
+
+1. Open everyDock. **Welcome to everyDock** appears on first launch or when permission setup is needed.
+2. Choose **Open Accessibility Settings** to allow window control. Choose **Allow Screen Recording** when you want window previews.
+3. Leave **Launch everyDock at Login** selected if desired, then choose **Get Started**. **Set Up Later** keeps the current login registration unchanged.
+4. Use the Dock on either display. Open **everyDock Settings…** to adjust displays, appearance, and pinned apps.
+
+Startup, reopening, and background checks do not request missing Screen Recording permission. The permission button starts that request. Desktop and Downloads can request folder access when you open them.
+
+<p align="right"><a href="#table-of-contents">↑ back to top</a></p>
+
+## 4. Usage
+
+### Apps and windows
+
+| Action | Result |
+|---|---|
+| Click an app | Launch or activate it. |
+| Click the active app again | Minimize its window when enabled and supported. |
+| Click an app with minimized windows | Restore its minimized windows. |
+| Hover over a running app | Show window previews after the configured delay. |
+| Click a preview | Select that exact window. |
+| Click a preview’s × | Close that window normally. |
+| Right-click or Control-click | Open app-provided commands and everyDock commands together. |
+| **Show Windows…** | Open previews immediately, even with hover previews disabled. |
+| **Close All Windows** | Close the app’s existing windows, including Finder windows. Stop if a save prompt needs your response. |
+| Click **Apps** | Open Spotlight’s app browser. |
+
+App-provided commands require Accessibility access and a matching item in the macOS Dock. Their wording follows the source app. The original system menu may briefly appear while commands are read or dispatched. A changed or unavailable menu keeps everyDock’s regular commands available.
+
+Supported zoomed windows are resized to leave room for everyDock. If everyDock observed their earlier size, another title-bar double-click can restore it with a short transition.
+
+### Organize your Dock
+
+| Action | Result |
+|---|---|
+| ⌘ Command-drag a pinned app or separator | Collapse magnification and move it to the blue insertion line. |
+| ⌘-drag a running app into the pinned section | Pin it at that position. |
+| ⌘-drag a pinned app into the running section | Unpin it at the orange indicator. A running app remains in that section. |
+| Escape, or drop outside the Dock or over folders | Cancel the move. |
+| Right-click between pinned apps | **Add Separator Here**. |
+| Right-click a pinned app | Add a separator before or after it. |
+| Open **Settings → Pinned Apps** | Reorder or remove apps and separators together. |
+| Drop an `.app` on the Dock background | Add it to pinned apps. |
+
+The order is **pinned items → unpinned running apps → folders and Trash**. Separators remain within the pinned section. Bottom Docks read left to right; side Docks read top to bottom. Scroll to your destination before dragging; drag auto-scroll is not implemented.
+
+### Files and Trash
+
+Desktop and Downloads open temporary file stacks, sorted by **date modified, newest first**, with up to 80 visible items. Filename ordering breaks date ties. Supported files show Quick Look thumbnails; folders and unsupported files keep their icons. Reopening a stack retains valid thumbnails while refreshing its contents.
+
+Click a file to open it in its default app, or choose **Open in Finder**. Dropping files onto Desktop or Downloads copies them without replacing existing files. Dropping onto Trash moves them to Trash.
+
+**Empty Trash…** asks for confirmation before permanently deleting items in the current user’s Trash. External-drive Trash is excluded. Cancel is the default response.
+
+<p align="right"><a href="#table-of-contents">↑ back to top</a></p>
+
+## 5. Configuration
+
+| Setting | Default / options |
+|---|---|
+| Position | Bottom, Left, or Right; default Bottom. |
+| Size and magnification | Follow the macOS Dock, or adjust manually. |
+| Show Running Apps | On. |
+| Show over Full-Screen Apps | On, within macOS restrictions. |
+| Displays | All connected displays; individually configurable. |
+| Click Active App to Minimize | On. |
+| Window previews | On, with a 0.55-second delay; adjustable from 0.2 to 2 seconds. |
+| Hide macOS Dock | On for a new configuration; existing choices are preserved. |
+| Launch at login | Selected in first-time setup; registered only after **Get Started**. |
+| Hide Menu Bar Icon | Off. Reopen everyDock from Apps to return to Settings when hidden. |
+
+Preferences use the `app.everydock.mac` domain and `everyDock.preferences.v1` key. Upgrades preserve stored app paths, separator IDs, and option values. v0.4.0 changes everyDock’s text to English; app names, filenames, window titles, and third-party menu commands retain their original text. macOS permission dialogs follow system language.
+
+### Permissions
+
+| Permission | Used for |
+|---|---|
+| Accessibility | Window control, window lists, and app-provided Dock menus. |
+| Screen Recording | Still window previews; no audio capture. |
+| Desktop / Downloads access | File lists and thumbnails for the selected folder. |
+
+**Check Permission Status** reads status without requesting screen capture. **Allow Screen Recording…** explicitly requests access. A denial stops automatic retries. Ordinary app launching, Settings, and Quit remain available without preview permission.
+
+If an upgrade invalidates an earlier approval, quit everyDock, remove its old entry in **Privacy & Security**, and add the current app shown by **Show App Location** in Settings. Repeat separately for Accessibility and Screen & System Audio Recording, then reopen the app.
+
+For a deliberate first-permission test, quit the app and reset only its macOS permission decisions:
+
+```bash
 tccutil reset All app.everydock.mac
 ```
 
-기본 Dock의 미복원 기록은 복원에 성공한 뒤 제거하며, 동시 복원을 보호하는 `Application Support/everyDock/recovery.lock`은 남을 수 있습니다. 이 파일에는 사용자 옵션이 없습니다. 개발 폴더의 앱 사본과 Homebrew 다운로드 캐시는 삭제 대상이 아닙니다. 앱이 이미 없어 제거 도우미를 실행할 수 없다면 남은 로그인 항목은 시스템 설정에서 확인하세요.
+This is a manual testing step, not part of installation or removal.
 
-## 처음 실행과 메뉴 막대 아이콘
+### The macOS Dock
 
-처음 실행하거나 권한 확인에 문제가 있으면 **everyDock 시작하기** 창에서 손쉬운 사용(창 제어), 화면 녹화(창 미리보기)의 설정을 열고 허용 상태를 확인할 수 있습니다. 화면 녹화 권한은 **화면 녹화 권한 확인** 버튼을 눌렀을 때 요청합니다. 시작·호버·백그라운드 갱신은 미허용 화면 접근을 요청하지 않습니다. 앱 위치와 재등록 도움말은 일반 설정에서 확인할 수 있습니다. 바탕화면·다운로드 접근은 해당 폴더를 처음 열 때 허용합니다.
+When management is enabled, everyDock records the original values and key presence for `autohide`, `autohide-delay`, `autohide-time-modifier`, and `mineffect`. It applies auto-hide, a long reveal delay, and the Genie effect, then restarts the macOS Dock.
 
-‘로그인 시 everyDock 자동 실행’을 선택하고 **시작하기**를 누르면 로그인 항목에 등록합니다. 최초 안내에서는 자동 실행이 기본 선택되어 있고, 체크를 끄거나 **나중에 설정**을 누르면 등록하지 않습니다. 기존 설치자의 로그인 설정은 유지됩니다. macOS 승인이 필요한 경우 안내 창에 승인 버튼이 표시됩니다. 설정의 **초기 설정 안내 다시 열기…**로 언제든 다시 확인할 수 있습니다.
+Normal quit, hiding all Docks, disabling all displays, and turning management off restore the recorded settings. A separate watchdog also attempts restoration after a crash or forced exit. Values changed by the user while everyDock runs are preserved.
 
-설정 → 일반 → **메뉴 막대 아이콘 가리기**로 아이콘을 숨길 수 있습니다. **설정을 열려면 앱 메뉴(Apps)에서 everyDock을 찾아 실행하세요. 이미 실행 중이어도 설정 창이 열립니다.** 권한 설정이 필요하면 안내 창이 먼저 열립니다. 숨김 설정은 재실행 후에도 유지되며, 로그인으로 자동 실행할 때도 권한을 검사하며, 권한이 정상일 때는 설정 창을 띄우지 않습니다.
+Recovery journals live in `~/Library/Application Support/everyDock/`. If both processes stop or power is lost, the next management session retries unfinished recovery. The macOS Dock itself is not disabled.
 
-## 소스에서 빌드
+<p align="right"><a href="#table-of-contents">↑ back to top</a></p>
 
+## 6. Platform Support
 
-Xcode 26 이상과 macOS 26 SDK가 필요합니다. 외부 패키지는 없습니다.
+| Target | Support |
+|---|---|
+| Apple Silicon, macOS 26+ | Supported beta target. |
+| Intel Macs | Not supported. |
+| macOS 25 or earlier | Not supported. |
+| Spaces, full-screen apps, Stage Manager | Behavior depends on system settings; the full device matrix remains under testing. |
 
-```sh
+### Known limitations
+
+- macOS controls the minimize animation and its destination. everyDock cannot route the system Genie animation to a separate icon on each monitor.
+- Window resizing uses Accessibility; it does not reserve a global system work area. Unsupported windows and minimum-size constraints can still overlap the Dock. An earlier window size cannot be recovered if it was never observed.
+- Protected or minimized windows may show a title, fallback icon, or cached preview.
+- Notification badges, individual minimized-window tiles inside the Dock, Mission Control, per-display app lists, and drag auto-scroll are not implemented.
+- Locked or secure screens and higher-level system windows can cover everyDock. Selecting an app does not move its windows to the current monitor.
+- Reading the macOS Dock’s pins and sizing relies on its preference format. Manual app selection and sizing are available if that format changes.
+- The beta does not promise pixel-for-pixel equivalence with Apple’s Dock or complete compatibility with every app’s Accessibility implementation.
+
+<p align="right"><a href="#table-of-contents">↑ back to top</a></p>
+
+## 7. Development
+
+Use Xcode 26+, the macOS 26 SDK, and Swift 6.2+. There are no external Swift package dependencies.
+
+```bash
+swift test --arch arm64
+EVERYDOCK_RUN_QL_TEST=1 swift test --arch arm64
 ./scripts/build.sh
 open dist/everyDock.app
 ```
 
-`dist/everyDock.app`을 응용 프로그램 폴더로 옮긴 뒤 실행하세요. 로그인 시 실행은 옮긴 위치에서 등록하세요. Xcode에서는 `Package.swift`를 열어 편집할 수 있습니다. 기본 서명은 로컬 실행용 ad-hoc 서명이며, 외부 배포에는 Developer ID 서명과 공증이 필요합니다.
+Move the app to Applications before registering launch at login. The build is ad-hoc signed by default. `./scripts/package-release.sh` produces an arm64 ZIP and `SHA256SUMS` in `dist/releases` without overwriting a running development app.
 
-## v0.3 사용법
+| Path | Purpose |
+|---|---|
+| `Sources/DockCore` | Preferences, geometry, motion, matching, and recovery models. |
+| `Sources/EveryDock` | AppKit panels, controls, app state, window actions, previews, utilities, and SwiftUI settings. |
+| `Resources` | Bundle metadata. |
+| `Tests` | Model, interaction, consent, and thumbnail regressions. |
+| `scripts` | Builds, icon generation, packaging, and signing. |
+| [docs](docs/README.md) | [MRD](docs/MRD.md), [PRD](docs/PRD.md), [SRS](docs/SRS.md), [TC](docs/TC.md), and [release procedure](docs/RELEASING.md). |
 
-- 연결된 각 디스플레이에 같은 앱 목록을 표시합니다. 기본 Dock의 고정 앱은 최초 실행 시 가져오며, 나중에도 설정에서 가져올 수 있습니다.
-- 기본 Dock의 아이콘 크기와 확대 크기를 따라갑니다. 39pt → 104pt처럼 2배가 넘는 확대도 유지합니다. 아이콘 셀의 추가 안쪽 여백을 없애고, 간격·패딩·실행 표시를 공통 치수로 정리했습니다. 배경은 macOS 26의 `NSGlassEffectView`입니다. 수동 크기는 설정에서 크기 연동을 끄고 조절합니다.
-- 포인터와 이웃 아이콘이 연속적으로 확대되며 서로 밀려납니다. 실행 중에는 아이콘이 튀어 오르고, 클릭에는 짧은 반응 애니메이션이 있습니다. ‘동작 줄이기’를 존중합니다.
-- 아이콘 클릭은 실행/활성화합니다. 활성 앱을 다시 클릭하면 **실제 창의 노란 최소화 버튼을 손쉬운 사용 API로 누릅니다**. 이 경로를 지원하지 않는 창은 최소화 속성 설정을 시도합니다. 다음 클릭으로 최소화한 창을 복원합니다. 권한이 없거나 최소화를 지원하지 않으면 안내를 표시합니다. 앱 숨기기를 최소화로 대체하지 않습니다.
-- 앱 우클릭/Control-클릭 메뉴에서 **열린 창 보기…**, **모든 창 닫기**를 사용할 수 있습니다. Finder도 모든 창 닫기를 지원합니다. 미리보기의 **×**는 그 창만 닫습니다. 저장 확인이 나오면 앱에서 응답해야 하며, 남은 창은 계속 닫지 않습니다.
-- 창 목록은 실제 접근성 창을 기준으로 구분하므로 같은 제목의 창도 각각 선택·닫을 수 있습니다. 창 목록·제어에는 손쉬운 사용 권한이 필요합니다.
-- 실행 중인 앱 위에 기본 0.55초 동안 머무르면 창 미리보기가 열립니다. 지연은 설정에서 조절하며, 열린 동안 약 2초마다 갱신합니다. 창을 클릭하면 해당 창을 앞으로 가져옵니다. 창 이미지는 **화면 기록**, 개별 창 전환·최소화는 **손쉬운 사용** 권한이 필요합니다. 이미지 권한이 없어도 손쉬운 사용이 허용되면 창 제목 목록을 볼 수 있습니다.
-- **Apps**는 macOS의 **Spotlight 앱 화면**을 엽니다.
-- 미리보기 창 1개는 1열로 맞추며 창을 닫아 개수가 바뀌어도 팝업 크기를 갱신합니다.
-- 일반 창을 화면 크기로 확대하면 **everyDock의 정지 크기 영역**에 경계를 맞춰 보정하고, 다음 확대 요청에는 관찰한 원래 위치·크기로 복원합니다. 이미 확대된 상태에서 시작해 원래 크기를 모르는 창은 복원 크기를 추측하지 않습니다. 손쉬운 사용 권한이 필요하며 macOS 전체 화면·최소화·일반 크기 창은 제외합니다. AX 미지원 앱과 최소 크기 제약은 적용이 제한될 수 있습니다.
-- 바탕화면 아이콘은 **바탕화면 파일 팝업**을 엽니다. 다운로드처럼 파일을 선택하거나 Finder에서 열 수 있습니다. 다른 앱을 숨기지 않습니다.
-- 바탕화면·다운로드는 **수정일 최신순** 최대 80개를 표시합니다. 이미지·PDF 등 지원 파일에는 내용 썸네일을 비동기로 표시하고 미지원 파일과 폴더는 아이콘을 유지합니다. 파일 클릭과 Finder 열기를 지원하며, 다운로드 폴더 접근 허용이 필요할 수 있습니다. 접근 대기 중에도 Finder 열기를 사용할 수 있습니다.
-- 휴지통 아이콘은 휴지통을 엽니다. 파일을 끌어 놓으면 macOS의 휴지통 이동 기능을 사용합니다. 우클릭의 ‘휴지통 비우기…’는 별도 확인 후 현재 사용자의 휴지통만 비웁니다. 외장 드라이브 휴지통은 Finder에서 관리하세요.
-- 바탕화면·다운로드 아이콘으로 파일을 끌어 놓으면 원본을 유지하고 복사하며, 같은 이름을 덮어쓰지 않습니다.
-- **우클릭 한 번**으로 앱 고유 항목과 열기·창 닫기·고정 등 everyDock 기능을 함께 표시합니다. Control-클릭과 접근성 메뉴 요청도 같은 통합 메뉴를 엽니다. 하위 메뉴를 선택하면 해당 목록과 이전 메뉴 항목을 표시합니다. 손쉬운 사용 권한과 기본 Dock의 앱 항목이 필요합니다.
-- **⌘ Command-드래그**로 고정 앱과 구분선을 이동합니다. 파란 삽입선 위치에 놓으면 모든 화면과 설정 목록에 저장됩니다. 고정하지 않은 실행 앱을 고정 영역으로 끌어오면 그 자리에 고정됩니다. 잡는 순간 확대가 풀립니다. 고정 영역 뒤의 실행 앱 영역에 놓으면 ‘Dock 고정 해제’ 안내와 함께 고정이 해제됩니다. 실행 중인 앱은 실행 영역에 남고, 종료된 앱은 Dock에서 사라집니다. Escape 또는 Dock 밖·폴더 영역에 놓으면 취소됩니다. 구분선은 고정 영역 안에서만 옮깁니다. 좁은 Dock은 먼저 스크롤해 목적지를 표시하세요. 드래그 중 자동 스크롤은 지원하지 않습니다.
-- 앱 아이콘 우클릭은 고정/해제, 순서 변경, Finder에서 보기, 정상 종료를 제공합니다. `.app` 파일을 Dock 배경에 놓거나 설정의 ‘앱 추가’로 고정합니다.
-- 메뉴 막대에서 설정, 일시 숨기기/복원, 화면 재감지, 종료를 제공합니다. 설정에서 아래/왼쪽/오른쪽 위치, 실행 앱·전체 화면 표시, 표시할 모니터, 로그인 시 실행을 조절합니다. 앱이 많으면 스크롤합니다.
+App events and KVO drive state changes, with a five-second background check as a fallback. Magnification uses a display-linked animation and cached icon layers; frame updates stop when settled. These mechanisms do not establish measured performance on every device. See the [v0.4.0 QA record](docs/QA-v0.4.0.md) for the tests actually performed.
 
-## 권한과 macOS 동작
+Keep code and documentation aligned in the same change, preserve requirement IDs, and record untested cases honestly. Do not commit user preferences, recovery journals, permission databases, or private window images. See [AGENTS.md](AGENTS.md).
 
-권한은 everyDock 설정의 해당 버튼으로 시스템 설정을 열어 사용자가 허용합니다. 로컬 ad-hoc 앱을 다시 빌드하면 서명이 달라져 기존 허용이 무효화될 수 있습니다. 설정의 **권한 다시 확인**은 상태만 검사하며, 화면 접근 요청은 **접근 확인…** 버튼을 사용하세요. 이미 스위치가 켜져 있는데도 macOS에서 거부되면 **현재 앱 위치 보기**로 번들을 확인하고, 앱 종료 → 시스템 설정의 기존 everyDock 항목 제거 → 해당 번들 재등록 → 재실행 순으로 복구하세요. 손쉬운 사용과 화면 및 시스템 오디오 녹음 항목을 각각 확인합니다. 앱은 실제 거부와 창 없음·미지원·응답 지연을 구분합니다.
+<p align="right"><a href="#table-of-contents">↑ back to top</a></p>
 
-창 미리보기는 [ScreenCaptureKit의 SCScreenshotManager](https://developer.apple.com/documentation/screencapturekit/scscreenshotmanager)로 해당 앱 창의 정지 이미지를 가져옵니다. 오디오를 기록하지 않으며, 이미지는 메모리에만 보관합니다. Apple Events 자동화 권한은 사용하지 않습니다. 네트워크 통신과 분석 수집은 없습니다.
+## 8. Roadmap
 
-기본 Dock 관리는 최초 설정에서 켜지며 기존 사용자의 켬/끔 선택은 유지합니다. `autohide`, `autohide-delay`, `autohide-time-modifier`, `mineffect`의 기존 값과 키 존재 여부를 원자적으로 저장하고, 자동 숨김·긴 표시 지연·요술램프 효과를 적용한 뒤 Dock을 재시작합니다. 종료·일시 숨기기·모든 모니터 해제 시 원래 값을 복원합니다. 관리를 끄면 기본 Dock과 함께 사용하고 최소화 효과도 사용자의 macOS 설정을 따릅니다.
+- [x] English app interface and documentation for the v0.4.0 beta.
+- [ ] Complete the display, Spaces, sleep/wake, and app compatibility matrix.
+- [ ] Validate permission setup, restoration, file handling, and performance across supported devices.
+- [ ] Complete Developer ID signing and notarization.
+- [ ] Review remaining release criteria before promoting to v1.0.0.
 
-별도 복원 프로세스가 `kqueue`로 everyDock 종료를 감지해 충돌·강제 종료 후에도 설정을 복원합니다. 복원 기록은 `~/Library/Application Support/everyDock/native-dock-recovery-*.json`에 보관하며 파일 잠금으로 복원 충돌을 방지합니다. 사용 중 사용자가 해당 값을 직접 바꾸면 덮어쓰지 않습니다. 두 프로세스가 동시에 종료되거나 전원이 꺼지면 다음 Dock 관리 시작 때 남은 기록을 복구합니다. Dock 자체는 비활성화하지 않아 시스템 기능을 유지합니다.
+<p align="right"><a href="#table-of-contents">↑ back to top</a></p>
 
-## 재현 범위
+## 9. License
 
-창 최소화 애니메이션과 도착점은 macOS가 정합니다. 시스템 요술램프의 도착점을 별도의 everyDock 아이콘으로 지정하는 공개 API는 사용하지 않습니다. **여러 모니터의 everyDock으로 각각 빨려 들어가는 효과까지 재현한 것은 아닙니다.** 치수와 재질을 개선했지만 시스템 Dock과 픽셀 단위 동일성을 보장하지 않습니다.
+A software license has not been specified yet. Public source availability does not itself grant a license. Licensing remains a release decision.
 
-알림 배지, Dock 바 안의 개별 최소화 창 타일, Mission Control은 구현하지 않습니다. 보호된 창이나 최소화되어 캡처할 수 없는 창은 제목과 대체 아이콘 또는 이전 미리보기로 표시될 수 있습니다. 바탕화면은 파일 스택이며 Mission Control 동작을 재현하지 않습니다.
-
-일반 데스크탑, Spaces, 전체 화면/Stage Manager 표시를 위한 창 동작을 설정합니다. 잠금·보안 화면이나 더 높은 레벨 창 위 표시는 보장하지 않습니다. 별도 오버레이이므로 다른 앱의 최대화 영역을 줄이지 않으며 콘텐츠 일부를 가릴 수 있습니다. 앱 창을 클릭한 모니터로 강제 이동하지 않습니다.
-
-고정 앱 가져오기와 크기 연동은 공개 계약이 없는 `com.apple.dock` 환경설정 형식을 읽습니다. 실패하면 앱 직접 추가·수동 크기를 사용할 수 있습니다. 설정은 `app.everydock.mac` 도메인의 `everyDock.preferences.v1` 키에 저장합니다.
-
-## 검증과 구조
-
-개발 요구사항은 [docs](docs/README.md)에 있습니다: [MRD](docs/MRD.md) · [PRD](docs/PRD.md) · [SRS](docs/SRS.md) · [TC](docs/TC.md) · [릴리스 절차](docs/RELEASING.md).
-
-```sh
-swift test --arch arm64
-./scripts/build.sh
-```
-
-자동 테스트는 좌표·화면 제한, 확대 곡선, 설정 이전, 유틸리티를 포함한 치수, 요술램프 설정 복원, 사용자 변경 보존을 검증합니다. 앱 감지는 실행 알림과 KVO를 사용하고 백그라운드 5초 확인을 보완합니다. 상태가 같으면 앱 목록을 다시 발행하지 않습니다. 확대는 화면에 연결된 CADisplayLink와 캐시된 아이콘 레이어를 사용하며, 안정되면 프레임 갱신을 멈춥니다. 실제 기기 검증과 미검증 항목은 [QA.md](QA.md)에 기록합니다.
-
-- `Sources/DockCore`: 설정·치수·복원 모델과 순수 계산.
-- `Sources/EveryDock`: 패널, Dock UI, 앱 감지/실행, 창 조작, 폴더·휴지통, 미리보기, 설정.
-- `Resources`: 앱 메타데이터.
-- `scripts/build.sh`: arm64 빌드, 아이콘 생성, 앱 패키징과 서명.
-
-이번 팝업·Apps·확대 창 보정은 [v0.3.3 QA](docs/QA-v0.3.3.md)를 참고하세요. 이전 창 목록·메뉴·닫기 수정 검증은 [v0.3.2 QA](docs/QA-v0.3.2.md)를 참고하세요. 이전 권한·애니메이션 수정과 측정 범위는 [v0.3.1 QA](docs/QA-v0.3.1.md)를 참고하세요. 코드와 docs는 [저장소 작업 지침](AGENTS.md)에 따라 같은 변경에서 갱신합니다.
-
-앱 메뉴를 읽거나 명령을 전달하는 동안 원래 시스템 Dock 메뉴가 잠시 나타날 수 있습니다. 선택 시 메뉴를 다시 확인하며 항목이 바뀌었으면 실행을 중단합니다. 읽을 수 없는 앱은 같은 위치의 everyDock 메뉴 안에서 안내합니다. 설정 창이나 모달 경고로 이동하지 않습니다. 실행 중인 앱은 메뉴를 비동기로 조회한 뒤 통합 메뉴를 표시합니다. 실행하지 않은 앱은 기본 기능을 바로 표시합니다. 검증 범위는 [v0.3.5 QA](docs/QA-v0.3.5.md)를 참고하세요.
-
-고정 앱과 고정하지 않은 실행 앱은 자동 구분선으로 나뉘며, 실행 앱은 폴더 영역 앞에 모입니다. **고정 앱 사이 우클릭 → 여기에 구분선 추가**, 또는 앱 우클릭의 **이 앱 앞/뒤에 구분선 추가**를 사용할 수 있습니다. 설정의 **고정 앱**에서 앱과 구분선을 함께 이동·삭제할 수 있습니다. 임의 구분선은 고정 영역에 저장합니다.
-
-바탕화면·다운로드를 다시 열 때 기존 썸네일을 유지하면서 목록을 갱신합니다. 이전 팝업의 닫힘은 새 팝업의 작업을 취소하지 않으며, 8초간 응답하지 않는 썸네일은 아이콘을 유지하고 다음 파일로 넘어갑니다. [v0.3.6 검증 기록](docs/QA-v0.3.6.md)
+<p align="right"><a href="#table-of-contents">↑ back to top</a></p>

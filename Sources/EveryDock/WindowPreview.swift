@@ -21,14 +21,14 @@ struct PreviewResult {
     init(permissions: AppPermissions) { self.permissions = permissions }
     func previews(for app: DockApplication) async -> PreviewResult {
         guard let process = NSWorkspace.shared.runningApplications.first(where: { !$0.isTerminated && ($0.bundleURL == app.url || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier)) }) else {
-            return PreviewResult(windows: [], message: "앱이 종료되었습니다.")
+            return PreviewResult(windows: [], message: "The app has quit.")
         }
         let list = await WindowActions.list(pid: process.processIdentifier)
         permissions.recordAccessibility(list.failure)
         if let failure = list.failure {
             return PreviewResult(windows: [], message: failure == .permissionDenied
-                                 ? "창 목록을 읽으려면 손쉬운 사용 접근을 허용해 주세요."
-                                 : "앱의 창 목록을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.")
+                                 ? "Allow Accessibility access to see open windows."
+                                 : "Could not read the app’s windows. Try again in a moment.")
         }
         guard !list.windows.isEmpty else { return PreviewResult(windows: [], message: nil) }
         cache = cache.filter { Date().timeIntervalSince($0.value.1) < 60 }
@@ -60,7 +60,7 @@ struct PreviewResult {
                             cache[description.reference] = (image!, Date())
                         } catch {
                             permissions.recordCaptureError(error)
-                            captureError = "일부 창 이미지를 가져오지 못했습니다. 제목을 눌러 창을 열 수 있습니다."
+                            captureError = "Some previews are unavailable. Select a title to open its window."
                         }
                     }
                 }
@@ -70,10 +70,10 @@ struct PreviewResult {
             return PreviewResult(windows: results, message: captureError)
         } catch {
             let message: String?
-            if let failure = error as? CaptureFailure, case .permissionDenied = failure { message = "macOS가 현재 앱의 화면 접근을 거부했습니다. 제목으로 창을 선택하거나 닫을 수 있습니다." }
-            else if let failure = error as? CaptureFailure, case .permissionRequired = failure { message = "창 이미지를 보려면 화면 녹화 권한 확인 버튼을 눌러 주세요. 제목으로 창을 선택하거나 닫을 수 있습니다." }
+            if let failure = error as? CaptureFailure, case .permissionDenied = failure { message = "macOS denied screen access. You can still select or close windows by title." }
+            else if let failure = error as? CaptureFailure, case .permissionRequired = failure { message = "Choose Allow Screen Recording to see previews. You can still select or close windows by title." }
             else if error is CancellationError { message = nil }
-            else { message = "창 이미지를 가져오지 못했습니다: \(error.localizedDescription)" }
+            else { message = "Could not load window previews: \(error.localizedDescription)" }
             return PreviewResult(windows: list.windows.map { WindowPreview(window: $0, image: nil) }, message: message)
         }
     }
@@ -214,14 +214,14 @@ private struct PreviewContent: View {
                 Image(nsImage: app.icon).resizable().frame(width: 22, height: 22)
                 Text(app.name).font(.headline)
                 Spacer()
-                Text("\(previews.count)개 창").font(.caption).foregroundStyle(.secondary)
+                Text(previews.count == 1 ? "1 window" : "\(previews.count) windows").font(.caption).foregroundStyle(.secondary)
             }
-            if !model.accessibilityEnabled { Button("손쉬운 사용 접근 확인…", action: model.requestAccessibility).buttonStyle(.bordered) }
-            if !model.screenCaptureEnabled { Button("화면 접근 다시 확인…", action: model.requestScreenCapture).buttonStyle(.bordered) }
+            if !model.accessibilityEnabled { Button("Allow Accessibility…", action: model.requestAccessibility).buttonStyle(.bordered) }
+            if !model.screenCaptureEnabled { Button("Allow Screen Recording…", action: model.requestScreenCapture).buttonStyle(.bordered) }
             if let status = closeMessage ?? status { Text(status).font(.callout).foregroundStyle(.secondary) }
             if previews.isEmpty {
-                Text("표시할 창이 없습니다.").font(.callout).foregroundStyle(.secondary)
-                Button("\(app.name) 열기") { model.launch(app, toggle: false) }.buttonStyle(.bordered).padding(.bottom, 8)
+                Text("No windows to show.").font(.callout).foregroundStyle(.secondary)
+                Button("Open \(app.name)") { model.launch(app, toggle: false) }.buttonStyle(.bordered).padding(.bottom, 8)
             } else {
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.fixed(190)), count: layout.columns), spacing: 12) {
@@ -236,7 +236,7 @@ private struct PreviewContent: View {
                                         .frame(width: 190, height: 118)
                                         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
                                         Text(preview.title.isEmpty ? app.name : preview.title).font(.caption).lineLimit(1)
-                                        Text(preview.minimized ? "최소화됨" : " ").font(.caption2).foregroundStyle(.secondary)
+                                        Text(preview.minimized ? "Minimized" : " ").font(.caption2).foregroundStyle(.secondary)
                                     }
                                 }.buttonStyle(.plain).disabled(busy)
                                     .help(preview.title.isEmpty ? app.name : preview.title)
@@ -247,13 +247,13 @@ private struct PreviewContent: View {
                                     Image(systemName: "xmark").font(.system(size: 10, weight: .bold))
                                         .frame(width: 24, height: 24).background(.regularMaterial, in: Circle())
                                 }.buttonStyle(.plain).padding(5).disabled(busy || !preview.window.canClose)
-                                    .accessibilityLabel("\(preview.title.isEmpty ? app.name : preview.title) 창 닫기")
-                                    .help(preview.window.canClose ? "이 창 닫기" : "이 창은 닫기를 지원하지 않습니다")
+                                    .accessibilityLabel("Close \(preview.title.isEmpty ? app.name : preview.title)")
+                                    .help(preview.window.canClose ? "Close this window" : "This window does not support closing")
                             }
                         }
                     }
                 }.frame(height: layout.gridHeight)
-                if previews.count > 8 { Text("이미지는 최대 8개 창에 표시됩니다. 모든 창을 선택하고 닫을 수 있습니다.").font(.caption).foregroundStyle(.secondary) }
+                if previews.count > 8 { Text("Previews are shown for up to 8 windows. You can select and close every window.").font(.caption).foregroundStyle(.secondary) }
             }
         }.padding(16).frame(width: layout.width)
     }

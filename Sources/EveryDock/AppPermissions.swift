@@ -8,7 +8,7 @@ import DockCore
     enum Status: Equatable {
         case unknown, allowed, denied
         var title: String {
-            switch self { case .unknown: "확인 전"; case .allowed: "사용 가능"; case .denied: "macOS에서 거부됨" }
+            switch self { case .unknown: "Not Checked"; case .allowed: "Allowed"; case .denied: "Denied by macOS" }
         }
     }
 
@@ -114,7 +114,7 @@ import DockCore
         refreshCaptureStatus()
         guard requestCapturePermission else { return }
         do { _ = try await shareableContent(retry: true, requestPermission: true) }
-        catch CaptureFailure.permissionDenied { detail = "macOS가 현재 실행 중인 앱의 화면 접근을 거부했습니다. 이미 켜져 있다면 앱 등록과 실행 파일의 서명이 달라졌을 수 있습니다." }
+        catch CaptureFailure.permissionDenied { detail = "macOS denied screen access for this app. If permission is already enabled, the registered app may have a different signature." }
         catch { detail = error.localizedDescription }
     }
 }

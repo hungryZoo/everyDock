@@ -6,7 +6,7 @@ import DockCore
 enum DockUtility: String, CaseIterable, Sendable {
     case desktop, downloads, trash
     var title: String {
-        switch self { case .desktop: "바탕화면"; case .downloads: "다운로드"; case .trash: "휴지통" }
+        switch self { case .desktop: "Desktop"; case .downloads: "Downloads"; case .trash: "Trash" }
     }
     var url: URL {
         switch self {
@@ -21,8 +21,8 @@ enum DockUtility: String, CaseIterable, Sendable {
     private var stack: NSPopover?
     private var stackContents: FolderContents?
     private var stackSession: UUID?
-    private let downloads = FolderContents(folder: DockUtility.downloads.url, title: "다운로드", symbol: "arrow.down.circle")
-    private let desktop = FolderContents(folder: DockUtility.desktop.url, title: "바탕화면", symbol: "desktopcomputer")
+    private let downloads = FolderContents(folder: DockUtility.downloads.url, title: "Downloads", symbol: "arrow.down.circle")
+    private let desktop = FolderContents(folder: DockUtility.desktop.url, title: "Desktop", symbol: "desktopcomputer")
     private var trashWatcher: DispatchSourceFileSystemObject?
     private var icons: [DockUtility: NSImage] = [:]
     private var trashRefresh: Task<Void, Never>?
@@ -44,7 +44,7 @@ enum DockUtility: String, CaseIterable, Sendable {
     func stop() { trashRefresh?.cancel(); trashWatcher?.cancel(); stack?.performClose(nil) }
 
     func icon(_ item: DockUtility) -> NSImage {
-        icons[item] ?? NSImage(named: "NSTrashEmpty") ?? NSImage(systemSymbolName: "trash", accessibilityDescription: "휴지통")!
+        icons[item] ?? NSImage(named: "NSTrashEmpty") ?? NSImage(systemSymbolName: "trash", accessibilityDescription: "Trash")!
     }
 
     private func refreshTrash() {
@@ -76,7 +76,7 @@ enum DockUtility: String, CaseIterable, Sendable {
         stack?.performClose(nil)
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.apps.launcher")
                 ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.launchpad.launcher") else {
-            onError("macOS의 Apps 실행기를 찾지 못했습니다. Spotlight에서 ⌘1을 눌러 앱을 열어 주세요.")
+            onError("Could not find the macOS Apps launcher. Open Spotlight and press ⌘1 to browse apps.")
             return
         }
         let configuration = NSWorkspace.OpenConfiguration()
@@ -85,7 +85,7 @@ enum DockUtility: String, CaseIterable, Sendable {
         configuration.activates = false
         NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, error in
             let detail = error?.localizedDescription
-            if let detail { Task { @MainActor in onError("Apps를 열지 못했습니다: \(detail)") } }
+            if let detail { Task { @MainActor in onError("Could not open Apps: \(detail)") } }
         }
     }
     private func show(_ contents: FolderContents, from anchor: NSView, edge: NSRectEdge) {
@@ -129,11 +129,11 @@ enum DockUtility: String, CaseIterable, Sendable {
 
     func emptyTrash(completion: @escaping @MainActor @Sendable (String?) -> Void) {
         let alert = NSAlert()
-        alert.messageText = "휴지통을 비우겠습니까?"
-        alert.informativeText = "현재 사용자 계정의 휴지통에 있는 항목이 영구적으로 삭제됩니다. 외장 드라이브의 휴지통은 포함하지 않습니다. 이 작업은 취소할 수 없습니다."
+        alert.messageText = "Empty the Trash?"
+        alert.informativeText = "Items in this user account’s Trash will be permanently deleted. Trash on external drives is not included. This cannot be undone."
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "취소")
-        alert.addButton(withTitle: "휴지통 비우기")
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Empty Trash")
         alert.buttons[0].keyEquivalent = "\r"
         alert.buttons[1].keyEquivalent = ""
         alert.window.initialFirstResponder = alert.buttons[0]
@@ -174,17 +174,17 @@ private struct FolderStack: View {
             HStack {
                 Label(contents.title, systemImage: contents.symbol).font(.headline)
                 Spacer()
-                Button("Finder에서 열기") { NSWorkspace.shared.open(folder); close() }
+                Button("Open in Finder") { NSWorkspace.shared.open(folder); close() }
             }
-            Text("수정일 최신순 · 최대 80개").font(.caption).foregroundStyle(.secondary)
+            Text("Newest modified first · Up to 80 items").font(.caption).foregroundStyle(.secondary)
             if let openError { Text(openError).foregroundStyle(.secondary) }
             if contents.loading {
                 VStack(spacing: 12) {
                     ProgressView()
                     if contents.waitingForAccess {
-                        Text("폴더 접근 응답을 기다리고 있습니다. macOS의 \(contents.title) 폴더 접근 요청을 확인해 주세요.")
+                        Text("Waiting for folder access. Check the macOS permission request for \(contents.title).")
                             .font(.callout).foregroundStyle(.secondary)
-                        Button("폴더 접근 설정 열기…") {
+                        Button("Open Folder Access Settings…") {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders")!)
                         }
                     }
@@ -192,22 +192,22 @@ private struct FolderStack: View {
             }
             else if let error = contents.error {
                 Text(error).foregroundStyle(.secondary)
-                Button("폴더 접근 허용…") {
+                Button("Allow Folder Access…") {
                     let panel = NSOpenPanel()
                     panel.canChooseDirectories = true
                     panel.canChooseFiles = false
                     panel.directoryURL = folder
-                    panel.prompt = "허용"
+                    panel.prompt = "Allow"
                     if panel.runModal() == .OK { contents.load(for: session) }
                 }
-            } else if contents.files.isEmpty { Text("\(contents.title) 폴더가 비어 있습니다.").foregroundStyle(.secondary).padding(32) }
+            } else if contents.files.isEmpty { Text("\(contents.title) is empty.").foregroundStyle(.secondary).padding(32) }
             else {
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 18) {
                         ForEach(files) { file in
                             Button {
                                 if NSWorkspace.shared.open(file.url) { close() }
-                                else { openError = "항목을 열지 못했습니다. Finder에서 위치를 확인해 주세요." }
+                                else { openError = "Could not open this item. Check its location in Finder." }
                             } label: {
                                 VStack(spacing: 6) {
                                     Image(nsImage: file.icon).resizable().scaledToFit().frame(width: 48, height: 48)
@@ -281,8 +281,8 @@ private struct FolderStack: View {
             case .failure(let failure):
                 let code = failure as NSError
                 error = code.domain == NSCocoaErrorDomain && code.code == NSFileReadNoPermissionError
-                    ? "\(title) 폴더에 접근할 수 없습니다. 폴더 접근을 허용해 주세요."
-                    : "\(title) 폴더를 읽지 못했습니다: \(failure.localizedDescription)"
+                    ? "Cannot access \(title). Allow access to this folder."
+                    : "Could not read \(title): \(failure.localizedDescription)"
             }
             loading = false
             waitingForAccess = false

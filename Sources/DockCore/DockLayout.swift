@@ -6,9 +6,9 @@ public enum DockEdge: String, CaseIterable, Codable, Sendable {
 
     public var title: String {
         switch self {
-        case .bottom: "아래"
-        case .left: "왼쪽"
-        case .right: "오른쪽"
+        case .bottom: "Bottom"
+        case .left: "Left"
+        case .right: "Right"
         }
     }
 }

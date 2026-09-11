@@ -65,12 +65,12 @@ import QuartzCore
         dropHint.isHidden = true
         dropHint.setAccessibilityElement(false)
         addSubview(dropHint)
-        menuButton.image = NSImage(systemSymbolName: "line.3.horizontal", accessibilityDescription: "everyDock 메뉴")
+        menuButton.image = NSImage(systemSymbolName: "line.3.horizontal", accessibilityDescription: "everyDock Menu")
         menuButton.isBordered = false
         menuButton.target = self
         menuButton.action = #selector(showDockMenu)
-        menuButton.toolTip = "everyDock 메뉴"
-        menuButton.setAccessibilityLabel("everyDock 메뉴")
+        menuButton.toolTip = "everyDock Menu"
+        menuButton.setAccessibilityLabel("everyDock Menu")
         // Dock controls live in the menu bar and the Dock background's contextual menu.
         for item in DockUtility.allCases {
             let button = DockUtilityButton(item: item, model: model)
@@ -121,7 +121,7 @@ import QuartzCore
             button.target = self
             button.action = #selector(appClicked(_:))
             if !app.isSeparator { button.setArtwork(app.icon) }
-            button.setAccessibilityValue(app.isLaunching ? "실행 중…" : app.isHidden ? "숨겨짐" : app.isActive ? "활성 앱" : app.isRunning ? "실행 중" : "실행되지 않음")
+            button.setAccessibilityValue(app.isLaunching ? "Launching…" : app.isHidden ? "Hidden" : app.isActive ? "Active" : app.isRunning ? "Running" : "Not Running")
             buttons[app.id] = button
             if app.isLaunching && launches[app.id] == nil { launches[app.id] = ProcessInfo.processInfo.systemUptime }
             if !app.isLaunching { launches.removeValue(forKey: app.id) }
@@ -157,7 +157,7 @@ import QuartzCore
         itemIDs = visibleApps.map(\.id) + DockUtility.allCases.map { "utility.\($0.rawValue)" }
         let visibleIDs = Set(visibleApps.map(\.id))
         buttons.forEach { $0.value.isHidden = !visibleIDs.contains($0.key) }
-        menuButton.toolTip = model.apps.count > visibleApps.count ? "everyDock 메뉴 · 스크롤로 나머지 앱 표시" : "everyDock 메뉴"
+        menuButton.toolTip = model.apps.count > visibleApps.count ? "everyDock Menu · Scroll to see more apps" : "everyDock Menu"
     }
 
     func updatePointer(at location: NSPoint? = nil) {
@@ -282,7 +282,7 @@ import QuartzCore
         indicators.apply()
         let hovered = hoverPoint.flatMap { point in visibleApps.first { !$0.isSeparator && buttons[$0.id]?.frame.contains(point) == true } }
         if let hovered, let button = buttons[hovered.id] {
-            let title = hovered.name + (hovered.isLaunching ? " — 실행 중…" : "")
+            let title = hovered.name + (hovered.isLaunching ? " — Launching…" : "")
             if tooltip.stringValue != title { tooltip.stringValue = title }
             let width = tooltip.intrinsicContentSize.width + 18
             let height = 26.0
@@ -332,11 +332,11 @@ import QuartzCore
     }
     @objc private func showDockMenu() {
         let menu = NSMenu()
-        add(menu, "앱 추가…", #selector(addApps))
-        add(menu, "설정…", #selector(settings))
+        add(menu, "Add Apps…", #selector(addApps))
+        add(menu, "Settings…", #selector(settings))
         menu.addItem(.separator())
-        add(menu, "모든 Dock 일시 숨기기", #selector(pause))
-        add(menu, "everyDock 종료", #selector(quit))
+        add(menu, "Hide All Docks", #selector(pause))
+        add(menu, "Quit everyDock", #selector(quit))
         presentMenu(menu, anchor: self)
     }
     func presentMenu(_ menu: NSMenu, anchor: NSView) {
@@ -379,14 +379,14 @@ import QuartzCore
         }
         let menu = NSMenu()
         if insertionIndex != nil {
-            add(menu, "여기에 구분선 추가", #selector(insertSeparator))
+            add(menu, "Add Separator Here", #selector(insertSeparator))
             menu.addItem(.separator())
         }
-        add(menu, "앱 추가…", #selector(addApps))
-        add(menu, "설정…", #selector(settings))
+        add(menu, "Add Apps…", #selector(addApps))
+        add(menu, "Settings…", #selector(settings))
         menu.addItem(.separator())
-        add(menu, "모든 Dock 일시 숨기기", #selector(pause))
-        add(menu, "everyDock 종료", #selector(quit))
+        add(menu, "Hide All Docks", #selector(pause))
+        add(menu, "Quit everyDock", #selector(quit))
         presentMenu(menu, anchor: self)
     }
     @objc private func insertSeparator() { model.addSeparator(at: insertionIndex) }
@@ -435,7 +435,7 @@ import QuartzCore
                 guard dragged.isPinned, !dragged.isSeparator else { return [] }
                 dropAction = .unpin
                 showDropIndicator(at: boundary, color: .systemOrange)
-                dropHint.stringValue = "Dock 고정 해제"
+                dropHint.stringValue = "Unpin from Dock"
                 let width = dropHint.intrinsicContentSize.width + 18
                 switch edge {
                 case .bottom:
@@ -641,7 +641,7 @@ private final class DockIndicators: NSView {
         let data = NSPasteboardItem()
         data.setString(app.id, forType: DockSurface.reorderType)
         let item = NSDraggingItem(pasteboardWriter: data)
-        let image = app.isSeparator ? NSImage(systemSymbolName: "line.diagonal", accessibilityDescription: "구분선")! : app.icon
+        let image = app.isSeparator ? NSImage(systemSymbolName: "line.diagonal", accessibilityDescription: "Separator")! : app.icon
         let point = convert(event.locationInWindow, from: nil)
         item.setDraggingFrame(NSRect(x: point.x - bounds.width / 2, y: point.y - bounds.height / 2, width: bounds.width, height: bounds.height), contents: image)
         let session = beginDraggingSession(with: [item], event: event, source: self)
@@ -671,9 +671,9 @@ private final class DockIndicators: NSView {
     private func showAppMenu() {
         if app.isSeparator {
             let menu = NSMenu()
-            add(menu, "구분선 삭제", #selector(pin))
-            add(menu, "앞으로 이동", #selector(moveEarlier))
-            add(menu, "뒤로 이동", #selector(moveLater))
+            add(menu, "Remove Separator", #selector(pin))
+            add(menu, "Move Earlier", #selector(moveEarlier))
+            add(menu, "Move Later", #selector(moveLater))
             (superview as? DockSurface)?.presentMenu(menu, anchor: self)
         }
         else if app.isRunning { readNativeMenu(path: []) }
@@ -691,23 +691,23 @@ private final class DockIndicators: NSView {
         (superview as? DockSurface)?.presentMenu(menu, anchor: self)
     }
     private func appendAppActions(to menu: NSMenu) {
-        add(menu, "열기", #selector(openApp))
+        add(menu, "Open", #selector(openApp))
         if app.isRunning {
-            add(menu, "열린 창 보기…", #selector(showWindows))
-            add(menu, "모든 창 닫기", #selector(closeWindows))
+            add(menu, "Show Windows…", #selector(showWindows))
+            add(menu, "Close All Windows", #selector(closeWindows))
             menu.addItem(.separator())
         }
-        add(menu, app.isPinned ? "Dock에서 고정 해제" : "Dock에 고정", #selector(pin))
+        add(menu, app.isPinned ? "Unpin from Dock" : "Pin to Dock", #selector(pin))
         if app.isPinned {
-            add(menu, "앞으로 이동", #selector(moveEarlier))
-            add(menu, "뒤로 이동", #selector(moveLater))
-            add(menu, "이 앱 앞에 구분선 추가", #selector(separatorBefore))
-            add(menu, "이 앱 뒤에 구분선 추가", #selector(separatorAfter))
+            add(menu, "Move Earlier", #selector(moveEarlier))
+            add(menu, "Move Later", #selector(moveLater))
+            add(menu, "Add Separator Before", #selector(separatorBefore))
+            add(menu, "Add Separator After", #selector(separatorAfter))
         }
-        add(menu, "Finder에서 보기", #selector(reveal))
+        add(menu, "Show in Finder", #selector(reveal))
         if app.isRunning && app.bundleIdentifier != "com.apple.finder" {
             menu.addItem(.separator())
-            add(menu, "종료", #selector(quitApp))
+            add(menu, "Quit", #selector(quitApp))
         }
     }
     private func add(_ menu: NSMenu, _ title: String, _ action: Selector) { menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = self }
@@ -738,7 +738,7 @@ private final class DockIndicators: NSView {
             item.state = marked ? .on : .off
         }
         if !path.isEmpty {
-            command("‹ 이전 메뉴") { [weak self] in self?.readNativeMenu(path: Array(path.dropLast())) }
+            command("‹ Back") { [weak self] in self?.readNativeMenu(path: Array(path.dropLast())) }
             menu.addItem(.separator())
         }
         for entry in entries {
@@ -802,10 +802,10 @@ private final class DockIndicators: NSView {
     }
     override func rightMouseDown(with event: NSEvent) {
         let menu = NSMenu()
-        menu.addItem(withTitle: item == .desktop ? "바탕화면 폴더 열기" : "Finder에서 열기", action: #selector(openFolder), keyEquivalent: "").target = self
+        menu.addItem(withTitle: item == .desktop ? "Open Desktop Folder" : "Open in Finder", action: #selector(openFolder), keyEquivalent: "").target = self
         if item == .trash {
             menu.addItem(.separator())
-            menu.addItem(withTitle: "휴지통 비우기…", action: #selector(emptyTrash), keyEquivalent: "").target = self
+            menu.addItem(withTitle: "Empty Trash…", action: #selector(emptyTrash), keyEquivalent: "").target = self
         }
         (superview as? DockSurface)?.presentMenu(menu, anchor: self)
     }

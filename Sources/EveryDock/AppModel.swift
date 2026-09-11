@@ -177,7 +177,7 @@ final class AppModel: NSObject, ObservableObject {
         var seen = Set<String>()
         for pinned in preferences.pinnedApps {
             if let separatorID = pinned.separatorID {
-                result.append(DockApplication(id: pinned.id, url: URL(string: pinned.path)!, name: "구분선",
+                result.append(DockApplication(id: pinned.id, url: URL(string: pinned.path)!, name: "Separator",
                     icon: NSImage(size: .zero), bundleIdentifier: nil, isPinned: true, isRunning: false,
                     isActive: false, isLaunching: false, isHidden: false, separatorID: separatorID))
                 continue
@@ -282,11 +282,11 @@ final class AppModel: NSObject, ObservableObject {
                 case .failed(let failure) where active && shouldMinimize:
                     permissions.recordAccessibility(failure)
                     switch failure {
-                    case .permissionDenied: report("macOS가 현재 실행 중인 everyDock의 창 제어를 거부했습니다. 이미 허용했다면 등록된 앱과 현재 앱의 서명이 달라졌을 수 있습니다. 설정의 ‘권한 다시 확인’과 ‘현재 앱 위치 보기’를 이용해 주세요.")
+                    case .permissionDenied: report("macOS denied window control for everyDock. If permission is enabled, the registered app may have a different signature. Use Check Permission Status and Show App Location in Settings.")
                     case .noWindow: openApplication(app)
-                    case .unsupported: report("이 창은 macOS 최소화 기능을 제공하지 않습니다.")
-                    case .timedOut: report("앱이 창 제어 요청에 제때 응답하지 않았습니다. 잠시 후 다시 시도해 주세요.")
-                    case .apiError(let code): report("창 조작에 실패했습니다. macOS 오류 코드: \(code)")
+                    case .unsupported: report("This window does not support macOS minimization.")
+                    case .timedOut: report("The app did not respond to the window request in time. Try again in a moment.")
+                    case .apiError(let code): report("The window action failed. macOS error code: \(code)")
                     }
                 case .restored:
                     permissions.recordAccessibility(nil)
@@ -329,7 +329,7 @@ final class AppModel: NSObject, ObservableObject {
         guard FileManager.default.fileExists(atPath: app.url.path) else {
             pendingLaunches.removeValue(forKey: app.id)
             refreshApps()
-            report("\(app.name)을(를) 찾을 수 없습니다. 고정을 해제한 뒤 앱을 다시 추가해 주세요.")
+            report("Cannot find \(app.name). Unpin it and add the app again.")
             return
         }
         let configuration = NSWorkspace.OpenConfiguration()
@@ -339,7 +339,7 @@ final class AppModel: NSObject, ObservableObject {
             Task { @MainActor in
                 if let detail {
                     self?.pendingLaunches.removeValue(forKey: app.id)
-                    self?.report("앱을 열 수 없습니다: \(detail)")
+                    self?.report("Could not open the app: \(detail)")
                 }
                 self?.refreshApps()
             }
@@ -352,7 +352,7 @@ final class AppModel: NSObject, ObservableObject {
             try nativeDock.setManaging(preferences.manageNativeDock && !paused && hasDock)
             nativeDockManaged = nativeDock.isManaging
         } catch {
-            message = "기본 Dock을 관리하지 못했습니다: \(error.localizedDescription)"
+            message = "Could not manage the macOS Dock: \(error.localizedDescription)"
         }
     }
 
@@ -408,8 +408,8 @@ final class AppModel: NSObject, ObservableObject {
     func chooseApps() {
         NSApp.activate()
         let panel = NSOpenPanel()
-        panel.title = "Dock에 고정할 앱 선택"
-        panel.prompt = "추가"
+        panel.title = "Choose Apps to Pin"
+        panel.prompt = "Add"
         panel.allowedContentTypes = [.applicationBundle]
         panel.allowsMultipleSelection = true
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
@@ -479,7 +479,7 @@ final class AppModel: NSObject, ObservableObject {
     func importNativeDock() {
         let imported = Self.nativeDockApps()
         guard !imported.isEmpty else {
-            message = "기본 Dock의 고정 앱을 읽지 못했습니다. ‘앱 추가’로 직접 선택할 수 있습니다."
+            message = "Could not read pinned apps from the macOS Dock. Choose Add Apps to select them manually."
             return
         }
         addApps(imported.map { URL(fileURLWithPath: $0.path) })
@@ -514,7 +514,7 @@ final class AppModel: NSObject, ObservableObject {
         do {
             if enabled { try SMAppService.mainApp.register() }
             else { try SMAppService.mainApp.unregister() }
-        } catch { message = "로그인 항목을 변경하지 못했습니다: \(error.localizedDescription)" }
+        } catch { message = "Could not update the login item: \(error.localizedDescription)" }
         refreshLoginStatus()
     }
 
