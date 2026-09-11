@@ -13,3 +13,12 @@
 
 - Release packaging **PASS**: arm64 only, minimum macOS 26, version 0.4.0/build 17, final strip/re-sign and codesign strict verification.
 - ZIP SHA-256: `e891f63b7e006ecb5fedd2661af98a649afc6a4ab3078d308984ac6d06e10772`.
+
+## Public release and installation
+
+- Final source/tag: `f468ae4f9d5f79b91346624f8a096a1e7665e264` / `v0.4.0`. [GitHub CI](https://github.com/hungryZoo/everyDock/actions/runs/34574923784) tests and packaging **PASS**.
+- The public English release page was opened without authentication. Its arm64 ZIP and SHA256SUMS assets were confirmed through release metadata, and the downloaded ZIP matched the checksum above.
+- Homebrew tap `030cbfc`; cask style and ordinary audit **PASS**. Existing uninstall_preflight deprecation warnings remain; this is not a strict/notarization audit pass.
+- Actual Homebrew **0.3.10 → 0.4.0 upgrade PASS**. Hashes of the stored preferences payload and setup history were identical before/after upgrading. Only hashes were used for this comparison; no personal settings were published.
+- Installed bundle reports 0.4.0 and English development region; codesign strict **PASS**. The development copy was updated from the same ZIP after the old process stopped. The documented app-scoped quarantine command was applied and `/Applications/everyDock.app` was launched.
+- Full English visual/VoiceOver validation remains **TC-M66 NOT RUN** for user/device follow-up. Source coverage, rendered README inspection, and model regressions are not substitutes for that manual matrix.
