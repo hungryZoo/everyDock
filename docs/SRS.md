@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.9 / 2026-09-11 |
+| 문서 버전·기준일 | 1.10 / 2026-09-11 |
 | 제품 기준 | everyDock v0.3.8 |
 | 상위 문서 | [PRD](PRD.md) |
 | 검증 명세 | [TC](TC.md) |
@@ -267,3 +267,9 @@ OnboardingView는 기존 AppPermissions의 상태·오류 분류와 AppModel 권
 DockPreferences.hideMenuBarIcon은 기본 false이고 기존 설정에서 누락 시 false로 복원한다. AppDelegate가 Combine으로 이 값의 변경을 관찰하고 NSStatusItem.isVisible에 반영한다. Dock 패널과 일반 앱 메뉴는 유지한다. 설정 설명은 ‘설정을 열려면 앱 메뉴(Apps)에서 everyDock을 찾아 실행하세요. 이미 실행 중이어도 설정 창이 열립니다.’이다.
 
 StartupPresentation은 최초 안내, 아이콘 숨김 상태의 수동 시작 시 설정, 그 외 백그라운드 시작을 구분한다. 로그인 실행 여부는 현재 Apple open-application event의 keyAEPropData/lgit 또는 명시적 login-item 파라미터로 판별한다. 실행 중 재열기는 applicationShouldHandleReopen으로 기존 설정 창 하나를 재사용하며, 안내 창이 이미 보이면 그 창을 앞으로 가져온다. 실제 로그아웃·로그인과 Apps 시작 전체 경로의 검증은 별도로 기록한다.
+
+### FR-30 Homebrew 설정 초기화 제거 — P-07 / P1
+
+cask의 zap.trash 화이트리스트는 `~/Library/Preferences/app.everydock.mac.plist`, `~/Library/Caches/app.everydock.mac`, `~/Library/Saved Application State/app.everydock.mac.savedState` 세 경로다. plist 안의 everyDock.hasLaunched와 everyDock.preferences.v1이 함께 제거된다. 일반 uninstall의 quit 동작과 사용자 설정 보존은 유지한다. post-install과 upgrade에는 설정·권한 초기화를 넣지 않는다. cask 코드의 원본은 [Homebrew tap](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb)이다.
+
+Application Support/everyDock의 미복원 journal과 lock은 삭제하지 않는다. 권한 DB는 읽거나 직접 수정하지 않고, macOS 권한·로그인 항목은 zap의 제거 보장에 포함하지 않는다. 사용자가 최초 권한 요청을 재현할 때만 README의 `tccutil reset All app.everydock.mac`를 직접 실행한다. 실제 사용자 데이터를 초기화하지 않는 fixture로 Homebrew의 일반 제거/opt-in zap 및 임시 UserDefaults 도메인 초기화를 검증한다.

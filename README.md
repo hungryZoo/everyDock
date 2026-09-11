@@ -25,11 +25,29 @@ brew upgrade --cask everydock
 open -a everyDock
 ```
 
-제거도 먼저 everyDock을 정상 종료해 기본 Dock 복원을 마친 후 진행합니다. 설정과 복원 기록은 자동 삭제하지 않습니다.
+제거도 먼저 실행 중인 everyDock(개발 폴더 사본 포함)을 정상 종료해 기본 Dock 복원을 마친 후 진행합니다. **일반 제거는 고정 앱·옵션·첫 실행 완료 기록을 보존합니다.** `brew install`이나 업그레이드가 이 설정을 자동 초기화하지 않습니다.
 
 ```sh
 brew uninstall --cask everydock
 ```
+
+**첫 설치 안내부터 다시 테스트하려면** 설정에서 로그인 시 자동 실행을 끄고 앱을 정상 종료한 뒤 설정까지 제거합니다. 이미 앱을 제거했다면 `--force`로 남은 설정을 정리할 수 있습니다. 이 작업은 고정 앱·구분선·모양·첫 실행 완료 기록을 휴지통으로 옮깁니다.
+
+```sh
+brew update
+brew uninstall --cask --zap --force hungryZoo/tap/everydock
+brew install --cask hungryZoo/tap/everydock
+open -a everyDock
+```
+
+`--zap`은 everyDock의 설정·캐시·저장된 창 상태만 정리합니다. **macOS의 권한 승인 기록은 별도**이므로, 권한 요청까지 처음부터 테스트하려면 앱을 종료하고 다음 명령으로 everyDock의 권한만 초기화한 뒤 실행하세요. 새 안내 창에서 권한 버튼을 눌러 다시 요청합니다. 이 명령은 자동 설치·제거 과정에 포함하지 않습니다.
+
+```sh
+tccutil reset All app.everydock.mac
+```
+
+로그인 항목은 제거 전에 앱 설정에서 끄세요. 앱을 이미 삭제했다면 시스템 설정 → 일반 → 로그인 항목 및 확장 프로그램에서 확인할 수 있습니다. 기본 Dock 복구에 필요한 `~/Library/Application Support/everyDock`의 기록은 `--zap`으로 지우지 않습니다. 남은 복구 기록은 앱을 다시 실행하고 정상 종료해 복원하도록 합니다. 개발 폴더의 별도 앱 사본과 Homebrew 다운로드 캐시는 이 설정 초기화의 대상이 아닙니다.
+
 
 ## 처음 실행과 메뉴 막대 아이콘
 

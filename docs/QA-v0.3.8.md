@@ -24,3 +24,12 @@
 - 설치 실행 파일 SHA-256 `6bb3ca93ba8d4e9a093f454200e3ea6f7d3ff43a6fea3d9ac319e545c685a688`, codesign strict **PASS**. 공개 파일과 같은 최종 앱을 재실행했다.
 
 사용자 설정·권한 DB·개인 파일은 공개 산출물에 포함하지 않는다.
+
+## Homebrew 제거·재설치 조사와 cask 보완
+
+- 사용자 제거 테스트 이후 확인 당시 앱 번들과 Homebrew 설치 목록에는 everyDock이 없었지만, 앱의 Preferences plist와 `everyDock.hasLaunched = 1`이 남아 있었다. 기존 cask는 quit만 수행하고 zap이 없었으며 일반 제거 시 설정 보존은 이전 README에 명시되어 있었다. macOS 권한 DB는 조회하지 않았다.
+- cask `c406db9`에서 opt-in `zap trash`를 추가했다. 설정·캐시·저장된 창 상태만 대상으로 하고, 일반 제거·설치·업그레이드에서는 초기화하지 않는다. 앱 버전·공개 태그·ZIP·체크섬은 변경하지 않았다.
+- **TC-R07 PASS (격리 fixture)**: 실제 cask의 세 zap 경로를 프로젝트 `.build/cleanup-fixture`로 치환한 임시 로컬 tap을 만들고, 앱 설치 대신 테스트 marker artifact를 사용했다. 일반 `brew uninstall --cask --force` 후 세 설정 경로와 가짜 복원 journal이 유지됐다. `brew uninstall --cask --zap --force` 후 세 경로는 사라지고 journal은 유지됐다.
+- 별도의 UUID 임시 UserDefaults 도메인에 첫 실행 완료 값을 만들고 해당 plist를 같은 zap 경로로 휴지통에 보냈다. 직후 `defaults read`가 키를 찾지 못해 CFPreferences 캐시에서도 첫 실행 완료가 남지 않음을 확인했다. 이 테스트는 실제 app.everydock.mac 도메인을 삭제하지 않았다.
+- 임시 tap은 검증 후 제거했다. 실제 사용자 첫 실행 키는 여전히 1이며 사용자 설정·로그인 항목·macOS 권한은 변경하지 않았다. 실제 사용자 앱의 clean install과 OS 권한 재승인 전체 절차는 **NOT RUN**이다.
+- cask style/audit **PASS**. Homebrew 기본 문서의 일반 제거와 opt-in zap 구분, 로컬 macOS `tccutil(1)`의 앱별 reset 범위를 확인해 README에 반영했다. macOS 권한·로그인 상태·미복원 journal을 모두 제거했다는 보장은 하지 않는다.

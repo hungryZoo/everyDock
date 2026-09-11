@@ -56,7 +56,7 @@ brew fetch --cask hungryZoo/tap/everydock
 
 공증 검사를 포함한 online/strict audit은 현재 ad-hoc 베타에서 실패할 수 있다. 실패를 숨기거나 Homebrew 공식 cask 기준을 충족한다고 주장하지 않는다. 일반 audit 결과와 공증 미완료는 별도로 기록한다. cask는 Gatekeeper·quarantine을 해제하는 설치 스크립트를 포함하지 않는다.
 
-cask에는 사용자 복원 기록을 지우는 `zap`을 넣지 않는다. 제거 전에 앱을 정상 종료해 기본 Dock 복원을 마친다. 설치·업데이트·제거 명령은 [README](../README.md)에 있다.
+cask의 명시적 `zap`은 앱 설정 plist·캐시·저장된 창 상태만 휴지통으로 옮긴다. 사용자 기본 Dock 복원 기록은 `zap`에 포함하지 않는다. 제거 전에 앱을 정상 종료해 기본 Dock 복원을 마친다. 설치·업데이트·제거 명령은 [README](../README.md)에 있다.
 
 근거: [Tap 유지보수](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap), [Cask Cookbook](https://docs.brew.sh/Cask-Cookbook), [Homebrew 6 Tap Trust](https://docs.brew.sh/Tap-Trust).
 
