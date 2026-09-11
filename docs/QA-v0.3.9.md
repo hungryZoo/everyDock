@@ -10,3 +10,12 @@
 - TC-M63의 실제 권한 거부·검사 지연·로그인 시작 전체 행렬과 TC-M64의 실제 앱 제거는 배포 전 시점 **NOT RUN**이다. 단위 검사와 fixture를 실제 macOS 승인/로그인 해제 검증으로 대체하지 않는다.
 
 ZIP SHA-256: `5ce2270b47bca7ff203e22aed2f5cf51fa94514eb67556f5f7da913426d94317`.
+
+## 공개 배포 및 실제 앱 검증
+
+- 소스·태그 `5e19d4d1b2329cde5394b639f0dd9f0a19925538` / `v0.3.9`. [GitHub CI](https://github.com/hungryZoo/everyDock/actions/runs/34570429300) 테스트·패키징 **PASS**.
+- 공개 ZIP을 인증 없이 내려받아 위 SHA-256 일치를 확인했다. Homebrew tap `3f7f90b`, style/audit **PASS**. Cask/InstallSteps 예외는 직렬화 시점이 아닌 실제 실행 시점의 uninstall/reinstall/upgrade 구분에 한정한다.
+- 실제 Homebrew **0.3.8 → 0.3.9 upgrade PASS**. 정상 종료 전후가 아닌 upgrade 직전/직후 설정 plist의 SHA-256이 동일했다.
+- 실제 **일반 uninstall → install PASS**. 앱 번들 제거와 `defaults read app.everydock.mac` 도메인 부재, 첫 실행 키 부재, 앱 캐시·Saved Application State 부재, 완료된 복원 journal 부재를 확인했다. 권한 DB는 수정하지 않았다.
+- **TC-M63 PARTIAL PASS**: hasLaunched=1인 기존 설치 상태에서 새 배포본을 시작하자 손쉬운 사용과 화면 녹화의 실제 거부를 표시한 안내 창 하나가 열렸다. 나중에 설정으로 닫혔고, LaunchServices로 실행 중 앱을 다시 열자 안내가 다시 나타났다. 권한 정상/3초 지연/로그인 실행의 전체 수동 행렬은 NOT RUN이다.
+- ad-hoc 배포본 실행 시 macOS 실행 차단을 확인했고 시스템 설정의 ‘그래도 열기’를 통해 최초 실행을 확인했다. 재설치 뒤 초기 안내 UI 및 로그인 해제 표시는 자동 UI 도구의 실행 연결 시간 초과로 미확인이다. 사용자가 직접 확인하겠다고 요청하여 추가 UI 검증을 중단했다. 현재 설치본은 Homebrew v0.3.9이며 실행 파일 SHA-256은 `a409bd13b8621ee91ed649de20a7aa1a9c6a963789be384d5a870ad897f50715`이다.
