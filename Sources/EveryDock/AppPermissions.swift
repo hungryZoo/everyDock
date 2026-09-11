@@ -34,9 +34,9 @@ import DockCore
     /// Never requests access. A real denial stays blocked until the permission button is pressed.
     func refreshCaptureStatus() {
         if !capturePreflight() {
-            if capture != .denied { capture = .unknown }
+            if capture == .allowed { capture = .unknown }
             contentCache = nil
-        } else if capture != .denied {
+        } else if capture == .unknown {
             capture = .allowed
         }
     }
@@ -47,7 +47,6 @@ import DockCore
     }
 
     var needsGuidance: Bool {
-
         accessibility != .allowed || capture != .allowed || detail != nil
             || (accessibilityDetail != nil && accessibilityDetail != "noWindow" && accessibilityDetail != "unsupported")
     }

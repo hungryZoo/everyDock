@@ -10,4 +10,4 @@
 - arm64 패키징·macOS 26 최소 버전·codesign strict **PASS**.
 - **TC-M65 NOT RUN**: 실제 신규 권한 상태에서 OS 대화상자가 나타나지 않는지와 초기 안내의 화면 배치는 사용자가 확인한다. 자동 테스트를 OS UI 검증 PASS로 기록하지 않는다.
 
-ZIP SHA-256: `e39ab40fa37cf433ab657c918ca8169b2a6f18bf93f26b3b13f7ce475401d35b`.
+ZIP SHA-256: `dd7544afae068c08d655a891ae79795be330b385ca1b39c32926d65b865e2a49`.
