@@ -11,3 +11,9 @@
 - **TC-M65 NOT RUN**: 실제 신규 권한 상태에서 OS 대화상자가 나타나지 않는지와 초기 안내의 화면 배치는 사용자가 확인한다. 자동 테스트를 OS UI 검증 PASS로 기록하지 않는다.
 
 ZIP SHA-256: `dd7544afae068c08d655a891ae79795be330b385ca1b39c32926d65b865e2a49`.
+
+## 배포
+
+- [GitHub CI](https://github.com/hungryZoo/everyDock/actions/runs/34572101496) 최종 소스 `acf9848102db429fff66e6764b37349d66030785` 테스트·패키징 **PASS**, 공개 태그 v0.3.10.
+- 공개 ZIP을 인증 없이 내려받아 위 SHA-256 일치를 확인했다. Homebrew tap `829499c`, cask style/audit **PASS**.
+- 실제 Homebrew 0.3.9 → 0.3.10 upgrade 및 설치 번들 버전·codesign strict 확인 **PASS**. 별도로 실행 중이던 이전 개발 사본을 정상 종료하고 dist 사본도 같은 공개 ZIP으로 갱신했다. README에 명시한 앱별 xattr 명령 후 /Applications의 새 앱을 실행했다. 설치 후 화면·권한 버튼의 실제 UI 검증은 사용자에게 맡겼다.
