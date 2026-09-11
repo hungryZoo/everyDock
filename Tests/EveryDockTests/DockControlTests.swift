@@ -2,6 +2,53 @@ import AppKit
 import Testing
 @testable import EveryDock
 
+@MainActor @Test func iconArtworkSelectsHighResolutionRepresentation() {
+    let image = NSImage(size: NSSize(width: 32, height: 32))
+    for (side, color) in [(32, NSColor.red), (1024, NSColor.green)] {
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
+                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        color.setFill()
+        NSRect(x: 0, y: 0, width: side, height: side).fill()
+        NSGraphicsContext.restoreGraphicsState()
+        rep.size = image.size
+        image.addRepresentation(rep)
+    }
+    let control = DockIconButton(frame: .zero)
+    control.setArtwork(image)
+    let pixels = control.layer!.contents as! CGImage
+    let color = NSBitmapImageRep(cgImage: pixels).colorAt(x: 288, y: 288)!.usingColorSpace(.deviceRGB)!
+    #expect(color.greenComponent > 0.95)
+    #expect(color.redComponent < 0.05)
+}
+
+@MainActor @Test func iconArtworkKeepsRetinaPixelsAndReusesTextureDuringMagnification() {
+    let image = NSImage(size: NSSize(width: 32, height: 32), flipped: false) { rect in
+        NSColor.red.setFill()
+        rect.fill()
+        return true
+    }
+    let control = DockIconButton(frame: NSRect(x: 0, y: 0, width: 32, height: 32))
+    control.setArtwork(image)
+    let pixels = control.layer?.contents as! CGImage?
+    #expect(pixels?.width == 576)
+    #expect(pixels?.height == 576)
+    #expect(control.layer?.contentsScale == 2)
+    #expect(control.layer?.minificationFilter == .trilinear)
+    for size in [48.0, 96.0, 288.0, 32.0] {
+        control.frame.size = NSSize(width: size, height: size)
+        control.setArtwork(image)
+        control.updateLayer()
+        #expect((control.layer?.contents as! CGImage?) === pixels)
+    }
+    let bitmap = pixels.map { NSBitmapImageRep(cgImage: $0) }
+    let color = bitmap?.colorAt(x: 288, y: 288)?.usingColorSpace(.deviceRGB)
+    #expect((color?.redComponent ?? 0) > 0.95)
+    #expect((color?.alphaComponent ?? 0) > 0.95)
+}
+
 @MainActor private final class ClickReceiver: NSObject {
     var count = 0
     @objc func clicked(_ sender: Any?) { count += 1 }

@@ -182,6 +182,18 @@ These targets require real measurements. Display-link callback/render timing alo
 
 ## 6. Evidence and release gates
 
+### Unreleased icon rendering checks — FR-03 / P-02
+
+| ID | Check | Result (2026-09-11) |
+|---|---|---|
+| TC-A52 | `iconArtworkKeepsRetinaPixelsAndReusesTextureDuringMagnification`: 576px rendered vector artwork at 2×, trilinear filtering, same CGImage through repeated size changes. | PASS |
+| TC-A53 | `iconArtworkSelectsHighResolutionRepresentation`: distinguish 32px and 1024px source representations by color; choose high-resolution artwork. | PASS |
+| TC-M67 | Compare resting/maximum-magnified app and utility icons on 1×/2× displays, reconnect/move displays, check aspect ratio and smooth motion. | NOT RUN |
+
+These changes are local and unreleased. Published v0.4.0 evidence below is unchanged. No new on-screen frame-time or GPU measurements have been performed.
+
+Validation on macOS 26.5.2 / arm64: `swift test --arch arm64` completed successfully (51 discovered tests; the opt-in Quick Look integration was skipped). Both new icon tests passed. Release build and strict code-signature verification passed. The local build was copied to `dist/everyDock.app` and `/Applications/everyDock.app` after normal quit, then launched. Homebrew assets/tags remain unchanged. TC-M67 still requires visual verification.
+
 Current results: [QA-v0.4.0](QA-v0.4.0.md). Historical records: [initial QA](../QA.md), [v0.3.1](QA-v0.3.1.md), [v0.3.2](QA-v0.3.2.md), [v0.3.3](QA-v0.3.3.md), [v0.3.4](QA-v0.3.4.md), [v0.3.5](QA-v0.3.5.md), [v0.3.6](QA-v0.3.6.md), [v0.3.7](QA-v0.3.7.md), [v0.3.8](QA-v0.3.8.md), [v0.3.9](QA-v0.3.9.md), [v0.3.10](QA-v0.3.10.md). Historical records retain their original language and version-specific scope.
 
 A defect report includes TC ID, expected/actual behavior, reproduction count, environment, permissions, commit, and redacted evidence. File loss, failed restoration, launch failure, or duplicate panels are P0. Assess interaction defects by task impact.

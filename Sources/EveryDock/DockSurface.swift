@@ -543,27 +543,64 @@ private final class DockIndicators: NSView {
     }
 }
 
-/// Rasterize artwork once; changing an icon's bounds only changes its composited layer.
+/// Keep enough pixels for the maximum supported magnification, independent of animated bounds.
 @MainActor class DockIconButton: NSControl {
     private(set) static weak var trackingButton: DockIconButton?
     private var artwork: NSImage?
     private var pixels: CGImage?
+    private var artworkScale: CGFloat = 0
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
         layerContentsRedrawPolicy = .never
         layer?.contentsGravity = .resizeAspect
+        // Linear sampling skips fine details when a large texture shrinks to a resting icon.
+        layer?.minificationFilter = .trilinear
+        layer?.magnificationFilter = .linear
         setAccessibilityRole(.button)
         setAccessibilityElement(true)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override var wantsUpdateLayer: Bool { true }
     override func updateLayer() { layer?.contents = pixels }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        refreshArtwork()
+    }
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        refreshArtwork()
+    }
     func setArtwork(_ image: NSImage) {
         guard artwork !== image else { return }
         artwork = image
-        var proposed = NSRect(x: 0, y: 0, width: 512, height: 512)
-        pixels = image.cgImage(forProposedRect: &proposed, context: nil, hints: [.interpolation: NSImageInterpolation.high])
+        refreshArtwork(force: true)
+    }
+    private func refreshArtwork(force: Bool = false) {
+        guard let artwork else { return }
+        let scale = window?.backingScaleFactor ?? 2
+        guard force || artworkScale != scale else { return }
+        // Preferences cap icon size at 72pt and magnification at 4×.
+        let side = Int(ceil(72 * 4 * scale))
+        guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
+                                            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                            isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        context.imageInterpolation = .high
+        NSColor.clear.setFill()
+        NSRect(x: 0, y: 0, width: side, height: side).fill(using: .copy)
+        let aspect = artwork.size.width / max(1, artwork.size.height)
+        let size = NSSize(width: aspect >= 1 ? CGFloat(side) : CGFloat(side) * aspect,
+                          height: aspect >= 1 ? CGFloat(side) / aspect : CGFloat(side))
+        artwork.draw(in: NSRect(x: (CGFloat(side) - size.width) / 2, y: (CGFloat(side) - size.height) / 2,
+                               width: size.width, height: size.height),
+                     from: .zero, operation: .copy, fraction: 1)
+        NSGraphicsContext.restoreGraphicsState()
+        pixels = bitmap.cgImage
+        artworkScale = scale
+        layer?.contentsScale = scale
         layer?.contents = pixels
     }
     private func highlight(_ flag: Bool) {

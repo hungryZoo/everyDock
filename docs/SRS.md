@@ -61,7 +61,7 @@ Read native tilesize within 16–96pt and largesize between the base size and 12
 
 Length is `(app count + 3) × (icon size + 2) − 2 + 14 + 12 + separator count × 14`, plus 12 when a running-section boundary exists. These are implementation metrics, not official measurements of Apple internals.
 
-Use cell-free NSControl icons with cached CALayers; rasterize only when the image changes. Reuse dots and separator layers. A release outside cancels a click; dragging back inside and releasing activates once. Space, Return, and accessibility Press must work. Keep input tracking while pressed. Fit and scroll overflowing contents.
+Use cell-free NSControl icons with cached CALayers. Rasterize only when artwork or display backing scale changes, at 288pt × backing scale (576px at 2×), covering maximum manual magnification and native-follow sizing. Draw the appropriate NSImage representation into an explicit transparent bitmap, preserve aspect ratio, and use trilinear minification with the layer's display contentsScale. Animated bounds reuse the same texture. Low-resolution source artwork cannot gain missing detail. Reuse dots and separator layers. A release outside cancels a click; dragging back inside and releasing activates once. Space, Return, and accessibility Press must work. Keep input tracking while pressed. Fit and scroll overflowing contents.
 
 ### FR-04 Motion and input — P-02 / P0
 

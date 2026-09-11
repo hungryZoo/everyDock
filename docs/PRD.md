@@ -17,6 +17,8 @@ The supported target is Apple Silicon with macOS 26+. The app is local, without 
 
 Included: multiple displays, Bottom/Left/Right placement, native size following, magnification and launch feedback, app activation and supported minimize/restore, previews, close actions, app Dock menus, file stacks, Trash, pins, separators, Command-drag, setup and permissions, login launch, native Dock restoration, and Homebrew distribution.
 
+P-02 icon quality: preserve available high-resolution artwork on Retina displays, filter resting and magnified icons appropriately, and refresh cached pixels when display scale changes without rerasterizing during animation. Source artwork quality remains a limit. See FR-03 and TC-A52/A53/M67; this improvement is currently an unreleased local change after v0.4.0.
+
 Excluded: Intel, earlier macOS, a pixel-exact Dock clone, independent system Genie destinations for every monitor, notification badges, minimized-window tiles, Mission Control, drag auto-scroll, and per-display app lists. OS-protected content and unsupported AX windows are not bypassed.
 
 ## 3. Product requirements

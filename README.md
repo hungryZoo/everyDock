@@ -10,6 +10,8 @@ Keep apps, windows, and everyday files within reach on every monitor.
 
 ```bash
 brew install --cask hungryZoo/tap/everydock
+xattr -dr com.apple.quarantine /Applications/everyDock.app
+open -a everyDock
 ```
 
 **Apple Silicon · macOS 26+ · Homebrew 6**
@@ -17,6 +19,8 @@ brew install --cask hungryZoo/tap/everydock
 [First-time setup](#2-installation) · [Usage](#4-usage) · [Latest release](https://github.com/hungryZoo/everyDock/releases)
 
 </div>
+
+![everyDock running on three displays, including a portrait monitor and a MacBook Pro](docs/images/main.png)
 
 ---
 
@@ -62,6 +66,8 @@ The setup guide explains the permissions and offers launch at login.
 - Desktop and Downloads stacks with file thumbnails, plus Trash access.
 - An English interface, permission setup, and optional launch at login.
 
+The working tree after v0.4.0 improves icon rendering with display-scale-aware cached artwork and trilinear downsampling. Animation reuses the cached image. This change is not yet included in the published Homebrew release; visual checks across mixed-resolution displays are pending.
+
 ### How it works
 
 | Part | Behavior |
@@ -78,11 +84,9 @@ The setup guide explains the permissions and offers launch at login.
 
 ### Homebrew
 
-Install [Homebrew](https://brew.sh/) first. On Homebrew 6, trust this cask before loading its custom installation rules:
+Install [Homebrew](https://brew.sh/) first. Homebrew 6 automatically adds the tap and trusts this specific cask when you install using its fully qualified name:
 
 ```bash
-brew tap hungryZoo/tap
-brew trust --cask hungryZoo/tap/everydock
 brew install --cask hungryZoo/tap/everydock
 xattr -dr com.apple.quarantine /Applications/everyDock.app
 open -a everyDock
