@@ -9,3 +9,13 @@
 - TC-M57~58 **NOT RUN**: 현재 UI 도구의 drag는 modifier 인자를 제공하지 않아 Command를 누른 채 드래그하는 실제 동작은 자동 검사하지 못했다. 삽입 계산의 자동 검사를 실제 다중 화면·취소·프레임 성능 PASS로 대체하지 않는다.
 
 드래그 중 자동 스크롤과 미고정 실행 앱끼리의 임시 순서 변경은 지원하지 않는다. 미고정 앱은 고정 영역으로 옮겨 순서를 저장할 수 있다. 드래그는 창 제어·화면 녹화 권한을 추가로 사용하지 않는다. 앱 업데이트의 기존 ad-hoc 권한 등록 제약은 유지된다.
+
+## 공개 배포
+
+- 소스·태그: `b6b85952dac49bc4fcd66b9b1321c805356b8e4b` / `v0.3.7`.
+- [GitHub CI](https://github.com/hungryZoo/everyDock/actions/runs/34566357635): 테스트·패키징·검증 산출물 업로드 **PASS**.
+- [공개 릴리스](https://github.com/hungryZoo/everyDock/releases/tag/v0.3.7) ZIP을 인증 없이 다시 내려받아 SHA-256 `7497aed43d6eff7faeb71c97822e5533a7bd337dc534d48fa9d5f40f29a6be0a` 일치를 확인했다.
+- Homebrew cask `e19186b`: style/audit **PASS**. 검증한 공개 ZIP을 캐시에 넣고 Homebrew 자체 체크섬 검증을 거쳐 0.3.6 → 0.3.7 업그레이드 **PASS**.
+- 설치 실행 파일 SHA-256 `d596aa0eb447f3a51eadf08b274484116890883adaa7eea5b7089123e7c3464c`, codesign strict **PASS**. 앱을 정상 종료한 뒤 교체하고 재실행했다. 사용자 설정·권한 DB·개인 파일은 배포에 포함하지 않았다.
+
+첫 후보의 사용자 이동 확인과 최종 보완본 검증 범위를 구분한다. 최종본은 확대 해제·고정 해제 조작 확인을 요청한 상태이며, 응답을 받기 전에는 실기기 PASS로 기록하지 않는다.
