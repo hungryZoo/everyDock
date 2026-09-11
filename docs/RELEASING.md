@@ -54,7 +54,7 @@ brew audit --cask hungryZoo/tap/everydock
 brew fetch --cask hungryZoo/tap/everydock
 ```
 
-공증 검사를 포함한 online/strict audit은 현재 ad-hoc 베타에서 실패할 수 있다. 실패를 숨기거나 Homebrew 공식 cask 기준을 충족한다고 주장하지 않는다. 일반 audit 결과와 공증 미완료는 별도로 기록한다. cask는 Gatekeeper·quarantine을 해제하는 설치 스크립트를 포함하지 않는다.
+공증 검사를 포함한 online/strict audit은 현재 ad-hoc 베타에서 실패할 수 있다. 실패를 숨기거나 Homebrew 공식 cask 기준을 충족한다고 주장하지 않는다. 일반 audit 결과와 공증 미완료는 별도로 기록한다. cask는 Gatekeeper·quarantine을 해제하는 설치 스크립트를 포함하지 않는다. README의 수동 설치·업데이트·재설치 절차에서는 실행 전에 `xattr -dr com.apple.quarantine /Applications/everyDock.app`으로 해당 앱의 격리 속성만 해제하도록 안내한다.
 
 v0.3.9부터 cask의 uninstall_preflight는 명시적 uninstall/reinstall에서 앱의 초기화 도우미를 실행한다. upgrade에서는 설정을 보존한다. 도우미는 앱 종료·기본 Dock 복원·로그인 해제 후 설정 도메인과 캐시를 제거한다. Homebrew가 설치 당시 cask를 재사용하므로 제거 정책 변경은 새 버전 배포와 함께 검증한다. zap에는 미복원 기본 Dock journal을 포함하지 않는다. 설치·업데이트·제거 명령은 [README](../README.md)에 있다.
 
