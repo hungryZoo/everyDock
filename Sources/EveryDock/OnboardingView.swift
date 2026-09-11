@@ -44,17 +44,6 @@ struct OnboardingView: View {
                     }
                 }
                 Section {
-                    HStack {
-                        Button(model.permissions.checking ? "확인 중…" : "허용 상태 다시 확인", action: model.recheckPermissions)
-                            .disabled(model.permissions.checking)
-                        Button("현재 앱 위치 보기", action: model.revealCurrentApp)
-                    }
-                    Text("목록에 없다면 + 버튼으로 현재 앱을 추가하세요. 이미 허용했는데 거부되면 앱을 종료한 뒤 기존 항목을 제거하고 현재 앱을 다시 등록해 주세요.")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Text("바탕화면·다운로드 폴더 접근은 해당 폴더를 처음 열 때 허용하면 됩니다.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Section {
                     Toggle("로그인 시 everyDock 자동 실행", isOn: $wantsLogin)
                     Text("‘시작하기’를 누르면 이 선택을 적용합니다. 나중에 설정에서 바꿀 수 있습니다.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -82,7 +71,7 @@ struct OnboardingView: View {
                     complete()
                 }.keyboardShortcut(.defaultAction)
             }.padding(20)
-        }.frame(minWidth: 540, minHeight: 640)
+        }.frame(minWidth: 540, minHeight: 520)
     }
 
     private func permissionHeader(_ title: String, symbol: String, status: AppPermissions.Status) -> some View {

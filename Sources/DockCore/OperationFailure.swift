@@ -18,10 +18,12 @@ public enum WindowFailure: Error, Equatable, Sendable {
 }
 
 public enum CaptureFailure: Error, Equatable, Sendable {
+    case permissionRequired
     case permissionDenied
     case unavailable(String)
 
     public static func classify(_ error: any Error) -> Self {
+        if let failure = error as? Self { return failure }
         let error = error as NSError
         if error.domain == SCStreamErrorDomain && error.code == SCStreamError.Code.userDeclined.rawValue {
             return .permissionDenied

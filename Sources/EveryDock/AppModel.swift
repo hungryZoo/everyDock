@@ -365,7 +365,7 @@ final class AppModel: NSObject, ObservableObject {
 
     func requestScreenCapture() {
         Task { @MainActor in
-            await permissions.recheck()
+            await permissions.recheck(requestCapturePermission: true)
             if permissions.capture != .allowed {
                 NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
             }

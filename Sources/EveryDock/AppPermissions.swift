@@ -5,7 +5,7 @@ import DockCore
 @preconcurrency import ScreenCaptureKit
 
 @MainActor final class AppPermissions: ObservableObject {
-        enum Status: Equatable {
+    enum Status: Equatable {
         case unknown, allowed, denied
         var title: String {
             switch self { case .unknown: "확인 전"; case .allowed: "사용 가능"; case .denied: "macOS에서 거부됨" }
@@ -13,13 +13,41 @@ import DockCore
     }
 
     @Published private(set) var accessibility: Status = AXIsProcessTrusted() ? .allowed : .unknown
-    @Published private(set) var capture: Status = CGPreflightScreenCaptureAccess() ? .allowed : .unknown
+    @Published private(set) var capture: Status
     @Published private(set) var detail: String?
     @Published private(set) var accessibilityDetail: String?
     @Published private(set) var checking = false
     private var contentRequest: Task<SCShareableContent, Error>?
     private var contentCache: (SCShareableContent, Date)?
+    private let capturePreflight: () -> Bool
+    private let loadContent: () async throws -> SCShareableContent
+
+    init(capturePreflight: @escaping () -> Bool = { CGPreflightScreenCaptureAccess() },
+         loadContent: @escaping () async throws -> SCShareableContent = {
+             try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
+         }) {
+        self.capturePreflight = capturePreflight
+        self.loadContent = loadContent
+        capture = capturePreflight() ? .allowed : .unknown
+    }
+
+    /// Never requests access. A real denial stays blocked until the permission button is pressed.
+    func refreshCaptureStatus() {
+        if !capturePreflight() {
+            if capture != .denied { capture = .unknown }
+            contentCache = nil
+        } else if capture != .denied {
+            capture = .allowed
+        }
+    }
+
+    var canCaptureWithoutPrompt: Bool {
+        refreshCaptureStatus()
+        return capture == .allowed
+    }
+
     var needsGuidance: Bool {
+
         accessibility != .allowed || capture != .allowed || detail != nil
             || (accessibilityDetail != nil && accessibilityDetail != "noWindow" && accessibilityDetail != "unsupported")
     }
@@ -30,18 +58,24 @@ import DockCore
         else if failure == nil || failure == .noWindow || failure == .unsupported { accessibility = .allowed }
     }
 
-    /// Preflight is a hint, never a veto over an actual successful OS operation.
+    /// Activation only reads permission hints; it must never trigger a system prompt.
     func refreshHints() {
         if AXIsProcessTrusted() { accessibility = .allowed }
-        if CGPreflightScreenCaptureAccess() { capture = .allowed }
+        refreshCaptureStatus()
     }
 
-    func shareableContent(retry: Bool = false) async throws -> SCShareableContent {
-        if retry { contentCache = nil; capture = .unknown }
+    func shareableContent(retry: Bool = false, requestPermission: Bool = false) async throws -> SCShareableContent {
+        if !requestPermission {
+            guard canCaptureWithoutPrompt else {
+                throw capture == .denied ? CaptureFailure.permissionDenied : CaptureFailure.permissionRequired
+            }
+        }
+        if requestPermission { capture = .unknown }
+        if retry { contentCache = nil }
         if capture == .denied { throw CaptureFailure.permissionDenied }
         if let (content, date) = contentCache, Date().timeIntervalSince(date) < 1 { return content }
         if let contentRequest { return try await contentRequest.value }
-        let request = Task { try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false) }
+        let request = Task { try await loadContent() }
         contentRequest = request
         defer { contentRequest = nil }
         do {
@@ -66,7 +100,7 @@ import DockCore
         else if case .unavailable(let message) = failure { detail = message }
     }
 
-    func recheck() async {
+    func recheck(requestCapturePermission: Bool = false) async {
         guard !checking else { return }
         checking = true
         defer { checking = false }
@@ -78,7 +112,9 @@ import DockCore
             let result = await WindowActions.list(pid: finder.processIdentifier)
             recordAccessibility(result.failure)
         }
-        do { _ = try await shareableContent(retry: true) }
+        refreshCaptureStatus()
+        guard requestCapturePermission else { return }
+        do { _ = try await shareableContent(retry: true, requestPermission: true) }
         catch CaptureFailure.permissionDenied { detail = "macOS가 현재 실행 중인 앱의 화면 접근을 거부했습니다. 이미 켜져 있다면 앱 등록과 실행 파일의 서명이 달라졌을 수 있습니다." }
         catch { detail = error.localizedDescription }
     }

@@ -153,10 +153,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.refreshLoginStatus()
         model.permissions.refreshHints()
         if onboardingWindow == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 740),
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 620),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             window.title = "everyDock 시작하기"
-            window.minSize = NSSize(width: 540, height: 640)
+            window.minSize = NSSize(width: 540, height: 520)
             window.isReleasedWhenClosed = false
             window.center()
             onboardingWindow = window

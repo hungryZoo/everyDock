@@ -54,6 +54,7 @@ struct PreviewResult {
                         config.showsCursor = false
                         config.ignoreShadowsSingleWindow = true
                         do {
+                            guard permissions.canCaptureWithoutPrompt else { throw CaptureFailure.permissionRequired }
                             let snapshot = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: window), configuration: config)
                             image = NSImage(cgImage: snapshot, size: window.frame.size)
                             cache[description.reference] = (image!, Date())
@@ -70,6 +71,7 @@ struct PreviewResult {
         } catch {
             let message: String?
             if let failure = error as? CaptureFailure, case .permissionDenied = failure { message = "macOS가 현재 앱의 화면 접근을 거부했습니다. 제목으로 창을 선택하거나 닫을 수 있습니다." }
+            else if let failure = error as? CaptureFailure, case .permissionRequired = failure { message = "창 이미지를 보려면 화면 녹화 권한 확인 버튼을 눌러 주세요. 제목으로 창을 선택하거나 닫을 수 있습니다." }
             else if error is CancellationError { message = nil }
             else { message = "창 이미지를 가져오지 못했습니다: \(error.localizedDescription)" }
             return PreviewResult(windows: list.windows.map { WindowPreview(window: $0, image: nil) }, message: message)
