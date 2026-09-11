@@ -2,8 +2,8 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.7 / 2026-09-11 |
-| 대상 | everyDock v0.3.6, Apple Silicon, macOS 26+ |
+| 문서 버전·기준일 | 1.8 / 2026-09-11 |
+| 대상 | everyDock v0.3.7, Apple Silicon, macOS 26+ |
 | 요구사항 | [SRS](SRS.md), [추적표](README.md) |
 | 기존 실행 근거 | [QA.md](../QA.md), Swift Testing 실행 결과 |
 
@@ -255,3 +255,15 @@ TC-M46 추가: v0.3.3의 다른 화면 요청 차단은 폐기했다. 아래 TC-
 | TC-M55 | 바탕화면/다운로드 10회 개폐·빠른 교차·변경 파일·느린/실패 QL | 기존 이미지 유지, 이전 닫힘 영향 없음, 최대 3개와 8초 슬롯 해제, 최신순 유지 | FR-25 |
 
 실제 결과는 [QA-v0.3.6](QA-v0.3.6.md)에 기록하며 자동 테스트를 전체 실기기 행렬 PASS로 대체하지 않는다.
+
+## 17. v0.3.7 Command-드래그 회귀
+
+| ID | 테스트 | 기대 결과 | 요구사항 |
+|---|---|---|---|
+| TC-A44 | `commandDragInsertionPreservesOrderAndAdjacentSlots` | 앞/뒤 이동, 구분선 UUID·순서 저장, 인접 슬롯 no-op | FR-27 |
+| TC-A45 | `commandDragPinsRunningAppWithoutDuplicates` | 미고정 앱 삽입, 빈 목록·경계 보정·bundle 중복 방지 | FR-27 |
+| TC-M56 | Command-드래그로 앱·구분선 앞/뒤 이동, 설정 확인·재시작 | 삽입선 위치에 저장, 모든 모니터·설정·재실행 순서 일치 | FR-27 |
+| TC-M57 | Command-클릭, 4pt 미만 이동, Escape, Dock 밖·폴더 영역 드롭, 일반 클릭·Control-클릭 | 취소 시 실행·최소화·고정 해제 없음, 기존 클릭·메뉴 정상 | FR-27 |
+| TC-M58 | 미고정 앱→고정 영역, 다른 모니터·좌우 Dock·오버플로·드래그 중 대상 앱 종료 | 중복 없는 고정, 방향 일치, 취소 후 입력 복구, 사라진 앱 거부 | FR-27 |
+
+자동 테스트는 실제 NSDraggingSession과 프레임 성능 검증을 대신하지 않는다. 수행 결과는 [QA-v0.3.7](QA-v0.3.7.md)를 따른다.

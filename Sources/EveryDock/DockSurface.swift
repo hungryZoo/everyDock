@@ -34,6 +34,9 @@ import QuartzCore
     private var separatorIDs = Set<String>()
     private var runningBoundary: Int?
     private var insertionIndex: Int?
+    private let dropIndicator = CALayer()
+    private var dropSlot: Int?
+    static let reorderType = NSPasteboard.PasteboardType("app.everydock.pinned-item")
     private var lastTick = ProcessInfo.processInfo.systemUptime
     private var horizontal: Bool { edge == .bottom }
 
@@ -50,6 +53,10 @@ import QuartzCore
         glass.cornerRadius = 16
         addSubview(glass)
         addSubview(indicators)
+        dropIndicator.backgroundColor = NSColor.controlAccentColor.cgColor
+        dropIndicator.cornerRadius = 1
+        dropIndicator.isHidden = true
+        indicators.layer?.addSublayer(dropIndicator)
         tooltip.isHidden = true
         tooltip.setAccessibilityElement(false)
         addSubview(tooltip)
@@ -65,7 +72,7 @@ import QuartzCore
             utilityButtons[item] = button
             addSubview(button, positioned: .below, relativeTo: tooltip)
         }
-        registerForDraggedTypes([.fileURL])
+        registerForDraggedTypes([.fileURL, Self.reorderType])
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(synchronize), name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
         setAccessibilityRole(.toolbar)
         setAccessibilityLabel("everyDock")
@@ -83,6 +90,7 @@ import QuartzCore
 
     @objc func synchronize() {
         guard !menuTracking else { synchronizationPending = true; return }
+        guard DockAppButton.draggedButton == nil else { return }
         edge = model.preferences.edge
         magnification = model.magnification
         reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -148,6 +156,11 @@ import QuartzCore
     }
 
     func updatePointer(at location: NSPoint? = nil) {
+        if DockAppButton.draggedButton != nil {
+            previews.close(); tooltip.isHidden = true; hoverPoint = nil; stop()
+            window?.ignoresMouseEvents = false
+            return
+        }
         guard !menuTracking else { return }
         guard let window, window.isVisible, !model.paused else { hoverPoint = nil; return }
         let point = convert(window.convertPoint(fromScreen: location ?? NSEvent.mouseLocation), from: nil)
@@ -305,6 +318,7 @@ import QuartzCore
         animate()
     }
     override func scrollWheel(with event: NSEvent) {
+        guard DockAppButton.draggedButton == nil else { return }
         let delta = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) ? event.scrollingDeltaX : event.scrollingDeltaY
         guard abs(delta) > 0.1 else { return }
         scrollIndex = max(0, scrollIndex + (delta < 0 ? 1 : -1))
@@ -376,8 +390,69 @@ import QuartzCore
     @objc private func settings() { model.showSettings?() }
     @objc private func pause() { model.paused = true }
     @objc private func quit() { NSApp.terminate(nil) }
-    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation { .copy }
+    func prepareForReorder() {
+        previews.close(); tooltip.isHidden = true; hoverPoint = nil; stop()
+    }
+    private func draggedApp(_ sender: any NSDraggingInfo) -> DockApplication? {
+        guard let button = sender.draggingSource as? DockAppButton,
+              button.belongs(to: model), button === DockAppButton.draggedButton,
+              sender.draggingPasteboard.string(forType: Self.reorderType) == button.app.id,
+              model.apps.contains(where: { $0.id == button.app.id }) else { return nil }
+        return button.app
+    }
+    private func updateDrop(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        clearDrop()
+        guard draggedApp(sender) != nil else { return [] }
+        prepareForReorder()
+        let point = convert(sender.draggingLocation, from: nil)
+        guard backgroundRect.insetBy(dx: -8, dy: -8).contains(point) else { return [] }
+        let axis = horizontal ? point.x : bounds.height - point.y
+        let pins = visibleApps.filter(\.isPinned)
+        let firstOther = visibleApps.first { !$0.isPinned }.flatMap { buttons[$0.id]?.frame }
+            ?? utilityButtons[.desktop]?.frame
+        if let firstOther {
+            let limit = horizontal ? firstOther.minX : bounds.height - firstOther.maxY
+            guard axis <= limit else { return [] }
+        }
+        let next = pins.first { app in
+            guard let frame = buttons[app.id]?.frame else { return false }
+            return axis < (horizontal ? frame.midX : bounds.height - frame.midY)
+        }
+        let slot: Int
+        let marker: Double
+        if let next, let index = model.pinIndex(next), let frame = buttons[next.id]?.frame {
+            slot = index
+            marker = (horizontal ? frame.minX : bounds.height - frame.maxY) - DockMetrics.gap / 2
+        } else if let last = pins.last, let index = model.pinIndex(last), let frame = buttons[last.id]?.frame {
+            slot = index + 1
+            marker = (horizontal ? frame.maxX : bounds.height - frame.minY) + DockMetrics.gap / 2
+        } else {
+            // An empty pinned area accepts a running app before the first app/folder.
+            guard model.preferences.pinnedApps.isEmpty else { return [] }
+            slot = 0
+            marker = (horizontal ? backgroundRect.minX : bounds.height - backgroundRect.maxY) + DockMetrics.padding
+        }
+        dropSlot = slot
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        dropIndicator.frame = orientedRect(axis: marker - 1, inward: 5, length: 2, thickness: max(10, DockMetrics.thickness(iconSize: baseSize) - 10))
+        dropIndicator.isHidden = false
+        CATransaction.commit()
+        return .move
+    }
+    private func clearDrop() { dropSlot = nil; dropIndicator.isHidden = true }
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        sender.draggingPasteboard.availableType(from: [Self.reorderType]) != nil ? updateDrop(sender) : .copy
+    }
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation { draggingEntered(sender) }
+    override func draggingExited(_ sender: (any NSDraggingInfo)?) { clearDrop() }
+    override func draggingEnded(_ sender: any NSDraggingInfo) { clearDrop() }
     override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        if sender.draggingPasteboard.availableType(from: [Self.reorderType]) != nil {
+            guard updateDrop(sender) == .move, let slot = dropSlot, let app = draggedApp(sender) else { clearDrop(); return false }
+            clearDrop()
+            model.movePin(app, toInsertionSlot: slot)
+            return true
+        }
         let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
         let apps = urls.filter { $0.pathExtension.lowercased() == "app" }
         model.addApps(apps)
@@ -456,6 +531,10 @@ private final class DockIndicators: NSView {
         Self.trackingButton = self
         highlight(true)
     }
+    func cancelTracking() {
+        if Self.trackingButton === self { Self.trackingButton = nil }
+        highlight(false)
+    }
     override func mouseDragged(with event: NSEvent) {
         highlight(bounds.contains(convert(event.locationInWindow, from: nil)))
     }
@@ -474,7 +553,9 @@ private final class DockIndicators: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
-@MainActor final class DockAppButton: DockIconButton {
+@MainActor final class DockAppButton: DockIconButton, NSDraggingSource {
+    private(set) static weak var draggedButton: DockAppButton?
+    private var commandDown: NSPoint?
     var app: DockApplication
     private let model: AppModel
     private var menuGeneration = 0
@@ -493,8 +574,46 @@ private final class DockIndicators: NSView {
     }
     override func accessibilityPerformShowMenu() -> Bool { showAppMenu(); return true }
     override func mouseDown(with event: NSEvent) {
+        commandDown = nil
         if event.modifierFlags.contains(.control) { showAppMenu() }
+        else if event.modifierFlags.contains(.command) {
+            super.mouseDown(with: event)
+            commandDown = event.locationInWindow
+            menuGeneration += 1
+            (superview as? DockSurface)?.prepareForReorder()
+        }
         else { super.mouseDown(with: event) }
+    }
+    override func mouseDragged(with event: NSEvent) {
+        guard let origin = commandDown else { super.mouseDragged(with: event); return }
+        guard hypot(event.locationInWindow.x - origin.x, event.locationInWindow.y - origin.y) >= 4 else { return }
+        commandDown = nil
+        Self.draggedButton = self
+        cancelTracking()
+        let data = NSPasteboardItem()
+        data.setString(app.id, forType: DockSurface.reorderType)
+        let item = NSDraggingItem(pasteboardWriter: data)
+        let image = app.isSeparator ? NSImage(systemSymbolName: "line.diagonal", accessibilityDescription: "구분선")! : app.icon
+        item.setDraggingFrame(bounds, contents: image)
+        let session = beginDraggingSession(with: [item], event: event, source: self)
+        session.animatesToStartingPositionsOnCancelOrFail = true
+    }
+    override func mouseUp(with event: NSEvent) {
+        if commandDown != nil { commandDown = nil; cancelTracking(); return }
+        super.mouseUp(with: event)
+    }
+    func belongs(to model: AppModel) -> Bool { self.model === model }
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        context == .withinApplication ? .move : []
+    }
+    func ignoreModifierKeys(for session: NSDraggingSession) -> Bool { true }
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        Self.draggedButton = nil
+        commandDown = nil
+        // Refresh every screen once after drop/cancel; no preference writes during movement.
+        model.dockDidChange.send()
+        (superview as? DockSurface)?.synchronize()
+        (superview as? DockSurface)?.updatePointer()
     }
     private func showAppMenu() {
         if app.isSeparator {

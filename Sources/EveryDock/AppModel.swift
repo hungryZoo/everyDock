@@ -424,6 +424,18 @@ final class AppModel: NSObject, ObservableObject {
         preferences.pinnedApps.swapAt(index, destination)
     }
 
+    func movePin(_ app: DockApplication, toInsertionSlot slot: Int) {
+        guard apps.contains(where: { $0.id == app.id }) else { return }
+        let item: PinnedApplication
+        if let index = pinIndex(app) { item = preferences.pinnedApps[index] }
+        else {
+            guard !app.isSeparator, app.url.pathExtension.lowercased() == "app" else { return }
+            item = .init(path: app.url.path, bundleIdentifier: app.bundleIdentifier)
+        }
+        let reordered = DockReordering.inserting(item, into: preferences.pinnedApps, at: slot)
+        if reordered != preferences.pinnedApps { preferences.pinnedApps = reordered }
+    }
+
     func addSeparator(at index: Int? = nil) {
         preferences.pinnedApps.insert(.init(separatorID: UUID()), at: min(preferences.pinnedApps.count, max(0, index ?? preferences.pinnedApps.count)))
     }
