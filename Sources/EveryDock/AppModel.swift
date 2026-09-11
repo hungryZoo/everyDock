@@ -436,6 +436,11 @@ final class AppModel: NSObject, ObservableObject {
         if reordered != preferences.pinnedApps { preferences.pinnedApps = reordered }
     }
 
+    func unpinDraggedApp(_ app: DockApplication) {
+        guard !app.isSeparator, let index = pinIndex(app) else { return }
+        preferences.pinnedApps.remove(at: index)
+    }
+
     func addSeparator(at index: Int? = nil) {
         preferences.pinnedApps.insert(.init(separatorID: UUID()), at: min(preferences.pinnedApps.count, max(0, index ?? preferences.pinnedApps.count)))
     }

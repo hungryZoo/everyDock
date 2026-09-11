@@ -100,7 +100,7 @@ struct SettingsView: View {
                         Button("기본 Dock에서 가져오기", action: model.importNativeDock)
                     }
                 } header: { Text("고정 앱") }
-                  footer: { Text("고정 앱과 구분선을 같은 목록에서 이동·삭제할 수 있습니다. Dock에서 ⌘ 키를 누른 채 드래그하면 순서가 바뀝니다. 실행 앱을 고정 영역으로 끌어오면 그 위치에 고정됩니다. 고정 앱 사이 또는 아이콘을 우클릭해 구분선을 추가하세요.") }
+                  footer: { Text("고정 앱과 구분선을 같은 목록에서 이동·삭제할 수 있습니다. Dock에서 ⌘ 키를 누른 채 드래그하면 순서가 바뀝니다. 실행 앱을 고정 영역으로 끌어오면 고정되고, 고정 앱을 실행 영역으로 옮기면 고정이 해제됩니다. 고정 앱 사이 또는 아이콘을 우클릭해 구분선을 추가하세요.") }
 
                 Section("일반") {
                     Toggle("활성 앱을 다시 클릭하면 최소화", isOn: $model.preferences.clickToMinimize)
