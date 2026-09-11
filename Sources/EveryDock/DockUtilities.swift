@@ -19,6 +19,8 @@ enum DockUtility: String, CaseIterable, Sendable {
 
 @MainActor final class DockUtilities {
     private var stack: NSPopover?
+    private var stackContents: FolderContents?
+    private var stackSession: UUID?
     private let downloads = FolderContents(folder: DockUtility.downloads.url, title: "다운로드", symbol: "arrow.down.circle")
     private let desktop = FolderContents(folder: DockUtility.desktop.url, title: "바탕화면", symbol: "desktopcomputer")
     private var trashWatcher: DispatchSourceFileSystemObject?
@@ -87,11 +89,18 @@ enum DockUtility: String, CaseIterable, Sendable {
         }
     }
     private func show(_ contents: FolderContents, from anchor: NSView, edge: NSRectEdge) {
+        let toggleClosed = stack?.isShown == true && stackContents === contents
+        if let stackSession { stackContents?.endPresentation(stackSession) }
         stack?.performClose(nil)
+        stack = nil
+        if toggleClosed { return }
+        let session = contents.beginPresentation()
         let popover = NSPopover()
-        popover.behavior = .transient
-        popover.contentViewController = NSHostingController(rootView: FolderStack(contents: contents) { [weak popover] in popover?.performClose(nil) })
+        popover.behavior = .semitransient
+        popover.contentViewController = NSHostingController(rootView: FolderStack(contents: contents, session: session) { [weak popover] in popover?.performClose(nil) })
         stack = popover
+        stackContents = contents
+        stackSession = session
         popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: edge)
     }
     func drop(_ urls: [URL], onto item: DockUtility, completion: @escaping @MainActor @Sendable (String?) -> Void) {
@@ -144,7 +153,7 @@ enum DockUtility: String, CaseIterable, Sendable {
     }
 }
 
-private struct StackFile: Identifiable, @unchecked Sendable {
+struct StackFile: Identifiable, @unchecked Sendable {
     var id: URL { url }
     let url: URL
     let name: String
@@ -155,6 +164,7 @@ private struct StackFile: Identifiable, @unchecked Sendable {
 
 private struct FolderStack: View {
     @ObservedObject var contents: FolderContents
+    let session: UUID
     let close: () -> Void
     private var folder: URL { contents.folder }
     @State private var openError: String?
@@ -188,7 +198,7 @@ private struct FolderStack: View {
                     panel.canChooseFiles = false
                     panel.directoryURL = folder
                     panel.prompt = "허용"
-                    if panel.runModal() == .OK { contents.load() }
+                    if panel.runModal() == .OK { contents.load(for: session) }
                 }
             } else if contents.files.isEmpty { Text("\(contents.title) 폴더가 비어 있습니다.").foregroundStyle(.secondary).padding(32) }
             else {
@@ -208,13 +218,13 @@ private struct FolderStack: View {
                     }.padding(.vertical, 4)
                 }.frame(maxHeight: 380)
             }
-        }.padding(18).frame(width: 400).onAppear { contents.load() }.onDisappear { contents.cancelThumbnails() }
+        }.padding(18).frame(width: 400).onAppear { contents.load(for: session) }.onDisappear { contents.endPresentation(session) }
     }
 }
 
 // Keep one directory request per folder, including while a system permission prompt
 // is pending. Opening/closing the popover must not accumulate blocked workers.
-@MainActor private final class FolderContents: ObservableObject {
+@MainActor final class FolderContents: ObservableObject {
     let folder: URL
     let title: String
     let symbol: String
@@ -222,28 +232,66 @@ private struct FolderStack: View {
     @Published var loading = true
     @Published var waitingForAccess = false
     @Published var error: String?
-    private var request: Task<Void, Never>?
+    private(set) var request: Task<Void, Never>?
     private var visible = false
+    private(set) var presentation: UUID?
     private var thumbnailGeneration = 0
     private var thumbnails: [URL: QLThumbnailGenerator.Request] = [:]
+    private var thumbnailTimeouts: [URL: Task<Void, Never>] = [:]
     private var queue: [StackFile] = []
     private var cache: [URL: (date: Date, image: NSImage)] = [:]
-    init(folder: URL, title: String, symbol: String) {
+    private let readDirectory: @Sendable (URL) async -> Result<[StackFile], Error>
+    init(folder: URL, title: String, symbol: String,
+         readDirectory: @escaping @Sendable (URL) async -> Result<[StackFile], Error> = FolderContents.readFiles) {
         self.folder = folder; self.title = title; self.symbol = symbol
+        self.readDirectory = readDirectory
     }
-    func load() {
+    func beginPresentation() -> UUID {
+        cancelThumbnails()
+        let token = UUID()
+        presentation = token
         visible = true
+        return token
+    }
+    func endPresentation(_ token: UUID) {
+        guard presentation == token else { return }
+        presentation = nil
+        cancelThumbnails()
+    }
+    func load(for token: UUID) {
+        guard presentation == token else { return }
         guard request == nil else { return }
         cancelThumbnails(); visible = true
-        loading = true
+        // Keep the last successful grid and its images visible while refreshing metadata.
+        loading = files.isEmpty
         waitingForAccess = false
         request = Task { @MainActor in
             let waiting = Task { @MainActor in
                 try? await Task.sleep(for: .seconds(2))
                 if !Task.isCancelled && loading { waitingForAccess = true }
             }
-            let folder = self.folder
-            let result: Result<[StackFile], Error> = await Task.detached {
+            let result = await readDirectory(folder)
+            waiting.cancel()
+            switch result {
+            case .success(var value):
+                for index in value.indices {
+                    if let hit = cache[value[index].url], hit.date == value[index].date { value[index].icon = hit.image }
+                }
+                files = value; error = nil
+            case .failure(let failure):
+                let code = failure as NSError
+                error = code.domain == NSCocoaErrorDomain && code.code == NSFileReadNoPermissionError
+                    ? "\(title) 폴더에 접근할 수 없습니다. 폴더 접근을 허용해 주세요."
+                    : "\(title) 폴더를 읽지 못했습니다: \(failure.localizedDescription)"
+            }
+            loading = false
+            waitingForAccess = false
+            request = nil
+            if visible && error == nil { startThumbnails() }
+        }
+    }
+    nonisolated static func readFiles(_ folder: URL) async -> Result<[StackFile], Error> {
+        await Task.detached {
             Result {
                 let urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey], options: [.skipsHiddenFiles])
                 let ordered = urls.map { url in (url, (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) }
@@ -255,34 +303,18 @@ private struct FolderStack: View {
                 }
 
             }
-            }.value
-            waiting.cancel()
-            switch result {
-            case .success(let value): files = value; error = nil
-            case .failure(let failure):
-                let code = failure as NSError
-                error = code.domain == NSCocoaErrorDomain && code.code == NSFileReadNoPermissionError
-                    ? "\(title) 폴더에 접근할 수 없습니다. 폴더 접근을 허용해 주세요."
-                    : "\(title) 폴더를 읽지 못했습니다: \(failure.localizedDescription)"
-            }
-
-            loading = false
-            waitingForAccess = false
-            request = nil
-            if visible && error == nil { startThumbnails() }
-        }
+        }.value
     }
     func cancelThumbnails() {
         visible = false; thumbnailGeneration += 1
         thumbnails.values.forEach { QLThumbnailGenerator.shared.cancel($0) }
+        thumbnailTimeouts.values.forEach { $0.cancel() }
+        thumbnailTimeouts.removeAll()
         thumbnails.removeAll(); queue.removeAll()
     }
     private func startThumbnails() {
         let current = Set(files.map(\.url))
         cache = cache.filter { current.contains($0.key) }
-        for index in files.indices {
-            if let hit = cache[files[index].url], hit.date == files[index].date { files[index].icon = hit.image }
-        }
         queue = files.filter { !$0.isDirectory && cache[$0.url]?.date != $0.date }
         pumpThumbnails()
     }
@@ -291,10 +323,21 @@ private struct FolderStack: View {
             let file = queue.removeFirst(), generation = thumbnailGeneration
             let request = QLThumbnailGenerator.Request(fileAt: file.url, size: CGSize(width: 48, height: 48), scale: 2, representationTypes: .thumbnail)
             thumbnails[file.url] = request
+            thumbnailTimeouts[file.url] = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(8))
+                guard !Task.isCancelled, let self, generation == thumbnailGeneration,
+                      thumbnails[file.url] === request else { return }
+                QLThumbnailGenerator.shared.cancel(request)
+                thumbnails[file.url] = nil
+                thumbnailTimeouts[file.url] = nil
+                pumpThumbnails()
+            }
             QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] representation, _ in
                 let pixels = representation?.cgImage
                 Task { @MainActor in
-                    guard let self, self.visible, generation == self.thumbnailGeneration else { return }
+                    guard let self, self.visible, generation == self.thumbnailGeneration,
+                          self.thumbnails[file.url] != nil else { return }
+                    self.thumbnailTimeouts.removeValue(forKey: file.url)?.cancel()
                     self.thumbnails[file.url] = nil
                     if let pixels, let index = self.files.firstIndex(where: { $0.url == file.url && $0.date == file.date }) {
                         let image = NSImage(cgImage: pixels, size: .zero)

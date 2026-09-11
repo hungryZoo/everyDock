@@ -16,6 +16,8 @@ struct DockApplication: Identifiable {
     var isActive: Bool
     var isLaunching: Bool
     var isHidden: Bool
+    var separatorID: UUID? = nil
+    var isSeparator: Bool { separatorID != nil }
 }
 
 struct DisplayInfo: Identifiable {
@@ -173,6 +175,12 @@ final class AppModel: NSObject, ObservableObject {
         var result: [DockApplication] = []
         var seen = Set<String>()
         for pinned in preferences.pinnedApps {
+            if let separatorID = pinned.separatorID {
+                result.append(DockApplication(id: pinned.id, url: URL(string: pinned.path)!, name: "구분선",
+                    icon: NSImage(size: .zero), bundleIdentifier: nil, isPinned: true, isRunning: false,
+                    isActive: false, isLaunching: false, isHidden: false, separatorID: separatorID))
+                continue
+            }
             let original = URL(fileURLWithPath: pinned.path)
             let url: URL
             if FileManager.default.fileExists(atPath: original.path) {
@@ -379,6 +387,7 @@ final class AppModel: NSObject, ObservableObject {
     }
 
     func togglePin(_ app: DockApplication) {
+        if app.isSeparator { preferences.pinnedApps.removeAll { $0.id == app.id }; return }
         if app.isPinned {
             preferences.pinnedApps.removeAll { $0.path == app.url.path || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier) }
         } else { addApps([app.url]) }
@@ -408,11 +417,22 @@ final class AppModel: NSObject, ObservableObject {
 
     func movePin(_ app: DockApplication, offset: Int) {
         guard let index = preferences.pinnedApps.firstIndex(where: {
-            $0.path == app.url.path || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier)
+            $0.id == app.id || $0.path == app.url.path || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier)
         }) else { return }
         let destination = index + offset
         guard preferences.pinnedApps.indices.contains(destination) else { return }
         preferences.pinnedApps.swapAt(index, destination)
+    }
+
+    func addSeparator(at index: Int? = nil) {
+        preferences.pinnedApps.insert(.init(separatorID: UUID()), at: min(preferences.pinnedApps.count, max(0, index ?? preferences.pinnedApps.count)))
+    }
+    func addSeparator(beside app: DockApplication, after: Bool) {
+        guard let index = pinIndex(app) else { return }
+        addSeparator(at: index + (after ? 1 : 0))
+    }
+    func pinIndex(_ app: DockApplication) -> Int? {
+        preferences.pinnedApps.firstIndex { $0.id == app.id || $0.path == app.url.path || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier) }
     }
 
     func quit(_ app: DockApplication) {

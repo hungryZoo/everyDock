@@ -108,7 +108,10 @@ final class DockPanel: NSPanel {
             let horizontal = pref.edge == .bottom
             let inset = model.edgeInset
             let available = (horizontal ? area.width : area.height) - inset * 2
-            let baseLength = DockMetrics.length(iconSize: model.iconSize, appCount: model.apps.count)
+            let separators = model.apps.filter(\.isSeparator).count
+            let boundary = model.apps.contains { $0.isPinned && !$0.isSeparator } && model.apps.contains { !$0.isPinned }
+            let baseLength = DockMetrics.length(iconSize: model.iconSize, appCount: model.apps.count - separators,
+                                                customSeparators: separators, runningBoundary: boundary)
             let reserve = DockMetrics.reserve(iconSize: model.iconSize, magnification: model.magnification)
             let length = min(available, baseLength + reserve)
             let thickness = min(horizontal ? area.height : area.width, model.iconSize * model.magnification + model.iconSize * 0.45 + 56)

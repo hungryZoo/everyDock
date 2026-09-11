@@ -42,9 +42,17 @@ public struct PinnedApplication: Codable, Equatable, Identifiable, Sendable {
     public var id: String { path }
     public let path: String
     public let bundleIdentifier: String?
+    public let separatorID: UUID?
+    public var isSeparator: Bool { separatorID != nil }
     public init(path: String, bundleIdentifier: String?) {
         self.path = path
         self.bundleIdentifier = bundleIdentifier
+        separatorID = nil
+    }
+    public init(separatorID: UUID = UUID()) {
+        self.separatorID = separatorID
+        path = "everydock-separator://\(separatorID.uuidString)"
+        bundleIdentifier = nil
     }
 }
 
@@ -96,7 +104,9 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         previewDelay = previewDelay.isFinite ? min(2, max(0.2, previewDelay)) : 0.55
         var paths = Set<String>()
         var bundles = Set<String>()
-        pinnedApps = pinnedApps.filter { app in
+        pinnedApps = pinnedApps.map { item in
+            item.separatorID.map { PinnedApplication(separatorID: $0) } ?? item
+        }.filter { app in
             guard paths.insert(app.path).inserted else { return false }
             guard let bundle = app.bundleIdentifier else { return true }
             return bundles.insert(bundle).inserted
@@ -120,8 +130,9 @@ public enum DockMetrics {
     public static let topPadding = 4.0
     public static let separatorSpace = 12.0
     public static let utilityCount = 3
-    public static func length(iconSize: Double, appCount: Int) -> Double {
+    public static func length(iconSize: Double, appCount: Int, customSeparators: Int = 0, runningBoundary: Bool = false) -> Double {
         Double(appCount + utilityCount) * (iconSize + gap) - gap + padding * 2 + separatorSpace
+            + Double(customSeparators) * (separatorSpace + gap) + (runningBoundary ? separatorSpace : 0)
     }
     public static func thickness(iconSize: Double) -> Double { iconSize + iconBaseline + topPadding }
     public static func reserve(iconSize: Double, magnification: Double) -> Double { iconSize * (magnification - 1) * 3.5 }

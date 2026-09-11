@@ -76,24 +76,31 @@ struct SettingsView: View {
                 Section {
                     ForEach(model.apps.filter(\.isPinned)) { app in
                         HStack {
-                            Image(nsImage: app.icon).resizable().frame(width: 26, height: 26)
-                            Text(app.name)
+                            if app.isSeparator {
+                                Image(systemName: "line.3.horizontal.decrease").frame(width: 26, height: 26)
+                                Text("구분선").foregroundStyle(.secondary)
+                                Divider().frame(maxWidth: 80)
+                            } else {
+                                Image(nsImage: app.icon).resizable().frame(width: 26, height: 26)
+                                Text(app.name)
+                            }
                             Spacer()
                             Button { model.movePin(app, offset: -1) } label: { Image(systemName: "chevron.up") }
                                 .help("앞으로 이동").disabled(model.apps.first?.id == app.id)
                             Button { model.movePin(app, offset: 1) } label: { Image(systemName: "chevron.down") }
                                 .help("뒤로 이동").disabled(model.apps.last(where: \.isPinned)?.id == app.id)
                             Button { model.togglePin(app) } label: { Image(systemName: "minus.circle") }
-                                .help("고정 해제")
+                                .help(app.isSeparator ? "구분선 삭제" : "고정 해제")
                         }.buttonStyle(.borderless)
                     }
                     HStack {
                         Button("앱 추가…", systemImage: "plus", action: model.chooseApps)
+                        Button("구분선 추가", systemImage: "plus") { model.addSeparator() }
                         Spacer()
                         Button("기본 Dock에서 가져오기", action: model.importNativeDock)
                     }
                 } header: { Text("고정 앱") }
-                  footer: { Text("Finder의 .app 파일을 Dock으로 끌어놓아도 추가됩니다. Dock 아이콘을 우클릭하면 고정과 순서를 바꿀 수 있습니다.") }
+                  footer: { Text("고정 앱과 구분선을 같은 목록에서 이동·삭제할 수 있습니다. 고정 앱 사이 또는 아이콘을 우클릭해 구분선을 추가하세요. 고정하지 않은 실행 앱은 고정 영역과 폴더 사이에 표시됩니다.") }
 
                 Section("일반") {
                     Toggle("활성 앱을 다시 클릭하면 최소화", isOn: $model.preferences.clickToMinimize)

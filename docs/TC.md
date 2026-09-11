@@ -2,8 +2,8 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.6 / 2026-09-10 |
-| 대상 | everyDock v0.3.5, Apple Silicon, macOS 26+ |
+| 문서 버전·기준일 | 1.7 / 2026-09-11 |
+| 대상 | everyDock v0.3.6, Apple Silicon, macOS 26+ |
 | 요구사항 | [SRS](SRS.md), [추적표](README.md) |
 | 기존 실행 근거 | [QA.md](../QA.md), Swift Testing 실행 결과 |
 
@@ -241,3 +241,17 @@ TC-M46 추가: v0.3.3의 다른 화면 요청 차단은 폐기했다. 아래 TC-
 | TC-M52 | 통합 메뉴 명령·하위 메뉴·기본 기능, 실행 안 한 앱·조회 실패·Control-클릭·접근성 요청 | 기존 실행 경로 유지, 비활성 유지, 실패해도 기본 기능 사용 가능, 모든 진입 동작 동일 | FR-24 |
 
 실제 수행 범위는 [QA-v0.3.5](QA-v0.3.5.md)를 따른다.
+
+## 16. v0.3.6 구분선·폴더 반복 열기 회귀
+
+| ID | 테스트 | 기대 결과 | 요구사항 |
+|---|---|---|---|
+| TC-A40 | `separatorsMigratePersistAndMoveAlongsidePins` | 기존 설정 마이그레이션, UUID·순서 저장, 동일 구분선 중복 제거 | FR-26 |
+| TC-A41 | `separatorGeometryUsesFixedWidthAndTwoSectionBoundaries` | 구분선 폭 고정, 실행·폴더 경계 포함 길이 | FR-26 |
+| TC-A43 | `quickLookThumbnailSurvivesTenReopens` (명시적 Quick Look 통합 실행) | 실제 PNG 내용 썸네일 생성·10회 재열기 캐시 유지 | FR-25 |
+| TC-A42 | `latePopoverCloseCannotCancelReopenedFolder` | 이전 종료/등장 무시, 열린 동안 중복 조회 1개, 재조회 중 기존 그리드 유지 | FR-25 |
+| TC-M53 | 고정 앱 사이 우클릭 삽입·앱 앞/뒤 추가·구분선 삭제·설정 순서 변경·재실행 | 위치·설정 일치, 순서·UUID 유지 | FR-26 |
+| TC-M54 | 고정/실행/폴더 영역, 좌우 Dock·좁은 화면·화면 2개, 앱 실행·종료 | 영역 순서 유지, 자동 경계 갱신, 선 확대·미리보기 없음 | FR-26 |
+| TC-M55 | 바탕화면/다운로드 10회 개폐·빠른 교차·변경 파일·느린/실패 QL | 기존 이미지 유지, 이전 닫힘 영향 없음, 최대 3개와 8초 슬롯 해제, 최신순 유지 | FR-25 |
+
+실제 결과는 [QA-v0.3.6](QA-v0.3.6.md)에 기록하며 자동 테스트를 전체 실기기 행렬 PASS로 대체하지 않는다.
