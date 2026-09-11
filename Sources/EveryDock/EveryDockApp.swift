@@ -1,5 +1,8 @@
 import AppKit
 import SwiftUI
+import Combine
+import DockCore
+import Carbon
 
 #if !arch(arm64)
 #error("everyDock supports Apple Silicon only.")
@@ -27,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var coordinator: DockCoordinator!
     private var statusItem: NSStatusItem!
     private var settingsWindow: NSWindow?
+    private var onboardingWindow: NSWindow?
+    private var statusObservation: AnyCancellable?
     private var pauseItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -40,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model = AppModel()
         installMainMenu()
         model.showSettings = { [weak self] in self?.openSettings() }
+        model.showOnboarding = { [weak self] in self?.openOnboarding() }
         coordinator = DockCoordinator(model: model)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(systemSymbolName: "dock.rectangle", accessibilityDescription: "everyDock")
@@ -55,9 +61,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: "everyDock 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
-        if !UserDefaults.standard.bool(forKey: "everyDock.hasLaunched") {
-            UserDefaults.standard.set(true, forKey: "everyDock.hasLaunched")
-            openSettings()
+        statusObservation = model.$preferences.map(\.hideMenuBarIcon).removeDuplicates().sink { [weak self] hidden in
+            self?.statusItem.isVisible = !hidden
+        }
+        let event = NSAppleEventManager.shared().currentAppleEvent
+        let loginLaunch = event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+            || event?.paramDescriptor(forKeyword: keyAELaunchedAsLogInItem)?.booleanValue == true
+        switch StartupPresentation.resolve(hasLaunched: UserDefaults.standard.bool(forKey: "everyDock.hasLaunched"),
+                                           loginLaunch: loginLaunch, hidesMenuIcon: model.preferences.hideMenuBarIcon) {
+        case .onboarding: openOnboarding()
+        case .settings: openSettings()
+        case .background: break
         }
     }
 
@@ -110,11 +124,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         settingsWindow?.makeKeyAndOrderFront(nil)
     }
 
+    private func openOnboarding() {
+        model.refreshLoginStatus()
+        model.permissions.refreshHints()
+        if onboardingWindow == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 740),
+                                  styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            window.title = "everyDock 시작하기"
+            window.minSize = NSSize(width: 540, height: 640)
+            window.isReleasedWhenClosed = false
+            window.center()
+            onboardingWindow = window
+        }
+        onboardingWindow?.contentView = NSHostingView(rootView: OnboardingView(model: model,
+            firstLaunch: !UserDefaults.standard.bool(forKey: "everyDock.hasLaunched")) { [weak self] in
+                UserDefaults.standard.set(true, forKey: "everyDock.hasLaunched")
+                self?.onboardingWindow?.close()
+            })
+        NSApp.activate()
+        onboardingWindow?.makeKeyAndOrderFront(nil)
+    }
+
     @objc private func addApps() { model.chooseApps() }
     @objc private func togglePause() { model.paused.toggle() }
     @objc private func refreshDisplays() { model.updateDisplays(); coordinator.reconcile() }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if let onboardingWindow, onboardingWindow.isVisible {
+            NSApp.activate()
+            onboardingWindow.makeKeyAndOrderFront(nil)
+            return false
+        }
         openSettings()
         return false
     }

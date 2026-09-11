@@ -70,6 +70,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
     public var followNativeSize = true
     public var showPreviews = true
     public var previewDelay = 0.55
+    public var hideMenuBarIcon = false
 
     public init() {}
 
@@ -77,6 +78,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         case iconSize, inset, edge, showRunningApps, showOnFullScreen, hiddenDisplayIDs, pinnedApps
         case magnification, manageNativeDock, clickToMinimize
         case followNativeSize, showPreviews, previewDelay
+        case hideMenuBarIcon
     }
 
     public init(from decoder: Decoder) throws {
@@ -94,6 +96,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         followNativeSize = try values.decodeIfPresent(Bool.self, forKey: .followNativeSize) ?? true
         showPreviews = try values.decodeIfPresent(Bool.self, forKey: .showPreviews) ?? true
         previewDelay = try values.decodeIfPresent(Double.self, forKey: .previewDelay) ?? 0.55
+        hideMenuBarIcon = try values.decodeIfPresent(Bool.self, forKey: .hideMenuBarIcon) ?? false
         normalize()
     }
 

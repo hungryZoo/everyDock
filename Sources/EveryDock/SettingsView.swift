@@ -103,6 +103,10 @@ struct SettingsView: View {
                   footer: { Text("고정 앱과 구분선을 같은 목록에서 이동·삭제할 수 있습니다. Dock에서 ⌘ 키를 누른 채 드래그하면 순서가 바뀝니다. 실행 앱을 고정 영역으로 끌어오면 고정되고, 고정 앱을 실행 영역으로 옮기면 고정이 해제됩니다. 고정 앱 사이 또는 아이콘을 우클릭해 구분선을 추가하세요.") }
 
                 Section("일반") {
+                    Button("초기 설정 안내 다시 열기…") { model.showOnboarding?() }
+                    Toggle("메뉴 막대 아이콘 가리기", isOn: $model.preferences.hideMenuBarIcon)
+                    Text("설정을 열려면 앱 메뉴(Apps)에서 everyDock을 찾아 실행하세요. 이미 실행 중이어도 설정 창이 열립니다.")
+                        .font(.caption).foregroundStyle(.secondary)
                     Toggle("활성 앱을 다시 클릭하면 최소화", isOn: $model.preferences.clickToMinimize)
                     LabeledContent("창 최소화·복원") {
                         Text(model.permissions.accessibility.title)

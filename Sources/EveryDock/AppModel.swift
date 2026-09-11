@@ -55,6 +55,7 @@ final class AppModel: NSObject, ObservableObject {
     @Published var paused = false { didSet { updateNativeDock(); onLayoutChanged?() } }
     var onLayoutChanged: (() -> Void)?
     var showSettings: (() -> Void)?
+    var showOnboarding: (() -> Void)?
     private var iconCache: [String: NSImage] = [:]
     private var nameCache: [String: String] = [:]
     private var pendingLaunches: [String: (url: URL, started: Date)] = [:]
@@ -139,7 +140,7 @@ final class AppModel: NSObject, ObservableObject {
         if nativeStyle != style { nativeStyle = style; onLayoutChanged?(); dockDidChange.send() }
     }
 
-    @objc func refreshPermissionHints() { permissions.refreshHints() }
+    @objc func refreshPermissionHints() { permissions.refreshHints(); refreshLoginStatus() }
 
     func refreshApps() {
         guard !stopped else { return }

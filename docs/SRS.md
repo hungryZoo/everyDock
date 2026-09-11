@@ -2,8 +2,8 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.8 / 2026-09-11 |
-| 제품 기준 | everyDock v0.3.7 |
+| 문서 버전·기준일 | 1.9 / 2026-09-11 |
+| 제품 기준 | everyDock v0.3.8 |
 | 상위 문서 | [PRD](PRD.md) |
 | 검증 명세 | [TC](TC.md) |
 
@@ -255,3 +255,15 @@ DockAppButton은 Command mouse-down과 4pt 이동을 구분하고 NSDraggingSess
 DockSurface는 확대되어 배경 밖으로 나온 고정 아이콘까지 드롭 대상으로 인정하며, 현재 표시된 고정 항목의 중심을 기준으로 삽입 슬롯을 구하고 재사용 CALayer로 위치를 표시한다. 아래는 왼쪽→오른쪽, 좌우는 위→아래 좌표다. 고정 영역의 끝과 다음 영역 시작 사이의 중점을 넘으면 고정 앱에만 unpin 드롭을 허용한다. 폴더 시작 이후·Dock 밖·구분선의 unpin은 거부한다. unpin은 주황 삽입선과 안내를 표시하고 드롭 시 해당 고정 항목만 제거한다. DockReordering은 원본 제거 전 슬롯을 원본 제거 후 위치로 보정하고, 인접 슬롯은 no-op, 기존 UUID·경로와 다른 항목 순서는 보존한다. 미고정 앱은 새 PinnedApplication으로 삽입하며 bundle ID 중복은 만들지 않는다.
 
 Command mouse-down부터 공통 정렬 상태를 유지하고 확대 배율을 1로 재배치한다. 드래그 중 목록 동기화·확대·바운스·미리보기를 보류하고 사용자 설정을 쓰지 않는다. 드롭 시 AppModel에서 최신 앱 존재 여부를 확인한 후 변경이 있을 때만 저장한다. 종료·취소 후 모든 화면에 동기화 신호를 보낸다. 취소는 NSDraggingSession의 원위치 복귀를 사용하며 고정 해제·앱 실행을 유발하지 않는다. 스크롤은 드래그 전에 수행하고 드래그 중에는 멈춘다. UI 이동 경로에서 앱·파일 전체 조회를 추가하지 않는다.
+
+### FR-28 첫 실행 권한·자동 실행 안내 — P-06 / P0
+
+AppDelegate는 기존 `everyDock.hasLaunched`가 false이면 별도 NSWindow/OnboardingView를 표시한다. ‘시작하기’ 또는 ‘나중에 설정’에서만 true로 기록한다. 창 닫기는 완료로 취급하지 않는다. 기존 true 값은 그대로 이전한다. 설정의 재열기 버튼은 값을 초기화하지 않는다.
+
+OnboardingView는 기존 AppPermissions의 상태·오류 분류와 AppModel 권한 요청을 사용한다. 창 표시만으로 AX·ScreenCaptureKit 권한 요청을 실행하지 않는다. 상태 확인은 명시적 버튼에서 수행하고, 앱 활성화 때 권한 힌트와 SMAppService 상태를 갱신한다. 처음에는 자동 실행 선택이 true이고 재열기에서는 현재 loginEnabled 값을 사용한다. 시작 시 선택과 현재 상태가 다를 때만 SMAppService 등록/해제를 실행한다. 적용 실패 또는 requiresApproval 상태에서는 완료하지 않고 오류·시스템 승인 버튼을 표시한다. 나중에 설정은 현재 로그인 상태를 유지한다. 폴더 권한·실행 번들 위치·재등록 안내도 제공하며 권한 DB를 수정하지 않는다.
+
+### FR-29 메뉴 막대 아이콘 표시와 설정 복귀 — P-06 / P1
+
+DockPreferences.hideMenuBarIcon은 기본 false이고 기존 설정에서 누락 시 false로 복원한다. AppDelegate가 Combine으로 이 값의 변경을 관찰하고 NSStatusItem.isVisible에 반영한다. Dock 패널과 일반 앱 메뉴는 유지한다. 설정 설명은 ‘설정을 열려면 앱 메뉴(Apps)에서 everyDock을 찾아 실행하세요. 이미 실행 중이어도 설정 창이 열립니다.’이다.
+
+StartupPresentation은 최초 안내, 아이콘 숨김 상태의 수동 시작 시 설정, 그 외 백그라운드 시작을 구분한다. 로그인 실행 여부는 현재 Apple open-application event의 keyAEPropData/lgit 또는 명시적 login-item 파라미터로 판별한다. 실행 중 재열기는 applicationShouldHandleReopen으로 기존 설정 창 하나를 재사용하며, 안내 창이 이미 보이면 그 창을 앞으로 가져온다. 실제 로그아웃·로그인과 Apps 시작 전체 경로의 검증은 별도로 기록한다.
