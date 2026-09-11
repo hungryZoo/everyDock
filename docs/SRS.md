@@ -2,8 +2,8 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.10 / 2026-09-11 |
-| 제품 기준 | everyDock v0.3.8 |
+| 문서 버전·기준일 | 1.11 / 2026-09-11 |
+| 제품 기준 | everyDock v0.3.9 |
 | 상위 문서 | [PRD](PRD.md) |
 | 검증 명세 | [TC](TC.md) |
 
@@ -260,16 +260,18 @@ Command mouse-down부터 공통 정렬 상태를 유지하고 확대 배율을 1
 
 AppDelegate는 기존 `everyDock.hasLaunched`가 false이면 별도 NSWindow/OnboardingView를 표시한다. ‘시작하기’ 또는 ‘나중에 설정’에서만 true로 기록한다. 창 닫기는 완료로 취급하지 않는다. 기존 true 값은 그대로 이전한다. 설정의 재열기 버튼은 값을 초기화하지 않는다.
 
-OnboardingView는 기존 AppPermissions의 상태·오류 분류와 AppModel 권한 요청을 사용한다. 창 표시만으로 AX·ScreenCaptureKit 권한 요청을 실행하지 않는다. 상태 확인은 명시적 버튼에서 수행하고, 앱 활성화 때 권한 힌트와 SMAppService 상태를 갱신한다. 처음에는 자동 실행 선택이 true이고 재열기에서는 현재 loginEnabled 값을 사용한다. 시작 시 선택과 현재 상태가 다를 때만 SMAppService 등록/해제를 실행한다. 적용 실패 또는 requiresApproval 상태에서는 완료하지 않고 오류·시스템 승인 버튼을 표시한다. 나중에 설정은 현재 로그인 상태를 유지한다. 폴더 권한·실행 번들 위치·재등록 안내도 제공하며 권한 DB를 수정하지 않는다.
+OnboardingView는 기존 AppPermissions의 상태·오류 분류와 AppModel 권한 요청을 사용한다. 매 프로세스 시작과 앱 재열기에 AX 실제 접근과 ScreenCaptureKit 공유 가능 콘텐츠 조회로 권한을 재검사한다. 미확인·거부·API 오류이면 hasLaunched와 무관하게 안내 창 하나를 표시한다. 검사에 3초 이상 걸리면 안내 창에서 진행 상태를 보여 준다. 사용자가 나중에 설정을 선택한 같은 실행의 검사는 창을 다시 열지 않는다. 명시적 재확인 버튼도 제공하고, 앱 활성화 때 권한 힌트와 SMAppService 상태를 갱신한다. 처음에는 자동 실행 선택이 true이고 재열기에서는 현재 loginEnabled 값을 사용한다. 시작 시 선택과 현재 상태가 다를 때만 SMAppService 등록/해제를 실행한다. 적용 실패 또는 requiresApproval 상태에서는 완료하지 않고 오류·시스템 승인 버튼을 표시한다. 나중에 설정은 현재 로그인 상태를 유지한다. 폴더 권한·실행 번들 위치·재등록 안내도 제공하며 권한 DB를 수정하지 않는다.
 
 ### FR-29 메뉴 막대 아이콘 표시와 설정 복귀 — P-06 / P1
 
 DockPreferences.hideMenuBarIcon은 기본 false이고 기존 설정에서 누락 시 false로 복원한다. AppDelegate가 Combine으로 이 값의 변경을 관찰하고 NSStatusItem.isVisible에 반영한다. Dock 패널과 일반 앱 메뉴는 유지한다. 설정 설명은 ‘설정을 열려면 앱 메뉴(Apps)에서 everyDock을 찾아 실행하세요. 이미 실행 중이어도 설정 창이 열립니다.’이다.
 
-StartupPresentation은 최초 안내, 아이콘 숨김 상태의 수동 시작 시 설정, 그 외 백그라운드 시작을 구분한다. 로그인 실행 여부는 현재 Apple open-application event의 keyAEPropData/lgit 또는 명시적 login-item 파라미터로 판별한다. 실행 중 재열기는 applicationShouldHandleReopen으로 기존 설정 창 하나를 재사용하며, 안내 창이 이미 보이면 그 창을 앞으로 가져온다. 실제 로그아웃·로그인과 Apps 시작 전체 경로의 검증은 별도로 기록한다.
+StartupPresentation은 첫 실행 또는 권한 설정이 필요한 경우 안내를 우선하고, 아이콘 숨김 상태의 수동 시작 시 설정, 그 외 백그라운드 시작을 구분한다. 로그인 실행 여부는 현재 Apple open-application event의 keyAEPropData/lgit 또는 명시적 login-item 파라미터로 판별한다. 실행 중 재열기는 applicationShouldHandleReopen으로 기존 설정 창 하나를 재사용하며, 안내 창이 이미 보이면 그 창을 앞으로 가져온다. 실제 로그아웃·로그인과 Apps 시작 전체 경로의 검증은 별도로 기록한다.
 
 ### FR-30 Homebrew 설정 초기화 제거 — P-07 / P1
 
-cask의 zap.trash 화이트리스트는 `~/Library/Preferences/app.everydock.mac.plist`, `~/Library/Caches/app.everydock.mac`, `~/Library/Saved Application State/app.everydock.mac.savedState` 세 경로다. plist 안의 everyDock.hasLaunched와 everyDock.preferences.v1이 함께 제거된다. 일반 uninstall의 quit 동작과 사용자 설정 보존은 유지한다. post-install과 upgrade에는 설정·권한 초기화를 넣지 않는다. cask 코드의 원본은 [Homebrew tap](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb)이다.
+v0.3.9 이상 cask의 uninstall_preflight는 Homebrew 실행 명령이 uninstall 또는 reinstall인 경우에만 앱의 `--reset-for-uninstall`을 실행한다. upgrade와 알 수 없는 명령에서는 설정을 보존한다. Homebrew가 설치 당시 cask를 사용하므로 이전 설치본은 새 버전으로 업그레이드해야 한다. 원본은 [Homebrew tap](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb)이다.
 
-Application Support/everyDock의 미복원 journal과 lock은 삭제하지 않는다. 권한 DB는 읽거나 직접 수정하지 않고, macOS 권한·로그인 항목은 zap의 제거 보장에 포함하지 않는다. 사용자가 최초 권한 요청을 재현할 때만 README의 `tccutil reset All app.everydock.mac`를 직접 실행한다. 실제 사용자 데이터를 초기화하지 않는 fixture로 Homebrew의 일반 제거/opt-in zap 및 임시 UserDefaults 도메인 초기화를 검증한다.
+도우미는 같은 bundle ID의 실행 앱을 정상 종료하고 최대 10초 기다린다. 기존 잠금 아래 기본 Dock journal 복원을 마친 뒤 SMAppService 로그인 등록을 해제한다. UserDefaults.removePersistentDomain과 synchronize로 app.everydock.mac 도메인 전체(첫 실행 기록·고정 목록·옵션·창 상태)를 초기화하고 캐시 및 Saved Application State를 정리한다. 종료·복원·로그인 해제·파일 정리 실패 시 오류로 제거를 중단한다. 복원 lock은 경쟁 방지를 위해 유지하며 사용자 설정을 포함하지 않는다.
+
+앱이 이미 없으면 실행 프로세스가 없는지 확인한 뒤 defaults delete와 경로 정리로 남은 설정을 제거한다. zap.trash는 앱 설정 plist·캐시·저장된 창 상태에 한정하고 미복원 journal은 포함하지 않는다. macOS 권한 DB는 수정하지 않는다. 이전 OS 승인 여부와 앱 첫 실행 기록을 구분한다. 임시 도메인과 Homebrew fixture로 삭제/재설치 초기화 및 업그레이드 보존을 검증하고 실제 앱의 로그인 해제·Dock 복원은 별도 검증 범위로 기록한다.

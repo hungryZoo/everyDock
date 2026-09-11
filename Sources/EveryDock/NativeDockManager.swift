@@ -72,6 +72,20 @@ final class NativeDockManager {
         try? restore(from: journal)
     }
 
+    static func recoverForUninstall() throws {
+        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("everyDock", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: folder.path) else { return }
+        try withRecoveryLock(folder: folder) {
+            for url in try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+                where url.lastPathComponent.hasPrefix("native-dock-recovery-") && url.pathExtension == "json" {
+                try restoreUnlocked(from: url)
+            }
+        }
+        // Retain the lock inode: a finishing watchdog may still hold it.
+        // Completed journals are gone; the empty lock contains no user preferences.
+    }
+
     private static func readValues() -> [String: DockPreferenceValue] {
         CFPreferencesSynchronize(domain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
         return applied.mapValues { _ in .absent }.merging(Dictionary(uniqueKeysWithValues: applied.keys.map { key in

@@ -12,6 +12,10 @@ import Carbon
 enum EveryDockApp {
     @MainActor static func main() {
         let arguments = CommandLine.arguments
+        if arguments == [arguments[0], "--reset-for-uninstall"] {
+            do { try UninstallCleanup.run(); exit(0) }
+            catch { fputs("everyDock cleanup failed: \(error.localizedDescription)\n", stderr); exit(1) }
+        }
         if arguments.count == 4, arguments[1] == "--dock-watchdog", let pid = Int32(arguments[2]) {
             NativeDockManager.runWatchdog(parent: pid, journal: URL(fileURLWithPath: arguments[3]))
             return
@@ -33,6 +37,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var onboardingWindow: NSWindow?
     private var statusObservation: AnyCancellable?
     private var pauseItem: NSMenuItem!
+    private var launchPermissionCheck: Task<Void, Never>?
+    private var permissionGuideDismissed = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Reopening the app should not produce a second set of Dock panels.
@@ -68,10 +74,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let loginLaunch = event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
             || event?.paramDescriptor(forKeyword: keyAELaunchedAsLogInItem)?.booleanValue == true
         switch StartupPresentation.resolve(hasLaunched: UserDefaults.standard.bool(forKey: "everyDock.hasLaunched"),
-                                           loginLaunch: loginLaunch, hidesMenuIcon: model.preferences.hideMenuBarIcon) {
+                                           loginLaunch: loginLaunch, hidesMenuIcon: model.preferences.hideMenuBarIcon,
+                                           needsPermissionGuidance: model.permissions.needsGuidance) {
         case .onboarding: openOnboarding()
         case .settings: openSettings()
         case .background: break
+        }
+        checkLaunchPermissions()
+    }
+
+    private func checkLaunchPermissions() {
+        guard launchPermissionCheck == nil else { return }
+        permissionGuideDismissed = false
+        launchPermissionCheck = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let slowCheck = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(3))
+                guard !Task.isCancelled, let self, model.permissions.checking else { return }
+                if !permissionGuideDismissed && onboardingWindow?.isVisible != true { openOnboarding() }
+            }
+            await model.permissions.recheck()
+            slowCheck.cancel()
+            if !permissionGuideDismissed && model.permissions.needsGuidance && onboardingWindow?.isVisible != true { openOnboarding() }
+            launchPermissionCheck = nil
         }
     }
 
@@ -139,6 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         onboardingWindow?.contentView = NSHostingView(rootView: OnboardingView(model: model,
             firstLaunch: !UserDefaults.standard.bool(forKey: "everyDock.hasLaunched")) { [weak self] in
                 UserDefaults.standard.set(true, forKey: "everyDock.hasLaunched")
+                self?.permissionGuideDismissed = true
                 self?.onboardingWindow?.close()
             })
         NSApp.activate()
@@ -150,14 +176,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func refreshDisplays() { model.updateDisplays(); coordinator.reconcile() }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        checkLaunchPermissions()
         if let onboardingWindow, onboardingWindow.isVisible {
             NSApp.activate()
             onboardingWindow.makeKeyAndOrderFront(nil)
             return false
         }
-        openSettings()
+        if model.permissions.needsGuidance { openOnboarding() }
+        else { openSettings() }
         return false
     }
 
-    func applicationWillTerminate(_ notification: Notification) { coordinator?.stop(); model?.stop() }
+    func applicationWillTerminate(_ notification: Notification) { launchPermissionCheck?.cancel(); coordinator?.stop(); model?.stop() }
 }

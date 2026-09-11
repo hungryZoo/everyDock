@@ -2,8 +2,8 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전·기준일 | 1.10 / 2026-09-11 |
-| 대상 | everyDock v0.3.8, Apple Silicon, macOS 26+ |
+| 문서 버전·기준일 | 1.11 / 2026-09-11 |
+| 대상 | everyDock v0.3.9, Apple Silicon, macOS 26+ |
 | 요구사항 | [SRS](SRS.md), [추적표](README.md) |
 | 기존 실행 근거 | [QA.md](../QA.md), Swift Testing 실행 결과 |
 
@@ -140,7 +140,7 @@ v0.3.0의 TC-R01~R04는 아래 실행 기록 기준 PASS이며, TC-R05~R06은 NO
 | TC-R03 | Release ZIP 재다운로드, SHA-256 비교, 추출·서명 확인 | published checksum=cask checksum=다운로드 파일 hash | FR-19, NFR-07 |
 | TC-R04 | cask style/audit, `brew info`, `brew fetch --cask hungryZoo/tap/everydock` | cask 구문·아키텍처·OS 제약·다운로드 검증 성공 | FR-19 |
 | TC-R05 | E5에서 별도 appdir 설치 후 시작·권한 승인; 다음 버전 업그레이드 | 설치·실행 성공, 설정 유지, 필요 권한 재등록 안내 | FR-18, FR-19 |
-| TC-R06 | 정상 종료→`brew uninstall --cask everydock`, 재설치 | 앱 제거, 기본 Dock 복원, 설정/journal 임의 삭제 없음 | FR-09, FR-19, NFR-05 |
+| TC-R06 | 정상 종료→`brew uninstall --cask everydock`, 재설치 | 앱 제거, 기본 Dock 복원, v0.3.9 이상은 설정 초기화·로그인 등록 해제, 미복원 journal 보존 | FR-09, FR-19, NFR-05 |
 
 ### 배포 실행 기록
 
@@ -274,10 +274,10 @@ TC-M46 추가: v0.3.3의 다른 화면 요청 차단은 폐기했다. 아래 TC-
 |---|---|---|---|
 | TC-A46 | `initialSetupAndHiddenMenuLaunchesHaveReachableWindows` | 첫 실행 안내, 숨김 수동 실행 설정, 기존 로그인 실행 백그라운드 | FR-28/FR-29 |
 | TC-A47 | `menuIconVisibilityMigratesAndPersistsWithoutChangingPins` | 이전 설정 기본 표시, 숨김 저장·복원, 고정 순서 보존 | FR-29 |
-| TC-M59 | 신규 설치 첫 실행·안내 창 닫기·재실행·나중에 설정·기존 설치 업그레이드 | 창 하나, 완료 전 재표시, 완료 후 강제 안내 없음, 기존 설정 유지 | FR-28 |
+| TC-M59 | 신규 설치 첫 실행·안내 창 닫기·재실행·나중에 설정·기존 설치 업그레이드 | 창 하나, 완료 전 재표시, 완료 후에도 권한 설정이 필요하면 안내, 기존 설정 유지 | FR-28 |
 | TC-M60 | 안내의 권한 요청·상태 재확인·현재 앱 위치·거부·API 오류 | 올바른 시스템 페이지와 앱, 실제 상태 분류, 자동 승인 없음 | FR-28 |
 | TC-M61 | 자동 실행 선택/해제 후 시작, 등록 실패·승인 대기·나중에 설정·안내 재열기 | 선택대로 등록, 실패/승인 필요 표시, 나중에는 변경 안 함, 기존 선택 유지 | FR-28 |
-| TC-M62 | 아이콘 숨김/표시, 설정 닫고 Apps에서 재실행, 종료 후 수동 실행, 로그아웃·로그인 | 즉시 숨김·복구, 설정 재진입, 설정 저장, 자동 로그인 실행은 창 없음 | FR-29 |
+| TC-M62 | 아이콘 숨김/표시, 설정 닫고 Apps에서 재실행, 종료 후 수동 실행, 로그아웃·로그인 | 즉시 숨김·복구, 설정 재진입, 설정 저장, 권한 정상인 자동 로그인 실행은 창 없음 | FR-29 |
 
 실제 권한 DB·로그인 상태를 자동 테스트에서 변경하지 않는다. 결과는 [QA-v0.3.8](QA-v0.3.8.md)에 기록한다.
 
@@ -288,3 +288,15 @@ TC-M46 추가: v0.3.3의 다른 화면 요청 차단은 폐기했다. 아래 TC-
 | TC-R07 | cask의 zap 경로를 임시 fixture로 바꿔 일반 uninstall 후 --zap --force, 임시 UserDefaults 첫 실행 키 조회 | 일반 제거는 보존, zap은 세 경로 제거, journal 보존, 첫 실행 키 캐시도 사라짐 | FR-30 |
 
 기존 TC-A46은 첫 실행 기록이 없는 경우 안내 창 선택을 검증한다. TC-R07은 실제 사용자의 권한 초기화·로그인 해제를 수행하거나 그 결과를 보장하지 않는다. cask만 변경하며 공개된 v0.3.8 앱·태그·릴리스 자산은 변경하지 않는다. 실제 수행 범위는 [QA-v0.3.8](QA-v0.3.8.md)를 따른다.
+
+## 20. v0.3.9 삭제 초기화·매 실행 권한 확인 (이전 TC-R07의 일반 삭제 보존 조건 대체)
+
+| ID | 검증 | 기대 결과 | 연결 |
+|---|---|---|---|
+| TC-A48 | uninstallClearsEntirePreferenceDomainAndFirstRunHistory | 임시 도메인의 옵션·최초 실행·창 상태 제거, 새 UserDefaults 조회도 없음 | FR-30 |
+| TC-A49 | missingPermissionsAlwaysReopenGuidanceEvenAfterOnboarding | 안내 완료 기록·로그인 시작·아이콘 숨김과 무관하게 권한 안내 우선 | FR-28/29 |
+| TC-R08 | 실제 Homebrew에 임시 artifact cask 설치→업그레이드→재설치→일반 제거 | 업그레이드 보존, 재설치/삭제 초기화 도우미 호출, 실제 사용자 데이터 무변경 | FR-30 |
+| TC-M63 | 권한 정상/거부/오류/3초 지연, 프로세스 시작·앱 재열기·나중에 설정 | 실제 상태 검사, 필요한 안내 하나, 같은 검사로 닫은 창 재표시 없음 | FR-28/29 |
+| TC-M64 | 배포 앱 일반 제거→설치 | 실행 앱 종료, 기본 Dock 복원, 로그인 해제, 옵션·첫 실행 초기화; OS 승인은 별도 | FR-30 |
+
+자동 fixture는 실제 사용자의 로그인 등록과 권한을 바꾸지 않는다. 수행 범위 및 남은 수동 검증은 [QA-v0.3.9](QA-v0.3.9.md)에 기록한다.

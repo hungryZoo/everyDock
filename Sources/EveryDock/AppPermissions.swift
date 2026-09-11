@@ -19,6 +19,10 @@ import DockCore
     @Published private(set) var checking = false
     private var contentRequest: Task<SCShareableContent, Error>?
     private var contentCache: (SCShareableContent, Date)?
+    var needsGuidance: Bool {
+        accessibility != .allowed || capture != .allowed || detail != nil
+            || (accessibilityDetail != nil && accessibilityDetail != "noWindow" && accessibilityDetail != "unsupported")
+    }
 
     func recordAccessibility(_ failure: WindowFailure?) {
         accessibilityDetail = failure.map { String(describing: $0) }
