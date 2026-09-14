@@ -34,6 +34,18 @@ Desktop and Downloads open file stacks, while Apps opens Spotlight’s app brows
 The setup guide explains the permissions and offers launch at login.
 **v0.4.1 is an English/Korean public beta**, ahead of the planned 1.0 release.
 
+Displaying dock on all screen
+
+https://github.com/user-attachments/assets/8d684421-4688-4cb0-89b7-3d429d8eb1da
+
+Native right click menu
+
+https://github.com/user-attachments/assets/33b39a5b-1f55-4ecd-9791-3f9e51fd1f2c
+
+Window preview
+
+https://github.com/user-attachments/assets/943d317a-1656-409c-a050-17559b184a67
+
 ---
 
 ## Table of Contents
