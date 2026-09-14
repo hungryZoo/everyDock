@@ -13,4 +13,8 @@
 
 ## Release validation
 
-Tests, packaging, CI, and public distribution results will be recorded as each check completes. No release gate is marked passed in advance.
+- Local full suite: **55 PASS**, including opt-in Quick Look integration (`EVERYDOCK_RUN_QL_TEST=1 swift test --arch arm64`).
+- Release packaging **PASS**: arm64, minimum macOS 26.0, v0.4.1/build 18, final strip/re-sign and strict signature verification.
+- ZIP SHA-256: `19d52c67d5f55cd674652775d5481e716edbb4e8fc06688519bdaa2e669076d9`.
+- README GitHub Markdown rendering **PASS**. English/Korean badge SVG was verified separately. Full visual layout remains unverified.
+- CI and public distribution results will be recorded after they complete.

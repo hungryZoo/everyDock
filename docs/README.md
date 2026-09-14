@@ -41,6 +41,6 @@ Keep IDs stable; do not delete or reuse retired IDs. Update implementation and t
 
 The suite currently contains 49 executable tests. Default runs omit the opt-in Quick Look integration; enabling it runs all 49. Test IDs include retired and historically grouped cases, so their highest number is not the test count. Legacy DockLayout tests are pure geometry checks rather than runtime multi-display UI tests.
 
-Historical QA and release records retain their original language and scope. Start at [QA.md](../QA.md) or the version links in [TC](TC.md). Prior PASS results do not establish full v0.4.0 verification.
+Historical QA and release records retain their original language and scope. Start at [QA.md](../QA.md) or the version links in [TC](TC.md). Prior PASS results do not establish full v0.4.1 verification.
 
 The app remains an ad-hoc signed beta. Complete signing/notarization, permission-enabled workflows, restoration/file safety, and the device/performance matrix before claiming stable release readiness. Code and docs follow [AGENTS.md](../AGENTS.md).
