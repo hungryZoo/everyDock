@@ -21,14 +21,14 @@ struct PreviewResult {
     init(permissions: AppPermissions) { self.permissions = permissions }
     func previews(for app: DockApplication) async -> PreviewResult {
         guard let process = NSWorkspace.shared.runningApplications.first(where: { !$0.isTerminated && ($0.bundleURL == app.url || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier)) }) else {
-            return PreviewResult(windows: [], message: "The app has quit.")
+            return PreviewResult(windows: [], message: L10n.text("The app has quit."))
         }
         let list = await WindowActions.list(pid: process.processIdentifier)
         permissions.recordAccessibility(list.failure)
         if let failure = list.failure {
             return PreviewResult(windows: [], message: failure == .permissionDenied
-                                 ? "Allow Accessibility access to see open windows."
-                                 : "Could not read the app’s windows. Try again in a moment.")
+                                 ? L10n.text("Allow Accessibility access to see open windows.")
+                                 : L10n.text("Could not read the app’s windows. Try again in a moment."))
         }
         guard !list.windows.isEmpty else { return PreviewResult(windows: [], message: nil) }
         cache = cache.filter { Date().timeIntervalSince($0.value.1) < 60 }
@@ -60,7 +60,7 @@ struct PreviewResult {
                             cache[description.reference] = (image!, Date())
                         } catch {
                             permissions.recordCaptureError(error)
-                            captureError = "Some previews are unavailable. Select a title to open its window."
+                            captureError = L10n.text("Some previews are unavailable. Select a title to open its window.")
                         }
                     }
                 }
@@ -70,10 +70,10 @@ struct PreviewResult {
             return PreviewResult(windows: results, message: captureError)
         } catch {
             let message: String?
-            if let failure = error as? CaptureFailure, case .permissionDenied = failure { message = "macOS denied screen access. You can still select or close windows by title." }
-            else if let failure = error as? CaptureFailure, case .permissionRequired = failure { message = "Choose Allow Screen Recording to see previews. You can still select or close windows by title." }
+            if let failure = error as? CaptureFailure, case .permissionDenied = failure { message = L10n.text("macOS denied screen access. You can still select or close windows by title.") }
+            else if let failure = error as? CaptureFailure, case .permissionRequired = failure { message = L10n.text("Choose Allow Screen Recording to see previews. You can still select or close windows by title.") }
             else if error is CancellationError { message = nil }
-            else { message = "Could not load window previews: \(error.localizedDescription)" }
+            else { message = L10n.text("Could not load window previews: \(error.localizedDescription)") }
             return PreviewResult(windows: list.windows.map { WindowPreview(window: $0, image: nil) }, message: message)
         }
     }
@@ -214,14 +214,14 @@ private struct PreviewContent: View {
                 Image(nsImage: app.icon).resizable().frame(width: 22, height: 22)
                 Text(app.name).font(.headline)
                 Spacer()
-                Text(previews.count == 1 ? "1 window" : "\(previews.count) windows").font(.caption).foregroundStyle(.secondary)
+                Text(previews.count == 1 ? L10n.text("1 window") : L10n.text("\(previews.count) windows")).font(.caption).foregroundStyle(.secondary)
             }
-            if !model.accessibilityEnabled { Button("Allow Accessibility…", action: model.requestAccessibility).buttonStyle(.bordered) }
-            if !model.screenCaptureEnabled { Button("Allow Screen Recording…", action: model.requestScreenCapture).buttonStyle(.bordered) }
+            if !model.accessibilityEnabled { Button(L10n.text("Allow Accessibility…"), action: model.requestAccessibility).buttonStyle(.bordered) }
+            if !model.screenCaptureEnabled { Button(L10n.text("Allow Screen Recording…"), action: model.requestScreenCapture).buttonStyle(.bordered) }
             if let status = closeMessage ?? status { Text(status).font(.callout).foregroundStyle(.secondary) }
             if previews.isEmpty {
-                Text("No windows to show.").font(.callout).foregroundStyle(.secondary)
-                Button("Open \(app.name)") { model.launch(app, toggle: false) }.buttonStyle(.bordered).padding(.bottom, 8)
+                Text(L10n.text("No windows to show.")).font(.callout).foregroundStyle(.secondary)
+                Button(L10n.text("Open \(app.name)")) { model.launch(app, toggle: false) }.buttonStyle(.bordered).padding(.bottom, 8)
             } else {
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.fixed(190)), count: layout.columns), spacing: 12) {
@@ -236,7 +236,7 @@ private struct PreviewContent: View {
                                         .frame(width: 190, height: 118)
                                         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
                                         Text(preview.title.isEmpty ? app.name : preview.title).font(.caption).lineLimit(1)
-                                        Text(preview.minimized ? "Minimized" : " ").font(.caption2).foregroundStyle(.secondary)
+                                        Text(preview.minimized ? L10n.text("Minimized") : " ").font(.caption2).foregroundStyle(.secondary)
                                     }
                                 }.buttonStyle(.plain).disabled(busy)
                                     .help(preview.title.isEmpty ? app.name : preview.title)
@@ -247,13 +247,13 @@ private struct PreviewContent: View {
                                     Image(systemName: "xmark").font(.system(size: 10, weight: .bold))
                                         .frame(width: 24, height: 24).background(.regularMaterial, in: Circle())
                                 }.buttonStyle(.plain).padding(5).disabled(busy || !preview.window.canClose)
-                                    .accessibilityLabel("Close \(preview.title.isEmpty ? app.name : preview.title)")
-                                    .help(preview.window.canClose ? "Close this window" : "This window does not support closing")
+                                    .accessibilityLabel(L10n.text("Close \(preview.title.isEmpty ? app.name : preview.title)"))
+                                    .help(preview.window.canClose ? L10n.text("Close this window") : L10n.text("This window does not support closing"))
                             }
                         }
                     }
                 }.frame(height: layout.gridHeight)
-                if previews.count > 8 { Text("Previews are shown for up to 8 windows. You can select and close every window.").font(.caption).foregroundStyle(.secondary) }
+                if previews.count > 8 { Text(L10n.text("Previews are shown for up to 8 windows. You can select and close every window.")).font(.caption).foregroundStyle(.secondary) }
             }
         }.padding(16).frame(width: layout.width)
     }

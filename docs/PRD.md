@@ -2,14 +2,14 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.13 / 2026-09-11 |
-| Product baseline | everyDock v0.4.0 public beta |
+| Document version | 1.15 / 2026-09-15 |
+| Product baseline | everyDock v0.4.1 public beta |
 | Parent | [MRD](MRD.md) |
 | Implementation and tests | [SRS](SRS.md), [TC](TC.md) |
 
 ## 1. Product outcome
 
-Provide a persistent, familiar app bar on each enabled display, with reliable app switching, window selection, everyday file access, and a reversible relationship with the macOS Dock. v0.4.0 makes everyDock’s interface and current documentation English while preserving saved preferences and existing interactions.
+Provide a persistent, familiar app bar on each enabled display, with reliable app switching, window selection, everyday file access, and a reversible relationship with the macOS Dock. v0.4.1 adds Korean language selection, revised new-install defaults, sharper icon rendering, and separate permission requests/settings navigation while preserving saved preferences.
 
 The supported target is Apple Silicon with macOS 26+. The app is local, without accounts, analytics, remote window-image storage, or runtime network services. Public beta status remains in place before the proposed 1.0 release.
 
@@ -17,13 +17,13 @@ The supported target is Apple Silicon with macOS 26+. The app is local, without 
 
 Included: multiple displays, Bottom/Left/Right placement, native size following, magnification and launch feedback, app activation and supported minimize/restore, previews, close actions, app Dock menus, file stacks, Trash, pins, separators, Command-drag, setup and permissions, login launch, native Dock restoration, and Homebrew distribution.
 
-P-02 icon quality: preserve available high-resolution artwork on Retina displays, filter resting and magnified icons appropriately, and refresh cached pixels when display scale changes without rerasterizing during animation. Source artwork quality remains a limit. See FR-03 and TC-A52/A53/M67; this improvement is currently an unreleased local change after v0.4.0.
+P-02 icon quality: preserve available high-resolution artwork on Retina displays, filter resting and magnified icons appropriately, and refresh cached pixels when display scale changes without rerasterizing during animation. Source artwork quality remains a limit. See FR-03 and TC-A52/A53/M67; this improvement is included in v0.4.1.
 
 Excluded: Intel, earlier macOS, a pixel-exact Dock clone, independent system Genie destinations for every monitor, notification badges, minimized-window tiles, Mission Control, drag auto-scroll, and per-display app lists. OS-protected content and unsupported AX windows are not bypassed.
 
 ## 3. Product requirements
 
-Implementation is not equivalent to verification. Current execution scope is recorded in [QA-v0.4.0](QA-v0.4.0.md); historical results remain version-specific.
+Implementation is not equivalent to verification. Current execution scope is recorded in [QA-v0.4.1](QA-v0.4.1.md); historical results remain version-specific.
 
 | ID | Priority | Requirement and acceptance |
 |---|---|---|
@@ -31,12 +31,12 @@ Implementation is not equivalent to verification. Current execution scope is rec
 | P-02 | P0 | Follow native sizing, magnify continuously, reflect launch state promptly, and activate supported windows. Explain unsupported actions. Anchor menus and labels to icons. Correct supported zoomed windows and restore an observed earlier size. |
 | P-03 | P0 | Native Dock management is optional. Back up before applying settings; restore on exit/recovery without overwriting user edits. |
 | P-04 | P1 | Desktop and Downloads show file stacks. Apps opens Spotlight’s app browser. Trash supports reversible moves and confirmed emptying. Copies preserve source and existing destination files. |
-| P-05 | P1 | Show previews after a default 0.55-second hover delay, retain them while entering the popover, and select the exact window. Explain absent capture access without requesting it in the background. |
+| P-05 | P1 | Show previews after a default 0.60-second hover delay, retain them while entering the popover, and select the exact window. Explain absent capture access without requesting it in the background. |
 | P-06 | P0 | Save pins, order, separators, displays, position, visibility, and preferences. Expose setup, permissions, login launch, and a path back to Settings when the menu icon is hidden. |
 | P-07 | P1 | Public source, requirements, arm64 release ZIP, SHA-256, and macOS 26+ cask. Installation, update, and removal instructions must match the package. |
 | P-08 | P0 | Keep images in memory, send no personal content, preserve original files, and confirm irreversible deletion. |
 | P-09 | P1 | One card per actual AX window, distinct same-title windows, individual × buttons, and Close All Windows including Finder. Stop at save confirmation. |
-| P-10 | P1 | English app-owned menus, settings, setup, utility names, tooltips, accessibility labels, and messages. English README/current requirements; stable storage IDs and unchanged user/third-party text. |
+| P-10 | P1 | English and Korean app-owned menus, settings, setup, utility names, tooltips, accessibility labels, and messages. English README/current requirements; stable storage IDs and unchanged user/third-party text. |
 
 ## 4. Default experience
 
@@ -44,14 +44,14 @@ Implementation is not equivalent to verification. Current execution scope is rec
 |---|---|
 | Position | Bottom; Left and Right available. |
 | Size and magnification | Follow the macOS Dock; manual controls available. |
-| Running apps / full-screen display | On, within system restrictions. |
+| Running apps / full-screen display | Running apps on; full-screen display off by default. |
 | Enabled displays | All connected displays; new displays included automatically. |
 | Click active app to minimize | On. |
-| Previews | On; 0.55 seconds, adjustable 0.2–2 seconds. |
+| Previews | On; 0.60 seconds, adjustable 0.2–2 seconds. |
 | Native Dock management | On; preserve an existing user choice. |
 | Launch at login | Selected in first-time setup, registered only after Get Started. |
 | Menu bar icon | Visible by default. |
-| Interface | English. External content and system dialogs keep their source language. |
+| Interface | Follow System: Korean when the primary system language is Korean, English otherwise. Manual English/한국어 selection applies immediately. External content and system dialogs keep their source language. |
 
 Running apps have an indicator; active state is distinguished. A launch request gets immediate feedback. Focus changes alone must not reorder apps. Overflow is handled by fitting and scrolling.
 
@@ -85,13 +85,15 @@ Show one setup window on first launch or when permission guidance is needed, inc
 
 The setup window contains Window Control, Window Previews, and Launch at Login. Detailed recovery/location help remains in Settings. Get Started applies the login choice and waits for necessary OS approval; Set Up Later keeps registration unchanged. Closing the window alone does not complete first setup.
 
+Permission-request buttons must not also navigate to System Settings, including after denial or errors. The macOS dialog owns its Open System Settings action. Provide separate, clearly labeled settings links in setup and Settings for reviewing existing permissions or when macOS suppresses repeat dialogs. Those links do not invoke permission-request APIs.
+
 Hide Menu Bar Icon must explain that launching everyDock from Apps reopens Settings. Permission guidance takes priority when needed; a permitted login launch remains quiet.
 
 Homebrew uninstall and reinstall reset preferences and setup history, unregister login, and clean caches after native Dock recovery. Upgrade preserves preferences. macOS privacy decisions are separate. Installed cask snapshots determine removal behavior; older installations need an upgrade to receive new rules. Failed cleanup stops removal.
 
-### English presentation — P-10
+### English and Korean presentation — P-10
 
-Translate everyDock-owned visible text and accessibility descriptions. Display counts use singular/plural English. Declare English bundle localization. Preserve app names, filenames, window titles, third-party commands, system-owned dialogs, and OS diagnostic text. Do not rename persisted enum values, preference keys, bundle identifiers, separator IDs, or user files.
+Translate everyDock-owned visible text and accessibility descriptions. Display counts use singular/plural English. Declare English and Korean bundle localization. Persist language as system/en/ko, defaulting to system. Apply changes to visible settings/setup, app/status menus, Dock panels, and subsequent popovers without restarting the process or the native Dock. English is the fallback for other primary system languages. New/missing full-screen and preview-delay values default to false and 0.60; existing values survive upgrades. Preserve app names, filenames, window titles, third-party commands, system-owned dialogs, and OS diagnostic text. Do not rename persisted enum values, preference keys, bundle identifiers, separator IDs, or user files.
 
 README uses the owner’s [agents-dev-skills](https://github.com/hungryZoo/agents-dev-skills) header/navigation and Homebrew guidance. Do not fabricate screenshots, videos, license grants, test results, or 1.0 readiness claims.
 

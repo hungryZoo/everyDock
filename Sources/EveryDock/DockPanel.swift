@@ -64,6 +64,12 @@ final class DockPanel: NSPanel {
         model.updateNativeDock()
         reconcile()
     }
+    func refreshLanguage() {
+        panels.values.forEach { $0.surface.shutdown(); $0.close() }
+        panels.removeAll()
+        requestedFrames.removeAll()
+        reconcile()
+    }
     private func updatePointer(event: NSEvent? = nil) {
         let location: NSPoint
         if let event, let window = event.window {

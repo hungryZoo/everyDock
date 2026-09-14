@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.13 / 2026-09-11 |
-| Baseline | everyDock v0.4.0 |
+| Document version | 1.15 / 2026-09-15 |
+| Baseline | everyDock v0.4.1 |
 | Parent / verification | [PRD](PRD.md) / [TC](TC.md) |
 
 Requirements describe intended behavior. Implementation and observed PASS results are separate; numeric performance targets are not measured achievements.
@@ -129,6 +129,8 @@ Persist changed settings and apply them to displays. A second app with the same 
 
 ### FR-18 Permission and error guidance — P-06 / P0
 
+Keep request and navigation paths separate: requestAccessibility invokes the AX prompt and refreshes hints only; requestScreenCapture performs an explicit capture check only. Neither opens a privacy-settings URL after a grant, denial, or error. Only the separately selected openAccessibilitySettings/openScreenCaptureSettings actions open their respective URLs, without invoking permission APIs. macOS decides whether to show a permission dialog and handles its own Open System Settings button. Do not reset TCC or simulate consent to test this behavior.
+
 Show Not Checked, Allowed, and Denied by macOS distinctly. Do not infer approval/denial from generic errors or timeouts. Check Permission Status inspects AX access and screen preflight without calling ScreenCaptureKit; Allow Screen Recording explicitly requests capture access. Show App Location reveals the running bundle. Explain the need for each permission and possible re-registration after ad-hoc updates. Keep launch, Settings, and Quit available when capture is denied.
 
 ### FR-19 Distribution — P-07 / P1
@@ -209,11 +211,11 @@ The helper terminates other instances with the same bundle ID and waits up to te
 
 Without a bundle, require no running app before defaults deletion/path cleanup. Zap targets only app preferences, caches, and saved state, not unfinished journals. OS privacy decisions remain separate. Test temporary domains/cask fixtures separately from actual login/recovery behavior.
 
-### FR-31 English presentation — P-10 / P1
+### FR-31 English and Korean presentation — P-10 / P1
 
-Use English for all everyDock-owned visible and accessibility text, including errors, menus, setup, settings, utilities, drag hints, and preview actions. Declare `CFBundleDevelopmentRegion=en` and English supported localization. Use singular/plural display/window counts. Retain external app/menu/file/window names and OS-owned dialogs/diagnostics. Preserve stored enum raw values, identifiers, paths, settings keys, and separator UUIDs.
+Support English and Korean for all everyDock-owned visible and accessibility text, including errors, menus, setup, settings, utilities, drag hints, and preview actions. Declare `CFBundleDevelopmentRegion=en` and supported localizations en/ko. DockPreferences.language stores system/en/ko, defaults to system, and treats unknown values as system. Resolve only the primary preferred system language: ko/ko-* selects Korean; other languages fall back to English. Keep interpolation arguments separate from translated templates so external names are never interpreted as translation keys. Settings applies a language change immediately, refreshes menus and Dock panels, and recreates folder popovers; no permission request or native Dock restart is required. Use singular/plural English display/window counts and Korean counters. New and missing showOnFullScreen values default to false; previewDelay defaults and non-finite fallback are 0.60 seconds. Preserve explicitly saved values, including the earlier 0.55 delay. Retain external app/menu/file/window names and OS-owned dialogs/diagnostics. Preserve stored enum raw values, identifiers, paths, settings keys, and separator UUIDs.
 
-Publish the current README, MRD, PRD, SRS, TC, and release instructions in English. Preserve historical QA evidence rather than rewriting old PASS claims as current results. Keep v0.4.0 a public beta. Validate text coverage, current-document links/anchors, settings migration, and actual layout separately.
+Publish the current README, MRD, PRD, SRS, TC, and release instructions in English. Preserve historical QA evidence rather than rewriting old PASS claims as current results. Keep v0.4.1 a public beta. Validate text coverage, current-document links/anchors, settings migration, and actual layout separately.
 
 ## 4. Nonfunctional requirements
 

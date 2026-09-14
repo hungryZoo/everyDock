@@ -6,9 +6,9 @@ public enum DockEdge: String, CaseIterable, Codable, Sendable {
 
     public var title: String {
         switch self {
-        case .bottom: "Bottom"
-        case .left: "Left"
-        case .right: "Right"
+        case .bottom: L10n.text("Bottom")
+        case .left: L10n.text("Left")
+        case .right: L10n.text("Right")
         }
     }
 }
@@ -61,7 +61,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
     public var inset: Double = 10
     public var edge: DockEdge = .bottom
     public var showRunningApps = true
-    public var showOnFullScreen = true
+    public var showOnFullScreen = false
     public var hiddenDisplayIDs: Set<String> = []
     public var pinnedApps: [PinnedApplication] = []
     public var magnification: Double = 1.65
@@ -69,7 +69,8 @@ public struct DockPreferences: Codable, Equatable, Sendable {
     public var clickToMinimize = true
     public var followNativeSize = true
     public var showPreviews = true
-    public var previewDelay = 0.55
+    public var previewDelay = 0.60
+    public var language: AppLanguage = .system
     public var hideMenuBarIcon = false
 
     public init() {}
@@ -78,7 +79,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         case iconSize, inset, edge, showRunningApps, showOnFullScreen, hiddenDisplayIDs, pinnedApps
         case magnification, manageNativeDock, clickToMinimize
         case followNativeSize, showPreviews, previewDelay
-        case hideMenuBarIcon
+        case hideMenuBarIcon, language
     }
 
     public init(from decoder: Decoder) throws {
@@ -87,7 +88,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         inset = try values.decodeIfPresent(Double.self, forKey: .inset) ?? 10
         edge = try values.decodeIfPresent(DockEdge.self, forKey: .edge) ?? .bottom
         showRunningApps = try values.decodeIfPresent(Bool.self, forKey: .showRunningApps) ?? true
-        showOnFullScreen = try values.decodeIfPresent(Bool.self, forKey: .showOnFullScreen) ?? true
+        showOnFullScreen = try values.decodeIfPresent(Bool.self, forKey: .showOnFullScreen) ?? false
         hiddenDisplayIDs = try values.decodeIfPresent(Set<String>.self, forKey: .hiddenDisplayIDs) ?? []
         pinnedApps = try values.decodeIfPresent([PinnedApplication].self, forKey: .pinnedApps) ?? []
         magnification = try values.decodeIfPresent(Double.self, forKey: .magnification) ?? 1.65
@@ -95,7 +96,8 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         clickToMinimize = try values.decodeIfPresent(Bool.self, forKey: .clickToMinimize) ?? true
         followNativeSize = try values.decodeIfPresent(Bool.self, forKey: .followNativeSize) ?? true
         showPreviews = try values.decodeIfPresent(Bool.self, forKey: .showPreviews) ?? true
-        previewDelay = try values.decodeIfPresent(Double.self, forKey: .previewDelay) ?? 0.55
+        previewDelay = try values.decodeIfPresent(Double.self, forKey: .previewDelay) ?? 0.60
+        language = AppLanguage(rawValue: try values.decodeIfPresent(String.self, forKey: .language) ?? "system") ?? .system
         hideMenuBarIcon = try values.decodeIfPresent(Bool.self, forKey: .hideMenuBarIcon) ?? false
         normalize()
     }
@@ -104,7 +106,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         iconSize = iconSize.isFinite ? min(72, max(32, iconSize)) : 48
         inset = inset.isFinite ? min(40, max(0, inset)) : 10
         magnification = magnification.isFinite ? min(4, max(1, magnification)) : 1.65
-        previewDelay = previewDelay.isFinite ? min(2, max(0.2, previewDelay)) : 0.55
+        previewDelay = previewDelay.isFinite ? min(2, max(0.2, previewDelay)) : 0.60
         var paths = Set<String>()
         var bundles = Set<String>()
         pinnedApps = pinnedApps.map { item in

@@ -6,7 +6,7 @@
 
 Keep apps, windows, and everyday files within reach on every monitor.
 
-[![Release](https://img.shields.io/github/v/release/hungryZoo/everyDock?include_prereleases&style=flat-square)](https://github.com/hungryZoo/everyDock/releases) [![License](https://img.shields.io/badge/license-not%20specified-lightgrey?style=flat-square)](#9-license) [![Built with Swift](https://img.shields.io/badge/built%20with-Swift%206-F05138?style=flat-square&logo=swift&logoColor=white)](Package.swift)
+[![Release](https://img.shields.io/github/v/release/hungryZoo/everyDock?include_prereleases&style=flat-square)](https://github.com/hungryZoo/everyDock/releases) [![Languages](https://img.shields.io/badge/languages-English%20%7C%20%ED%95%9C%EA%B5%AD%EC%96%B4-blue?style=flat-square)](#5-configuration) [![License](https://img.shields.io/badge/license-not%20specified-lightgrey?style=flat-square)](#9-license) [![Built with Swift](https://img.shields.io/badge/built%20with-Swift%206-F05138?style=flat-square&logo=swift&logoColor=white)](Package.swift)
 
 ```bash
 brew install --cask hungryZoo/tap/everydock
@@ -28,7 +28,7 @@ everyDock puts an app bar on each enabled display, with shared pinned apps and f
 Click to launch or switch apps, hover to preview windows, and Command-drag to organize your Dock.
 Desktop and Downloads open file stacks, while Apps opens Spotlight’s app browser.
 The setup guide explains the permissions and offers launch at login.
-**v0.4.0 is an English-language public beta**, ahead of the planned 1.0 release.
+**v0.4.1 is an English/Korean public beta**, ahead of the planned 1.0 release.
 
 ---
 
@@ -64,9 +64,9 @@ The setup guide explains the permissions and offers launch at login.
 - App-provided Dock commands alongside everyDock’s own right-click menu.
 - Pinned apps, custom separators, and a separate section for unpinned running apps.
 - Desktop and Downloads stacks with file thumbnails, plus Trash access.
-- An English interface, permission setup, and optional launch at login.
+- English and Korean interfaces, permission setup, and optional launch at login.
 
-The working tree after v0.4.0 improves icon rendering with display-scale-aware cached artwork and trilinear downsampling. Animation reuses the cached image. This change is not yet included in the published Homebrew release; visual checks across mixed-resolution displays are pending.
+v0.4.1 improves icon rendering with display-scale-aware cached artwork and trilinear downsampling. Animation reuses the cached image. Visual checks across mixed-resolution displays are pending.
 
 ### How it works
 
@@ -199,15 +199,18 @@ Click a file to open it in its default app, or choose **Open in Finder**. Droppi
 | Position | Bottom, Left, or Right; default Bottom. |
 | Size and magnification | Follow the macOS Dock, or adjust manually. |
 | Show Running Apps | On. |
-| Show over Full-Screen Apps | On, within macOS restrictions. |
+| Show over Full-Screen Apps | Off; enable it to show the Dock over full-screen apps where macOS allows. |
 | Displays | All connected displays; individually configurable. |
 | Click Active App to Minimize | On. |
-| Window previews | On, with a 0.55-second delay; adjustable from 0.2 to 2 seconds. |
+| Window previews | On, with a 0.60-second delay; adjustable from 0.2 to 2 seconds. |
 | Hide macOS Dock | On for a new configuration; existing choices are preserved. |
 | Launch at login | Selected in first-time setup; registered only after **Get Started**. |
+| Language | Follow System: Korean for a Korean primary system language; English otherwise. Choose English or 한국어 to override it. Changes apply immediately. |
 | Hide Menu Bar Icon | Off. Reopen everyDock from Apps to return to Settings when hidden. |
 
-Preferences use the `app.everydock.mac` domain and `everyDock.preferences.v1` key. Upgrades preserve stored app paths, separator IDs, and option values. v0.4.0 changes everyDock’s text to English; app names, filenames, window titles, and third-party menu commands retain their original text. macOS permission dialogs follow system language.
+Preferences use the `app.everydock.mac` domain and `everyDock.preferences.v1` key. Upgrades preserve stored app paths, separator IDs, and option values. v0.4.1 adds Korean alongside English; app names, filenames, window titles, and third-party menu commands retain their original text. macOS permission dialogs follow system language.
+
+The language selector and new defaults are included in v0.4.1. Existing saved options are not reset.
 
 ### Permissions
 
@@ -218,6 +221,8 @@ Preferences use the `app.everydock.mac` domain and `everyDock.preferences.v1` ke
 | Desktop / Downloads access | File lists and thumbnails for the selected folder. |
 
 **Check Permission Status** reads status without requesting screen capture. **Allow Screen Recording…** explicitly requests access. A denial stops automatic retries. Ordinary app launching, Settings, and Quit remain available without preview permission.
+
+In v0.4.1, **Allow Accessibility…** and **Allow Screen Recording…** leave the permission dialog to macOS and do not also open System Settings. Choose **Open System Settings** in the macOS dialog to continue. If macOS does not show the dialog again, use the separate **Open Accessibility Settings** or **Screen Recording Settings…** link in everyDock; these links only open Settings and do not request permission.
 
 If an upgrade invalidates an earlier approval, quit everyDock, remove its old entry in **Privacy & Security**, and add the current app shown by **Show App Location** in Settings. Repeat separately for Accessibility and Screen & System Audio Recording, then reopen the app.
 
@@ -282,7 +287,7 @@ Move the app to Applications before registering launch at login. The build is ad
 | `scripts` | Builds, icon generation, packaging, and signing. |
 | [docs](docs/README.md) | [MRD](docs/MRD.md), [PRD](docs/PRD.md), [SRS](docs/SRS.md), [TC](docs/TC.md), and [release procedure](docs/RELEASING.md). |
 
-App events and KVO drive state changes, with a five-second background check as a fallback. Magnification uses a display-linked animation and cached icon layers; frame updates stop when settled. These mechanisms do not establish measured performance on every device. See the [v0.4.0 QA record](docs/QA-v0.4.0.md) for the tests actually performed.
+App events and KVO drive state changes, with a five-second background check as a fallback. Magnification uses a display-linked animation and cached icon layers; frame updates stop when settled. These mechanisms do not establish measured performance on every device. See the [v0.4.1 QA record](docs/QA-v0.4.1.md) for the tests actually performed.
 
 Keep code and documentation aligned in the same change, preserve requirement IDs, and record untested cases honestly. Do not commit user preferences, recovery journals, permission databases, or private window images. See [AGENTS.md](AGENTS.md).
 
@@ -290,7 +295,7 @@ Keep code and documentation aligned in the same change, preserve requirement IDs
 
 ## 8. Roadmap
 
-- [x] English app interface and documentation for the v0.4.0 beta.
+- [x] English/Korean app interface and English documentation for the v0.4.1 beta.
 - [ ] Complete the display, Spaces, sleep/wake, and app compatibility matrix.
 - [ ] Validate permission setup, restoration, file handling, and performance across supported devices.
 - [ ] Complete Developer ID signing and notarization.

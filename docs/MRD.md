@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Product | everyDock |
-| Document version | 1.13 / 2026-09-11 |
-| Release | v0.4.0 public beta; preparation for 1.0 |
+| Document version | 1.15 / 2026-09-15 |
+| Release | v0.4.1 public beta; preparation for 1.0 |
 | Decision owner | Repository owner / product owner |
 
 ## 1. Problem and evidence
@@ -50,9 +50,9 @@ P0 blocks core use, P1 improves repeated use, and P2 is exploratory.
 | MR-06 | P0 | Control displays, appearance, organization, permissions, and login. | Disabling or hiding a feature leaves a reachable recovery path. |
 | MR-07 | P1 | Reproducible Homebrew installation and updates. | Public downloads, checksums, and instructions produce a working install. |
 | MR-08 | P0 | Keep window images and personal files local. | Explicit consent, no remote transmission, original files preserved. |
-| MR-09 | P1 | Provide an English interface and readable English project documentation. | App-owned labels and guidance are consistently English; existing user data remains intact. |
+| MR-09 | P1 | Provide English and Korean interfaces and readable English project documentation. | App-owned labels and guidance follow the selected language; existing user data remains intact. |
 
-MR-09 is the v0.4.0 request, linked to P-10, FR-31, TC-M66, and TC-R09. It does not imply that macOS dialogs or content owned by other apps is translated.
+MR-09 began with v0.4.0 English support and now includes the v0.4.1 Korean interface and language selector, linked to P-10, FR-31, TC-M66, and TC-R09. It does not imply that macOS dialogs or content owned by other apps is translated.
 
 ## 5. Validation hypotheses
 
@@ -80,4 +80,4 @@ The beta can ship with explicit untested cases after build, test, and distributi
 - Pinned/running/folder sections, custom separators, and Command-drag with collapsed magnification and unpinning.
 - Setup guidance, optional login launch, recoverable menu bar hiding, uninstall/reinstall reset, and upgrade preservation.
 - Screen Recording requests initiated by a permission button rather than startup or unapproved background capture.
-- English app-owned text and current documentation for v0.4.0. These changes do not establish market-wide validation or readiness for 1.0.
+- English app-owned text and current documentation for v0.4.0; v0.4.1 adds Korean support and selectable language. These changes do not establish market-wide validation or readiness for 1.0.

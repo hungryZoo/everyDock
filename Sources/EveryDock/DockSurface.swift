@@ -65,12 +65,12 @@ import QuartzCore
         dropHint.isHidden = true
         dropHint.setAccessibilityElement(false)
         addSubview(dropHint)
-        menuButton.image = NSImage(systemSymbolName: "line.3.horizontal", accessibilityDescription: "everyDock Menu")
+        menuButton.image = NSImage(systemSymbolName: "line.3.horizontal", accessibilityDescription: L10n.text("everyDock Menu"))
         menuButton.isBordered = false
         menuButton.target = self
         menuButton.action = #selector(showDockMenu)
-        menuButton.toolTip = "everyDock Menu"
-        menuButton.setAccessibilityLabel("everyDock Menu")
+        menuButton.toolTip = L10n.text("everyDock Menu")
+        menuButton.setAccessibilityLabel(L10n.text("everyDock Menu"))
         // Dock controls live in the menu bar and the Dock background's contextual menu.
         for item in DockUtility.allCases {
             let button = DockUtilityButton(item: item, model: model)
@@ -121,7 +121,7 @@ import QuartzCore
             button.target = self
             button.action = #selector(appClicked(_:))
             if !app.isSeparator { button.setArtwork(app.icon) }
-            button.setAccessibilityValue(app.isLaunching ? "Launching…" : app.isHidden ? "Hidden" : app.isActive ? "Active" : app.isRunning ? "Running" : "Not Running")
+            button.setAccessibilityValue(app.isLaunching ? L10n.text("Launching…") : app.isHidden ? L10n.text("Hidden") : app.isActive ? L10n.text("Active") : app.isRunning ? L10n.text("Running") : L10n.text("Not Running"))
             buttons[app.id] = button
             if app.isLaunching && launches[app.id] == nil { launches[app.id] = ProcessInfo.processInfo.systemUptime }
             if !app.isLaunching { launches.removeValue(forKey: app.id) }
@@ -157,7 +157,7 @@ import QuartzCore
         itemIDs = visibleApps.map(\.id) + DockUtility.allCases.map { "utility.\($0.rawValue)" }
         let visibleIDs = Set(visibleApps.map(\.id))
         buttons.forEach { $0.value.isHidden = !visibleIDs.contains($0.key) }
-        menuButton.toolTip = model.apps.count > visibleApps.count ? "everyDock Menu · Scroll to see more apps" : "everyDock Menu"
+        menuButton.toolTip = model.apps.count > visibleApps.count ? L10n.text("everyDock Menu · Scroll to see more apps") : L10n.text("everyDock Menu")
     }
 
     func updatePointer(at location: NSPoint? = nil) {
@@ -282,7 +282,7 @@ import QuartzCore
         indicators.apply()
         let hovered = hoverPoint.flatMap { point in visibleApps.first { !$0.isSeparator && buttons[$0.id]?.frame.contains(point) == true } }
         if let hovered, let button = buttons[hovered.id] {
-            let title = hovered.name + (hovered.isLaunching ? " — Launching…" : "")
+            let title = hovered.name + (hovered.isLaunching ? L10n.text(" — Launching…") : "")
             if tooltip.stringValue != title { tooltip.stringValue = title }
             let width = tooltip.intrinsicContentSize.width + 18
             let height = 26.0
@@ -332,11 +332,11 @@ import QuartzCore
     }
     @objc private func showDockMenu() {
         let menu = NSMenu()
-        add(menu, "Add Apps…", #selector(addApps))
-        add(menu, "Settings…", #selector(settings))
+        add(menu, L10n.text("Add Apps…"), #selector(addApps))
+        add(menu, L10n.text("Settings…"), #selector(settings))
         menu.addItem(.separator())
-        add(menu, "Hide All Docks", #selector(pause))
-        add(menu, "Quit everyDock", #selector(quit))
+        add(menu, L10n.text("Hide All Docks"), #selector(pause))
+        add(menu, L10n.text("Quit everyDock"), #selector(quit))
         presentMenu(menu, anchor: self)
     }
     func presentMenu(_ menu: NSMenu, anchor: NSView) {
@@ -379,14 +379,14 @@ import QuartzCore
         }
         let menu = NSMenu()
         if insertionIndex != nil {
-            add(menu, "Add Separator Here", #selector(insertSeparator))
+            add(menu, L10n.text("Add Separator Here"), #selector(insertSeparator))
             menu.addItem(.separator())
         }
-        add(menu, "Add Apps…", #selector(addApps))
-        add(menu, "Settings…", #selector(settings))
+        add(menu, L10n.text("Add Apps…"), #selector(addApps))
+        add(menu, L10n.text("Settings…"), #selector(settings))
         menu.addItem(.separator())
-        add(menu, "Hide All Docks", #selector(pause))
-        add(menu, "Quit everyDock", #selector(quit))
+        add(menu, L10n.text("Hide All Docks"), #selector(pause))
+        add(menu, L10n.text("Quit everyDock"), #selector(quit))
         presentMenu(menu, anchor: self)
     }
     @objc private func insertSeparator() { model.addSeparator(at: insertionIndex) }
@@ -435,7 +435,7 @@ import QuartzCore
                 guard dragged.isPinned, !dragged.isSeparator else { return [] }
                 dropAction = .unpin
                 showDropIndicator(at: boundary, color: .systemOrange)
-                dropHint.stringValue = "Unpin from Dock"
+                dropHint.stringValue = L10n.text("Unpin from Dock")
                 let width = dropHint.intrinsicContentSize.width + 18
                 switch edge {
                 case .bottom:
@@ -678,7 +678,7 @@ private final class DockIndicators: NSView {
         let data = NSPasteboardItem()
         data.setString(app.id, forType: DockSurface.reorderType)
         let item = NSDraggingItem(pasteboardWriter: data)
-        let image = app.isSeparator ? NSImage(systemSymbolName: "line.diagonal", accessibilityDescription: "Separator")! : app.icon
+        let image = app.isSeparator ? NSImage(systemSymbolName: "line.diagonal", accessibilityDescription: L10n.text("Separator"))! : app.icon
         let point = convert(event.locationInWindow, from: nil)
         item.setDraggingFrame(NSRect(x: point.x - bounds.width / 2, y: point.y - bounds.height / 2, width: bounds.width, height: bounds.height), contents: image)
         let session = beginDraggingSession(with: [item], event: event, source: self)
@@ -708,9 +708,9 @@ private final class DockIndicators: NSView {
     private func showAppMenu() {
         if app.isSeparator {
             let menu = NSMenu()
-            add(menu, "Remove Separator", #selector(pin))
-            add(menu, "Move Earlier", #selector(moveEarlier))
-            add(menu, "Move Later", #selector(moveLater))
+            add(menu, L10n.text("Remove Separator"), #selector(pin))
+            add(menu, L10n.text("Move Earlier"), #selector(moveEarlier))
+            add(menu, L10n.text("Move Later"), #selector(moveLater))
             (superview as? DockSurface)?.presentMenu(menu, anchor: self)
         }
         else if app.isRunning { readNativeMenu(path: []) }
@@ -728,23 +728,23 @@ private final class DockIndicators: NSView {
         (superview as? DockSurface)?.presentMenu(menu, anchor: self)
     }
     private func appendAppActions(to menu: NSMenu) {
-        add(menu, "Open", #selector(openApp))
+        add(menu, L10n.text("Open"), #selector(openApp))
         if app.isRunning {
-            add(menu, "Show Windows…", #selector(showWindows))
-            add(menu, "Close All Windows", #selector(closeWindows))
+            add(menu, L10n.text("Show Windows…"), #selector(showWindows))
+            add(menu, L10n.text("Close All Windows"), #selector(closeWindows))
             menu.addItem(.separator())
         }
-        add(menu, app.isPinned ? "Unpin from Dock" : "Pin to Dock", #selector(pin))
+        add(menu, app.isPinned ? L10n.text("Unpin from Dock") : L10n.text("Pin to Dock"), #selector(pin))
         if app.isPinned {
-            add(menu, "Move Earlier", #selector(moveEarlier))
-            add(menu, "Move Later", #selector(moveLater))
-            add(menu, "Add Separator Before", #selector(separatorBefore))
-            add(menu, "Add Separator After", #selector(separatorAfter))
+            add(menu, L10n.text("Move Earlier"), #selector(moveEarlier))
+            add(menu, L10n.text("Move Later"), #selector(moveLater))
+            add(menu, L10n.text("Add Separator Before"), #selector(separatorBefore))
+            add(menu, L10n.text("Add Separator After"), #selector(separatorAfter))
         }
-        add(menu, "Show in Finder", #selector(reveal))
+        add(menu, L10n.text("Show in Finder"), #selector(reveal))
         if app.isRunning && app.bundleIdentifier != "com.apple.finder" {
             menu.addItem(.separator())
-            add(menu, "Quit", #selector(quitApp))
+            add(menu, L10n.text("Quit"), #selector(quitApp))
         }
     }
     private func add(_ menu: NSMenu, _ title: String, _ action: Selector) { menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = self }
@@ -775,7 +775,7 @@ private final class DockIndicators: NSView {
             item.state = marked ? .on : .off
         }
         if !path.isEmpty {
-            command("‹ Back") { [weak self] in self?.readNativeMenu(path: Array(path.dropLast())) }
+            command(L10n.text("‹ Back")) { [weak self] in self?.readNativeMenu(path: Array(path.dropLast())) }
             menu.addItem(.separator())
         }
         for entry in entries {
@@ -839,10 +839,10 @@ private final class DockIndicators: NSView {
     }
     override func rightMouseDown(with event: NSEvent) {
         let menu = NSMenu()
-        menu.addItem(withTitle: item == .desktop ? "Open Desktop Folder" : "Open in Finder", action: #selector(openFolder), keyEquivalent: "").target = self
+        menu.addItem(withTitle: item == .desktop ? L10n.text("Open Desktop Folder") : L10n.text("Open in Finder"), action: #selector(openFolder), keyEquivalent: "").target = self
         if item == .trash {
             menu.addItem(.separator())
-            menu.addItem(withTitle: "Empty Trash…", action: #selector(emptyTrash), keyEquivalent: "").target = self
+            menu.addItem(withTitle: L10n.text("Empty Trash…"), action: #selector(emptyTrash), keyEquivalent: "").target = self
         }
         (superview as? DockSurface)?.presentMenu(menu, anchor: self)
     }

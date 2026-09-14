@@ -1,6 +1,6 @@
 # Releases and Homebrew Distribution
 
-Baseline: 2026-09-11. Source: [hungryZoo/everyDock](https://github.com/hungryZoo/everyDock). Cask: [hungryZoo/homebrew-tap](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb).
+Baseline: 2026-09-15. Source: [hungryZoo/everyDock](https://github.com/hungryZoo/everyDock). Cask: [hungryZoo/homebrew-tap](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb).
 
 ## 1. Version and validation
 
@@ -20,8 +20,8 @@ Default signing is ad-hoc. `CODE_SIGN_IDENTITY` can select another identity; the
 
 - Review staged source/docs/scripts; exclude `.build`, `dist`, credentials, permission databases, and user data.
 - Require the final source CI to pass tests and packaging on macOS 26 arm64.
-- Record TC-R01–04 evidence and limits. English presentation/documentation checks are TC-R09; actual visual checks are TC-M66.
-- Review new UI text in English while preserving external content and storage identifiers.
+- Record TC-R01–04 evidence and limits. English/Korean presentation and English documentation checks are TC-R09; actual visual checks are TC-M66.
+- Review new UI text in English and Korean while preserving external content and storage identifiers.
 - Render README with GitHub’s Markdown API and check links/anchors before committing:
 
 ```bash

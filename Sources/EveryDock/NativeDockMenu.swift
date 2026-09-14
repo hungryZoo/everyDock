@@ -1,3 +1,4 @@
+import DockCore
 import AppKit
 import ApplicationServices
 
@@ -19,11 +20,11 @@ enum NativeMenuFailure: Error, Sendable {
     case denied, timedOut, unavailable, changed, api(Int32)
     var message: String {
         switch self {
-        case .denied: "App menu access was denied. Check Accessibility permission."
-        case .timedOut: "The app menu is not responding. Try again."
-        case .unavailable: "This app’s Dock menu is unavailable. You can use the everyDock commands below."
-        case .changed: "The app menu has changed. Open it again to choose a command."
-        case .api(let code): "App menu error: \(code). You can use the everyDock commands below."
+        case .denied: L10n.text("App menu access was denied. Check Accessibility permission.")
+        case .timedOut: L10n.text("The app menu is not responding. Try again.")
+        case .unavailable: L10n.text("This app’s Dock menu is unavailable. You can use the everyDock commands below.")
+        case .changed: L10n.text("The app menu has changed. Open it again to choose a command.")
+        case .api(let code): L10n.text("App menu error: \(code). You can use the everyDock commands below.")
         }
     }
 }

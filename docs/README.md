@@ -1,6 +1,6 @@
 # everyDock Documentation
 
-Baseline: **v0.4.0 / 2026-09-11 / public beta**. Current specifications are English and describe the implemented contract, with verification recorded separately. Targets are not reported as measured achievements.
+Baseline: **v0.4.1 / 2026-09-15 / public beta**. Current specifications are English and describe the implemented contract, with verification recorded separately. Targets are not reported as measured achievements.
 
 | Document | Purpose | Audience |
 |---|---|---|
@@ -9,7 +9,7 @@ Baseline: **v0.4.0 / 2026-09-11 / public beta**. Current specifications are Engl
 | [SRS](SRS.md) | Implementable behavior, data, state, and failure handling. | Engineering, QA |
 | [TC](TC.md) | Stable test IDs, procedures, and expected results. | Engineering, QA |
 | [Releasing](RELEASING.md) | Packaging, GitHub releases, and the Homebrew tap. | Maintainers |
-| [v0.4.0 QA](QA-v0.4.0.md) | Tests actually performed and remaining checks. | Reviewers, testers |
+| [v0.4.1 QA](QA-v0.4.1.md) | Tests actually performed and remaining checks. | Reviewers, testers |
 
 ## Traceability
 
@@ -29,7 +29,7 @@ Keep IDs stable; do not delete or reuse retired IDs. Update implementation and t
 | MR-06: user control | P-06 | FR-16–18/26–29 | TC-A04/06/40/41/44–49, TC-M28–33/53/54/56–63 |
 | MR-07: distribution | P-07 | FR-19/30 | TC-R01–08, TC-M64 |
 | MR-08: local data | P-08 | NFR-04/05 | TC-M09/20–27, TC-P04 |
-| MR-09: English presentation | P-10 | FR-31 | TC-M66, TC-R09 |
+| MR-09: English/Korean presentation | P-10 | FR-31 | TC-A54–57, TC-M66/68, TC-R09 |
 
 ## Reading results
 

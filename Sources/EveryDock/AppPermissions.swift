@@ -8,7 +8,7 @@ import DockCore
     enum Status: Equatable {
         case unknown, allowed, denied
         var title: String {
-            switch self { case .unknown: "Not Checked"; case .allowed: "Allowed"; case .denied: "Denied by macOS" }
+            switch self { case .unknown: L10n.text("Not Checked"); case .allowed: L10n.text("Allowed"); case .denied: L10n.text("Denied by macOS") }
         }
     }
 
@@ -93,6 +93,13 @@ import DockCore
 
     func invalidateContent() { contentCache = nil }
 
+    func refreshLanguage() {
+        let denial: LocalizedText = "macOS denied screen access for this app. If permission is already enabled, the registered app may have a different signature."
+        if detail == L10n.render(denial, language: .english) || detail == L10n.render(denial, language: .korean) {
+            detail = L10n.text(denial)
+        }
+    }
+
     func recordCaptureError(_ error: any Error) {
         let failure = CaptureFailure.classify(error)
         if failure == .permissionDenied { capture = .denied; contentCache = nil }
@@ -114,7 +121,7 @@ import DockCore
         refreshCaptureStatus()
         guard requestCapturePermission else { return }
         do { _ = try await shareableContent(retry: true, requestPermission: true) }
-        catch CaptureFailure.permissionDenied { detail = "macOS denied screen access for this app. If permission is already enabled, the registered app may have a different signature." }
+        catch CaptureFailure.permissionDenied { detail = L10n.text("macOS denied screen access for this app. If permission is already enabled, the registered app may have a different signature.") }
         catch { detail = error.localizedDescription }
     }
 }

@@ -12,6 +12,9 @@ import Carbon
 enum EveryDockApp {
     @MainActor static func main() {
         let arguments = CommandLine.arguments
+        let saved = UserDefaults.standard.data(forKey: "everyDock.preferences.v1")
+            .flatMap { try? JSONDecoder().decode(DockPreferences.self, from: $0) }
+        L10n.use(saved?.language ?? .system)
         if arguments == [arguments[0], "--reset-for-uninstall"] {
             do { try UninstallCleanup.run(); exit(0) }
             catch { fputs("everyDock cleanup failed: \(error.localizedDescription)\n", stderr); exit(1) }
@@ -55,18 +58,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         coordinator = DockCoordinator(model: model)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(systemSymbolName: "dock.rectangle", accessibilityDescription: "everyDock")
-        statusItem.button?.toolTip = "everyDock — A Dock on every display"
-        let menu = NSMenu()
-        menu.delegate = self
-        menu.addItem(withTitle: "everyDock Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
-        menu.addItem(withTitle: "Add Apps…", action: #selector(addApps), keyEquivalent: "").target = self
-        menu.addItem(.separator())
-        pauseItem = menu.addItem(withTitle: "Hide All Docks", action: #selector(togglePause), keyEquivalent: "")
-        pauseItem.target = self
-        menu.addItem(withTitle: "Detect Displays Again", action: #selector(refreshDisplays), keyEquivalent: "").target = self
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit everyDock", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        statusItem.menu = menu
+        installStatusMenu()
+        model.onLanguageChanged = { [weak self] in self?.refreshLanguage() }
         statusObservation = model.$preferences.map(\.hideMenuBarIcon).removeDuplicates().sink { [weak self] hidden in
             self?.statusItem.isVisible = !hidden
         }
@@ -81,6 +74,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .background: break
         }
         checkLaunchPermissions()
+    }
+
+    private func installStatusMenu() {
+        statusItem.button?.toolTip = L10n.text("everyDock — A Dock on every display")
+        let menu = NSMenu()
+        menu.delegate = self
+        menu.addItem(withTitle: L10n.text("everyDock Settings…"), action: #selector(openSettings), keyEquivalent: ",").target = self
+        menu.addItem(withTitle: L10n.text("Add Apps…"), action: #selector(addApps), keyEquivalent: "").target = self
+        menu.addItem(.separator())
+        pauseItem = menu.addItem(withTitle: L10n.text("Hide All Docks"), action: #selector(togglePause), keyEquivalent: "")
+        pauseItem.target = self
+        menu.addItem(withTitle: L10n.text("Detect Displays Again"), action: #selector(refreshDisplays), keyEquivalent: "").target = self
+        menu.addItem(.separator())
+        menu.addItem(withTitle: L10n.text("Quit everyDock"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        statusItem.menu = menu
+    }
+
+    private func refreshLanguage() {
+        installMainMenu()
+        installStatusMenu()
+        settingsWindow?.title = L10n.text("everyDock Settings")
+        onboardingWindow?.title = L10n.text("Welcome to everyDock")
+        coordinator.refreshLanguage()
     }
 
     private func checkLaunchPermissions() {
@@ -101,30 +117,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        pauseItem.title = model.paused ? "Show All Docks" : "Hide All Docks"
+        pauseItem.title = model.paused ? L10n.text("Show All Docks") : L10n.text("Hide All Docks")
     }
 
     private func installMainMenu() {
         let main = NSMenu()
         let appItem = NSMenuItem()
         let appMenu = NSMenu(title: "everyDock")
-        appMenu.addItem(withTitle: "everyDock Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
+        appMenu.addItem(withTitle: L10n.text("everyDock Settings…"), action: #selector(openSettings), keyEquivalent: ",").target = self
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit everyDock", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: L10n.text("Quit everyDock"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
         let editItem = NSMenuItem()
-        let edit = NSMenu(title: "Edit")
-        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        let edit = NSMenu(title: L10n.text("Edit"))
+        edit.addItem(withTitle: L10n.text("Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: L10n.text("Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: L10n.text("Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: L10n.text("Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editItem.submenu = edit
         main.addItem(editItem)
         let windowItem = NSMenuItem()
-        let windows = NSMenu(title: "Window")
-        windows.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        windows.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        let windows = NSMenu(title: L10n.text("Window"))
+        windows.addItem(withTitle: L10n.text("Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windows.addItem(withTitle: L10n.text("Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowItem.submenu = windows
         main.addItem(windowItem)
         NSApp.mainMenu = main
@@ -136,7 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 760),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
-            window.title = "everyDock Settings"
+            window.title = L10n.text("everyDock Settings")
             window.contentView = NSHostingView(rootView: SettingsView(model: model))
             window.minSize = NSSize(width: 540, height: 620)
             window.isReleasedWhenClosed = false
@@ -155,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if onboardingWindow == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 620),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-            window.title = "Welcome to everyDock"
+            window.title = L10n.text("Welcome to everyDock")
             window.minSize = NSSize(width: 540, height: 520)
             window.isReleasedWhenClosed = false
             window.center()

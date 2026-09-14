@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.13 / 2026-09-11 |
-| Target | everyDock v0.4.0, Apple Silicon, macOS 26+ |
+| Document version | 1.15 / 2026-09-15 |
+| Target | everyDock v0.4.1, Apple Silicon, macOS 26+ |
 | Requirements | [SRS](SRS.md), [traceability](README.md) |
-| Current results | [QA-v0.4.0](QA-v0.4.0.md) |
+| Current results | [QA-v0.4.1](QA-v0.4.1.md) |
 
 ## 1. Execution rules
 
@@ -18,7 +18,7 @@ PASS applies only to the recorded environment and procedure. PARTIAL, BLOCKED, a
 | E3 | AX and capture permission allowed/denied/revoked/re-registered after update. |
 | E4 | Separate test user with dummy Desktop/Downloads/Trash files. |
 | E5 | Fresh checkout, Xcode 26+, Homebrew, no existing everyDock installation. |
-| E6 | Korean and English macOS; old preferences, English app text, multilingual external content. |
+| E6 | Korean and English macOS; old preferences, English/Korean app text, multilingual external content. |
 
 ## 2. Automated regressions
 
@@ -80,7 +80,7 @@ Run `swift test --arch arm64`; set `EVERYDOCK_RUN_QL_TEST=1` for the real Quick 
 
 ## 3. Manual regressions
 
-Use the matching environments above and the SRS detail for the linked behavior. Current execution status is in QA-v0.4.0; prior version observations remain in their dated QA records. Test only disposable windows/files when a procedure closes or deletes content.
+Use the matching environments above and the SRS detail for the linked behavior. Current execution status is in QA-v0.4.1; prior version observations remain in their dated QA records. Test only disposable windows/files when a procedure closes or deletes content.
 
 | ID | Procedure and expected result |
 |---|---|
@@ -149,7 +149,7 @@ Use the matching environments above and the SRS detail for the linked behavior. 
 | TC-M63 | Check startup/reopen with allowed/denied/error/slow permissions; show one guide, no capture request, and respect dismissal for the same check. |
 | TC-M64 | Uninstall/reinstall the released app; stop instances, restore native Dock, unregister login, and reset options/history separately from OS consent. |
 | TC-M65 | Fresh launch/reopen/hover does not request missing screen access; only the permission button requests, denial stops retries, and setup has no redundant bottom section. |
-| TC-M66 | On Korean and English macOS, inspect everyDock-owned setup/settings/menu/utility/preview/AX text for English and fitting; preserve external names and old preferences. |
+| TC-M66 | On Korean and English macOS, inspect everyDock-owned setup/settings/menu/utility/preview/AX text for the selected language and fitting; preserve external names and old preferences. |
 
 M01–05 map to FR-01/02; M06–11 to FR-03–07/18; M12–15 to FR-08/09; M16–22 to FR-10–13; M23–27 to FR-14/15; M28–33 to FR-16–18 and NFR-06; M34–40 to FR-20/21/14/15; M41–47 to FR-10/11/14/22–25; M48–52 to FR-21/24; M53–55 to FR-25/26; M56–58 to FR-27; M59–63 to FR-28/29; M64 to FR-30; M65 to FR-14/28; M66 to FR-31 and NFR-06.
 
@@ -178,11 +178,36 @@ These targets require real measurements. Display-link callback/render timing alo
 | TC-R06 | Normal quit/uninstall/reinstall: app removal and Dock restoration; since v0.3.9, reset settings/login while preserving unfinished journals. | FR-09/19/30, NFR-05 |
 | TC-R07 | Historical v0.3.8 opt-in zap fixture: ordinary uninstall preserved preferences, zap removed three paths and first-run cache while retaining journals. Superseded by R08; do not reuse the ID. | FR-30 |
 | TC-R08 | Install/upgrade/reinstall/uninstall an isolated artifact cask: preserve on upgrade, invoke reset on reinstall/removal without touching user data. | FR-30 |
-| TC-R09 | Scan app-owned source/current docs for untranslated Korean, inspect English bundle metadata, render README through GitHub Markdown, and check links/anchors. Preserve multilingual test inputs and historical evidence. | FR-31, NFR-08 |
+| TC-R09 | Check app-owned source uses the English/Korean catalog, inspect en/ko bundle metadata, render README through GitHub Markdown, and check links/anchors. Preserve multilingual test inputs and historical evidence. | FR-31, NFR-08 |
 
 ## 6. Evidence and release gates
 
-### Unreleased icon rendering checks — FR-03 / P-02
+### v0.4.1 permission-dialog navigation — FR-14/18/28
+
+| ID | Check | Result |
+|---|---|---|
+| TC-M69 | From setup, Settings, and preview permission actions, request AX/capture access with fresh, denied, and allowed TCC states. everyDock never opens System Settings automatically. The macOS dialog's settings button opens Settings on user choice. Separate settings links open only the intended pane and do not trigger another request. | NOT RUN |
+
+2026-09-15: source inspection confirmed the two automatic settings-open calls were removed from the request paths; only explicitly selected settings actions retain the privacy URLs. Do not claim the macOS dialog always appears: macOS can suppress repeat requests. No user TCC state was reset for validation.
+
+The automated suite succeeded (55 discovered tests, opt-in Quick Look integration skipped), including existing background-consent regressions. Release build and strict signature verification passed. Applied the local build to `/Applications/everyDock.app` and `dist/everyDock.app` after normal quit and relaunched it. The actual OS-dialog sequence in TC-M69 remains unverified; existing user permissions were preserved. No release assets or Homebrew version were changed.
+
+### v0.4.1 language/default checks — FR-02/15/17/31
+
+| ID | Check | Result |
+|---|---|---|
+| TC-A54 | languageSelectionResolvesPrimarySystemLanguageAndExplicitOverrides | PASS (2026-09-14) |
+| TC-A55 | newDefaultsAndLanguageMigrationPreserveSavedChoices | PASS (2026-09-14) |
+| TC-A56 | localizedInterpolationPreservesExternalNamesAndFallsBackToEnglish | PASS (2026-09-14) |
+| TC-A57 | koreanCatalogPreservesAllInterpolationTokens | PASS (2026-09-14) |
+| TC-M68 | New setup defaults off/0.60s; switch System/English/한국어 in Settings, check current menus/panels/folder and preview text, quit/reopen, preserve previous choices and external names. | NOT RUN |
+
+Do not carry the historical English-only release validation forward as bilingual UI validation. Language changes do not request permissions. The published v0.4.0 artifacts remain unchanged.
+
+2026-09-14 validation: `swift test --arch arm64` succeeded with 55 discovered tests (the opt-in Quick Look integration was skipped); TC-A54–57 passed. Release build and strict signature verification passed. The updated local app was installed at `/Applications/everyDock.app`, mirrored to `dist/everyDock.app`, and launched after normal quit. GitHub Markdown rendering succeeded and the language badge returned an SVG labeled “English | 한국어”. TC-M68 remains NOT RUN: the UI capture service failed with `failedToCreateImageDestination` before creating an app handle. Live language switching, clipping, and visual default-state checks are not claimed as verified.
+
+
+### v0.4.1 icon rendering checks — FR-03 / P-02
 
 | ID | Check | Result (2026-09-11) |
 |---|---|---|
@@ -190,11 +215,11 @@ These targets require real measurements. Display-link callback/render timing alo
 | TC-A53 | `iconArtworkSelectsHighResolutionRepresentation`: distinguish 32px and 1024px source representations by color; choose high-resolution artwork. | PASS |
 | TC-M67 | Compare resting/maximum-magnified app and utility icons on 1×/2× displays, reconnect/move displays, check aspect ratio and smooth motion. | NOT RUN |
 
-These changes are local and unreleased. Published v0.4.0 evidence below is unchanged. No new on-screen frame-time or GPU measurements have been performed.
+These changes ship in v0.4.1. Historical v0.4.0 evidence is unchanged. No new on-screen frame-time or GPU measurements have been performed.
 
 Validation on macOS 26.5.2 / arm64: `swift test --arch arm64` completed successfully (51 discovered tests; the opt-in Quick Look integration was skipped). Both new icon tests passed. Release build and strict code-signature verification passed. The local build was copied to `dist/everyDock.app` and `/Applications/everyDock.app` after normal quit, then launched. Homebrew assets/tags remain unchanged. TC-M67 still requires visual verification.
 
-Current results: [QA-v0.4.0](QA-v0.4.0.md). Historical records: [initial QA](../QA.md), [v0.3.1](QA-v0.3.1.md), [v0.3.2](QA-v0.3.2.md), [v0.3.3](QA-v0.3.3.md), [v0.3.4](QA-v0.3.4.md), [v0.3.5](QA-v0.3.5.md), [v0.3.6](QA-v0.3.6.md), [v0.3.7](QA-v0.3.7.md), [v0.3.8](QA-v0.3.8.md), [v0.3.9](QA-v0.3.9.md), [v0.3.10](QA-v0.3.10.md). Historical records retain their original language and version-specific scope.
+Current results: [QA-v0.4.1](QA-v0.4.1.md). Historical records: [initial QA](../QA.md), [v0.3.1](QA-v0.3.1.md), [v0.3.2](QA-v0.3.2.md), [v0.3.3](QA-v0.3.3.md), [v0.3.4](QA-v0.3.4.md), [v0.3.5](QA-v0.3.5.md), [v0.3.6](QA-v0.3.6.md), [v0.3.7](QA-v0.3.7.md), [v0.3.8](QA-v0.3.8.md), [v0.3.9](QA-v0.3.9.md), [v0.3.10](QA-v0.3.10.md). Historical records retain their original language and version-specific scope.
 
 A defect report includes TC ID, expected/actual behavior, reproduction count, environment, permissions, commit, and redacted evidence. File loss, failed restoration, launch failure, or duplicate panels are P0. Assess interaction defects by task impact.
 

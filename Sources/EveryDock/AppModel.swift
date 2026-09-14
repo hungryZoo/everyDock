@@ -30,6 +30,15 @@ struct DisplayInfo: Identifiable {
 final class AppModel: NSObject, ObservableObject {
     @Published var preferences: DockPreferences {
         didSet {
+            let languageChanged = preferences.language != oldValue.language
+            if languageChanged {
+                L10n.use(preferences.language)
+                permissions.refreshLanguage()
+                utilities.stop()
+                utilities = DockUtilities()
+                utilities.onChange = { [weak self] in self?.dockDidChange.send() }
+                message = nil
+            }
             if let data = try? JSONEncoder().encode(preferences) {
                 UserDefaults.standard.set(data, forKey: Self.preferencesKey)
             }
@@ -37,6 +46,7 @@ final class AppModel: NSObject, ObservableObject {
             updateNativeDock()
             onLayoutChanged?()
             dockDidChange.send()
+            if languageChanged { onLanguageChanged?() }
         }
     }
     @Published private(set) var apps: [DockApplication] = []
@@ -56,6 +66,7 @@ final class AppModel: NSObject, ObservableObject {
     var onLayoutChanged: (() -> Void)?
     var showSettings: (() -> Void)?
     var showOnboarding: (() -> Void)?
+    var onLanguageChanged: (() -> Void)?
     private var iconCache: [String: NSImage] = [:]
     private var nameCache: [String: String] = [:]
     private var pendingLaunches: [String: (url: URL, started: Date)] = [:]
@@ -69,7 +80,7 @@ final class AppModel: NSObject, ObservableObject {
     private var permissionObservation: AnyCancellable?
     let dockDidChange = PassthroughSubject<Void, Never>()
     private let nativeDock = NativeDockManager()
-    let utilities = DockUtilities()
+    private(set) var utilities = DockUtilities()
     private var clicksInProgress = Set<String>()
     private var lastExternalPID: pid_t?
     private var lastProcessSignature = ""
@@ -177,7 +188,7 @@ final class AppModel: NSObject, ObservableObject {
         var seen = Set<String>()
         for pinned in preferences.pinnedApps {
             if let separatorID = pinned.separatorID {
-                result.append(DockApplication(id: pinned.id, url: URL(string: pinned.path)!, name: "Separator",
+                result.append(DockApplication(id: pinned.id, url: URL(string: pinned.path)!, name: L10n.text("Separator"),
                     icon: NSImage(size: .zero), bundleIdentifier: nil, isPinned: true, isRunning: false,
                     isActive: false, isLaunching: false, isHidden: false, separatorID: separatorID))
                 continue
@@ -282,11 +293,11 @@ final class AppModel: NSObject, ObservableObject {
                 case .failed(let failure) where active && shouldMinimize:
                     permissions.recordAccessibility(failure)
                     switch failure {
-                    case .permissionDenied: report("macOS denied window control for everyDock. If permission is enabled, the registered app may have a different signature. Use Check Permission Status and Show App Location in Settings.")
+                    case .permissionDenied: report(L10n.text("macOS denied window control for everyDock. If permission is enabled, the registered app may have a different signature. Use Check Permission Status and Show App Location in Settings."))
                     case .noWindow: openApplication(app)
-                    case .unsupported: report("This window does not support macOS minimization.")
-                    case .timedOut: report("The app did not respond to the window request in time. Try again in a moment.")
-                    case .apiError(let code): report("The window action failed. macOS error code: \(code)")
+                    case .unsupported: report(L10n.text("This window does not support macOS minimization."))
+                    case .timedOut: report(L10n.text("The app did not respond to the window request in time. Try again in a moment."))
+                    case .apiError(let code): report(L10n.text("The window action failed. macOS error code: \(code)"))
                     }
                 case .restored:
                     permissions.recordAccessibility(nil)
@@ -329,7 +340,7 @@ final class AppModel: NSObject, ObservableObject {
         guard FileManager.default.fileExists(atPath: app.url.path) else {
             pendingLaunches.removeValue(forKey: app.id)
             refreshApps()
-            report("Cannot find \(app.name). Unpin it and add the app again.")
+            report(L10n.text("Cannot find \(app.name). Unpin it and add the app again."))
             return
         }
         let configuration = NSWorkspace.OpenConfiguration()
@@ -339,7 +350,7 @@ final class AppModel: NSObject, ObservableObject {
             Task { @MainActor in
                 if let detail {
                     self?.pendingLaunches.removeValue(forKey: app.id)
-                    self?.report("Could not open the app: \(detail)")
+                    self?.report(L10n.text("Could not open the app: \(detail)"))
                 }
                 self?.refreshApps()
             }
@@ -352,7 +363,7 @@ final class AppModel: NSObject, ObservableObject {
             try nativeDock.setManaging(preferences.manageNativeDock && !paused && hasDock)
             nativeDockManaged = nativeDock.isManaging
         } catch {
-            message = "Could not manage the macOS Dock: \(error.localizedDescription)"
+            message = L10n.text("Could not manage the macOS Dock: \(error.localizedDescription)")
         }
     }
 
@@ -360,16 +371,21 @@ final class AppModel: NSObject, ObservableObject {
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
         permissions.refreshHints()
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
 
     func requestScreenCapture() {
         Task { @MainActor in
             await permissions.recheck(requestCapturePermission: true)
-            if permissions.capture != .allowed {
-                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
-            }
         }
+    }
+
+    // Opening Settings is a separate user action, never a permission-request side effect.
+    func openAccessibilitySettings() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+    }
+
+    func openScreenCaptureSettings() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
     }
 
     func recheckPermissions() { Task { @MainActor in await permissions.recheck() } }
@@ -408,8 +424,8 @@ final class AppModel: NSObject, ObservableObject {
     func chooseApps() {
         NSApp.activate()
         let panel = NSOpenPanel()
-        panel.title = "Choose Apps to Pin"
-        panel.prompt = "Add"
+        panel.title = L10n.text("Choose Apps to Pin")
+        panel.prompt = L10n.text("Add")
         panel.allowedContentTypes = [.applicationBundle]
         panel.allowsMultipleSelection = true
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
@@ -479,7 +495,7 @@ final class AppModel: NSObject, ObservableObject {
     func importNativeDock() {
         let imported = Self.nativeDockApps()
         guard !imported.isEmpty else {
-            message = "Could not read pinned apps from the macOS Dock. Choose Add Apps to select them manually."
+            message = L10n.text("Could not read pinned apps from the macOS Dock. Choose Add Apps to select them manually.")
             return
         }
         addApps(imported.map { URL(fileURLWithPath: $0.path) })
@@ -514,7 +530,7 @@ final class AppModel: NSObject, ObservableObject {
         do {
             if enabled { try SMAppService.mainApp.register() }
             else { try SMAppService.mainApp.unregister() }
-        } catch { message = "Could not update the login item: \(error.localizedDescription)" }
+        } catch { message = L10n.text("Could not update the login item: \(error.localizedDescription)") }
         refreshLoginStatus()
     }
 
