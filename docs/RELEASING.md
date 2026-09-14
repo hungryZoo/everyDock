@@ -54,12 +54,12 @@ Use a separate checkout and preserve unrelated packages. Change version/checksum
 ```bash
 brew tap hungryZoo/tap
 brew trust --cask hungryZoo/tap/everydock
-brew style hungryZoo/tap/everydock
+brew style --except-cops Cask/InstallSteps hungryZoo/tap/everydock
 brew audit --cask hungryZoo/tap/everydock
 brew fetch --cask hungryZoo/tap/everydock
 ```
 
-Record ordinary audit separately from online/strict/notarization checks, which can fail for the ad-hoc beta. The legacy uninstall_preflight hook has a documented style exception because its removal-versus-upgrade decision must happen at runtime. Do not hide Homebrew warnings.
+Record ordinary audit separately from online/strict/notarization checks, which can fail for the ad-hoc beta. The legacy uninstall_preflight hook has an explicit Cask/InstallSteps exception because its removal-versus-upgrade decision must happen at runtime. A full default style check still reports that rule; do not call the exception-scoped check an unrestricted style pass. Inline RuboCop directives are no longer used. Do not hide Homebrew warnings.
 
 Use a fresh installation or isolated test environment for install coverage. `brew reinstall` deliberately resets preferences, so do not use it as a settings-preserving upgrade test. Verify the app-scoped quarantine step and launch instructions from README. Cask scripts do not disable Gatekeeper or clear quarantine automatically.
 
