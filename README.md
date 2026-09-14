@@ -8,11 +8,15 @@ Keep apps, windows, and everyday files within reach on every monitor.
 
 [![Release](https://img.shields.io/github/v/release/hungryZoo/everyDock?include_prereleases&style=flat-square)](https://github.com/hungryZoo/everyDock/releases) [![Languages](https://img.shields.io/badge/languages-English%20%7C%20%ED%95%9C%EA%B5%AD%EC%96%B4-blue?style=flat-square)](#5-configuration) [![License](https://img.shields.io/badge/license-not%20specified-lightgrey?style=flat-square)](#9-license) [![Built with Swift](https://img.shields.io/badge/built%20with-Swift%206-F05138?style=flat-square&logo=swift&logoColor=white)](Package.swift)
 
+</div>
+
 ```bash
 brew install --cask hungryZoo/tap/everydock
 xattr -dr com.apple.quarantine /Applications/everyDock.app
 open -a everyDock
 ```
+
+<div align="center">
 
 **Apple Silicon · macOS 26+ · Homebrew 6**
 
