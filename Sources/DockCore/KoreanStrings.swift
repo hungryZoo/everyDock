@@ -3,6 +3,11 @@ import Foundation
 
 extension L10n {
     static let korean: [String: String] = [
+        "Use macOS Dock When No External Display Is Connected": "외부 모니터가 없으면 기본 Dock 사용",
+        "Pauses everyDock and its background monitoring on the built-in display alone. Reconnect an external display to resume automatically.": "내장 화면만 사용할 때 everyDock과 백그라운드 감시를 멈춥니다. 외부 모니터를 다시 연결하면 자동으로 재개합니다.",
+        "Paused — using macOS Dock until an external display is connected.": "일시 중지됨 — 외부 모니터를 연결할 때까지 기본 Dock을 사용합니다.",
+        "The app order was saved in everyDock, but could not be synced to macOS Dock. Try moving the app again.": "everyDock에 앱 순서는 저장했지만 기본 Dock에 반영하지 못했습니다. 앱을 다시 이동해 주세요.",
+        "Press and hold an app or separator for 0.30 seconds, then drag to reorder. Move an app into the pinned section to pin it, or into the running section to unpin it. App order and pins sync both ways with macOS Dock. everyDock keeps its own separators.": "앱이나 구분선을 0.30초간 누른 뒤 끌어서 순서를 바꾸세요. 앱을 고정 영역으로 옮기면 고정되고, 실행 영역으로 옮기면 고정이 해제됩니다. 앱 순서와 고정 상태는 기본 Dock과 양방향으로 동기화됩니다. everyDock의 구분선은 그대로 유지됩니다.",
         " — Launching…": " — 실행 중…",
         "‹ Back": "‹ 이전 메뉴",
         "{0} displays": "디스플레이 {0}개",

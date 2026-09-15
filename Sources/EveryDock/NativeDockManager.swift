@@ -12,6 +12,7 @@ final class NativeDockManager {
         "mineffect": .string("genie")
     ]
     private var watchdog: Process?
+    private var pinsNeedReload = false
     private(set) var isManaging = false
     private let journal: URL
 
@@ -46,12 +47,18 @@ final class NativeDockManager {
             isManaging = true
             Self.restartDock()
         } else {
-            try Self.restoreUnlocked(from: journal)
+            try Self.restoreUnlocked(from: journal, forceReload: pinsNeedReload)
+            pinsNeedReload = false
             isManaging = false
             watchdog?.terminate()
             watchdog = nil
         }
         }
+    }
+
+    func pinsDidChange() {
+        if isManaging { pinsNeedReload = true }
+        else { Self.restartDock() }
     }
 
     static func runWatchdog(parent: pid_t, journal: URL) {
@@ -126,13 +133,13 @@ final class NativeDockManager {
         try body()
     }
 
-    private static func restoreUnlocked(from journal: URL) throws {
+    private static func restoreUnlocked(from journal: URL, forceReload: Bool = false) throws {
         guard FileManager.default.fileExists(atPath: journal.path) else { return }
         let snapshot = try JSONDecoder().decode(NativeDockSnapshot.self, from: Data(contentsOf: journal))
         let restore = snapshot.restoration(current: readValues())
         write(restore)
         try FileManager.default.removeItem(at: journal)
-        if !restore.isEmpty { restartDock() }
+        if !restore.isEmpty || forceReload { restartDock() }
     }
 
     private static func restartDock() {

@@ -30,6 +30,10 @@ struct DisplayInfo: Identifiable {
 final class AppModel: NSObject, ObservableObject {
     @Published var preferences: DockPreferences {
         didSet {
+            if preferences.pinnedApps != oldValue.pinnedApps {
+                nativePinRevision += 1
+                if !applyingNativePins { synchronizeNativePins(after: oldValue.pinnedApps) }
+            }
             let languageChanged = preferences.language != oldValue.language
             if languageChanged {
                 L10n.use(preferences.language)
@@ -44,6 +48,7 @@ final class AppModel: NSObject, ObservableObject {
             }
             refreshApps()
             updateNativeDock()
+            configureActivity()
             onLayoutChanged?()
             dockDidChange.send()
             if languageChanged { onLanguageChanged?() }
@@ -62,7 +67,13 @@ final class AppModel: NSObject, ObservableObject {
     var magnification: Double { preferences.followNativeSize ? nativeStyle.magnification : preferences.magnification }
     var edgeInset: Double { preferences.followNativeSize ? 3 : preferences.inset }
     @Published var message: String?
-    @Published var paused = false { didSet { updateNativeDock(); onLayoutChanged?() } }
+    @Published var paused = false { didSet { updateNativeDock(); configureActivity(); onLayoutChanged?() } }
+    @Published private(set) var onlineDisplayBuiltIns = AppModel.onlineDisplays()
+    var automaticallyPaused: Bool {
+        DockActivity.automaticallyPaused(enabled: preferences.pauseWithoutExternalDisplay, onlineDisplayBuiltIns: onlineDisplayBuiltIns)
+    }
+    var isDockInactive: Bool { paused || automaticallyPaused }
+    private var activitySuspended: Bool?
     var onLayoutChanged: (() -> Void)?
     var showSettings: (() -> Void)?
     var showOnboarding: (() -> Void)?
@@ -80,6 +91,12 @@ final class AppModel: NSObject, ObservableObject {
     private var permissionObservation: AnyCancellable?
     let dockDidChange = PassthroughSubject<Void, Never>()
     private let nativeDock = NativeDockManager()
+    private let nativePins = NativeDockPinSync()
+    private var nativePinTask: Task<Void, Never>?
+    private var nativePinReadPending = false
+    private var nativePinWriteFailed = false
+    private var nativePinRevision: UInt64 = 0
+    private var applyingNativePins = false
     private(set) var utilities = DockUtilities()
     private var clicksInProgress = Set<String>()
     private var lastExternalPID: pid_t?
@@ -120,11 +137,9 @@ final class AppModel: NSObject, ObservableObject {
         workspaceObservation = NSWorkspace.shared.observe(\.runningApplications) { [weak self] _, _ in
             Task { @MainActor in self?.refreshApps() }
         }
-        let timer = Timer(timeInterval: 5, target: self, selector: #selector(reconcileApplications), userInfo: nil, repeats: true)
-        timer.tolerance = 1
-        RunLoop.main.add(timer, forMode: .common)
-        refreshTimer = timer
-        refreshApps()
+        configureActivity()
+        refreshNativePins()
+        refreshApps(force: true)
         refreshLoginStatus()
     }
 
@@ -147,14 +162,15 @@ final class AppModel: NSObject, ObservableObject {
     @objc private func reconcileApplications() {
         // Safety net for apps that change LSUIElement/activation policy after launching.
         refreshApps()
+        refreshNativePins()
         let style = NativeDockStyle.read()
         if nativeStyle != style { nativeStyle = style; onLayoutChanged?(); dockDidChange.send() }
     }
 
-    @objc func refreshPermissionHints() { permissions.refreshHints(); refreshLoginStatus() }
+    @objc func refreshPermissionHints() { permissions.refreshHints(); refreshLoginStatus(); refreshNativePins() }
 
-    func refreshApps() {
-        guard !stopped else { return }
+    func refreshApps(force: Bool = false) {
+        guard !stopped, force || !isDockInactive || NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeKey }) else { return }
         refreshRequested = true
         guard refreshTask == nil else { return }
         refreshTask = Task { @MainActor in
@@ -166,11 +182,12 @@ final class AppModel: NSObject, ObservableObject {
                 applyApplications(snapshots)
             }
             refreshTask = nil
+            if refreshRequested && !stopped { refreshApps() }
         }
     }
 
     private func applyApplications(_ all: [ApplicationSnapshot]) {
-        observeApplications(all)
+        if !isDockInactive { observeApplications(all) }
         pendingLaunches = pendingLaunches.filter { key, pending in
             Date().timeIntervalSince(pending.started) < 45 && !all.contains {
                 ($0.bundleIdentifier ?? $0.url?.path) == key && $0.finished
@@ -360,7 +377,7 @@ final class AppModel: NSObject, ObservableObject {
     func updateNativeDock() {
         let hasDock = NSScreen.screens.contains { !preferences.hiddenDisplayIDs.contains(Self.displayID($0)) }
         do {
-            try nativeDock.setManaging(preferences.manageNativeDock && !paused && hasDock)
+            try nativeDock.setManaging(preferences.manageNativeDock && !isDockInactive && hasDock)
             nativeDockManaged = nativeDock.isManaging
         } catch {
             message = L10n.text("Could not manage the macOS Dock: \(error.localizedDescription)")
@@ -390,6 +407,12 @@ final class AppModel: NSObject, ObservableObject {
 
     func recheckPermissions() { Task { @MainActor in await permissions.recheck() } }
     func revealCurrentApp() { NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL]) }
+
+    func finishPinSynchronization() async {
+        stopped = true
+        refreshTimer?.invalidate()
+        await nativePinTask?.value
+    }
 
     func stop() {
         stopped = true
@@ -450,12 +473,59 @@ final class AppModel: NSObject, ObservableObject {
             item = .init(path: app.url.path, bundleIdentifier: app.bundleIdentifier)
         }
         let reordered = DockReordering.inserting(item, into: preferences.pinnedApps, at: slot)
-        if reordered != preferences.pinnedApps { preferences.pinnedApps = reordered }
+        if reordered != preferences.pinnedApps {
+            preferences.pinnedApps = reordered
+        }
     }
 
     func unpinDraggedApp(_ app: DockApplication) {
         guard !app.isSeparator, let index = pinIndex(app) else { return }
         preferences.pinnedApps.remove(at: index)
+    }
+
+    private func synchronizeNativePins(after previous: [PinnedApplication]) {
+        let pins = preferences.pinnedApps.filter { !$0.isSeparator }
+        let old = previous.filter { !$0.isSeparator }
+        guard pins != old else { return }
+        let removing = Set(old.map(\.path)).subtracting(pins.map(\.path))
+        let preceding = nativePinTask
+        nativePinTask = Task { @MainActor in
+            await preceding?.value
+            do {
+                let changed = try await nativePins.apply(pins: pins, removing: removing)
+                nativePinWriteFailed = false
+                // A hidden native Dock reloads the new order on restoration; no per-drag restart.
+                if changed { nativeDock.pinsDidChange() }
+            } catch {
+                nativePinWriteFailed = true
+                report(L10n.text("The app order was saved in everyDock, but could not be synced to macOS Dock. Try moving the app again."))
+            }
+        }
+    }
+
+    private func refreshNativePins() {
+        guard !stopped, !nativePinReadPending, !DockAppButton.isReordering else { return }
+        nativePinReadPending = true
+        let revision = nativePinRevision
+        let preceding = nativePinTask
+        nativePinTask = Task { @MainActor in
+            await preceding?.value
+            defer { nativePinReadPending = false }
+            do {
+                guard !nativePinWriteFailed else { return }
+                guard let pins = try await nativePins.read(), !stopped,
+                      revision == nativePinRevision, !DockAppButton.isReordering else { return }
+                let imported = NativeDockPins.importing(pins.filter { $0.bundleIdentifier != Bundle.main.bundleIdentifier }, into: preferences.pinnedApps)
+                guard imported != preferences.pinnedApps else { return }
+                // Do not echo native changes back or restart the native Dock on reads.
+                applyingNativePins = true
+                preferences.pinnedApps = imported
+                applyingNativePins = false
+            } catch {
+                // A transient/malformed read must never clear the user's saved list.
+                NSLog("everyDock: native Dock pin read failed: %@", String(describing: error))
+            }
+        }
     }
 
     func addSeparator(at index: Int? = nil) {
@@ -476,9 +546,49 @@ final class AppModel: NSObject, ObservableObject {
     }
 
     func updateDisplays() {
+        onlineDisplayBuiltIns = AppModel.onlineDisplays()
+        configureActivity()
         displays = NSScreen.screens.map {
             DisplayInfo(id: Self.displayID($0), name: $0.localizedName,
                         size: "\(Int($0.frame.width)) × \(Int($0.frame.height)) pt")
+        }
+    }
+
+    private static func onlineDisplays() -> [Bool] {
+        var count: UInt32 = 0
+        guard CGGetOnlineDisplayList(0, nil, &count) == .success else { return [false] }
+        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetOnlineDisplayList(count, &ids, &count) == .success else { return [false] }
+        return ids.prefix(Int(count)).map { CGDisplayIsBuiltin($0) != 0 }
+    }
+
+    private func configureActivity() {
+        let inactive = isDockInactive
+        guard activitySuspended != inactive else {
+            if inactive { utilities.stop() }
+            return
+        }
+        let wasSuspended = activitySuspended == true
+        activitySuspended = inactive
+        if inactive {
+            refreshTimer?.invalidate(); refreshTimer = nil
+            refreshTask?.cancel()
+            refreshRequested = false
+            applicationObservations.values.flatMap { $0 }.forEach { $0.invalidate() }
+            applicationObservations.removeAll(); observedApplications.removeAll()
+            pendingLaunches.removeAll()
+            utilities.stop()
+        } else {
+            if wasSuspended {
+                refreshNativePins()
+                utilities = DockUtilities()
+                utilities.onChange = { [weak self] in self?.dockDidChange.send() }
+            }
+            let timer = Timer(timeInterval: 5, target: self, selector: #selector(reconcileApplications), userInfo: nil, repeats: true)
+            timer.tolerance = 1
+            RunLoop.main.add(timer, forMode: .common)
+            refreshTimer = timer
+            refreshApps()
         }
     }
 
@@ -493,12 +603,7 @@ final class AppModel: NSObject, ObservableObject {
     }
 
     func importNativeDock() {
-        let imported = Self.nativeDockApps()
-        guard !imported.isEmpty else {
-            message = L10n.text("Could not read pinned apps from the macOS Dock. Choose Add Apps to select them manually.")
-            return
-        }
-        addApps(imported.map { URL(fileURLWithPath: $0.path) })
+        refreshNativePins()
     }
 
     private static func nativeDockApps() -> [PinnedApplication] {

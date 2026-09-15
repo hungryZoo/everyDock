@@ -62,6 +62,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
     public var edge: DockEdge = .bottom
     public var showRunningApps = true
     public var showOnFullScreen = false
+    public var pauseWithoutExternalDisplay = true
     public var hiddenDisplayIDs: Set<String> = []
     public var pinnedApps: [PinnedApplication] = []
     public var magnification: Double = 1.65
@@ -79,7 +80,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         case iconSize, inset, edge, showRunningApps, showOnFullScreen, hiddenDisplayIDs, pinnedApps
         case magnification, manageNativeDock, clickToMinimize
         case followNativeSize, showPreviews, previewDelay
-        case hideMenuBarIcon, language
+        case hideMenuBarIcon, language, pauseWithoutExternalDisplay
     }
 
     public init(from decoder: Decoder) throws {
@@ -89,6 +90,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         edge = try values.decodeIfPresent(DockEdge.self, forKey: .edge) ?? .bottom
         showRunningApps = try values.decodeIfPresent(Bool.self, forKey: .showRunningApps) ?? true
         showOnFullScreen = try values.decodeIfPresent(Bool.self, forKey: .showOnFullScreen) ?? false
+        pauseWithoutExternalDisplay = try values.decodeIfPresent(Bool.self, forKey: .pauseWithoutExternalDisplay) ?? true
         hiddenDisplayIDs = try values.decodeIfPresent(Set<String>.self, forKey: .hiddenDisplayIDs) ?? []
         pinnedApps = try values.decodeIfPresent([PinnedApplication].self, forKey: .pinnedApps) ?? []
         magnification = try values.decodeIfPresent(Double.self, forKey: .magnification) ?? 1.65

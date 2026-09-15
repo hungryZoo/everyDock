@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.15 / 2026-09-15 |
-| Target | everyDock v0.4.1, Apple Silicon, macOS 26+ |
+| Document version | 1.17 / 2026-09-15 |
+| Target | everyDock v1.0.0, Apple Silicon, macOS 26+ |
 | Requirements | [SRS](SRS.md), [traceability](README.md) |
-| Current results | [QA-v0.4.1](QA-v0.4.1.md) |
+| Current results | [QA-v1.0.0](QA-v1.0.0.md) |
 
 ## 1. Execution rules
 
@@ -139,8 +139,8 @@ Use the matching environments above and the SRS detail for the linked behavior. 
 | TC-M53 | Insert separators in gaps/before/after apps, remove/reorder in Settings, and restart; preserve order and UUIDs. |
 | TC-M54 | Test pinned/running/folder ordering on side/narrow/multiple displays as apps launch/quit; separators never magnify or preview. |
 | TC-M55 | Reopen/switch folders ten times with changed and slow/failed thumbnails; retain images and enforce three requests/eight-second release. |
-| TC-M56 | Command-grab collapses magnification; reorder pins/separators and verify every screen, Settings, and persistence. |
-| TC-M57 | Test Command-click, movement below 4pt, Escape, invalid drops, and normal/Control clicks; cancellation does not launch or unpin. |
+| TC-M56 | A 0.30-second hold collapses magnification; reorder pins/separators and verify every screen, Settings, and persistence. |
+| TC-M57 | Test short click, hold/release, movement before the hold and below 4pt, Escape, invalid drops, and normal/Control clicks; cancellation does not launch or unpin. |
 | TC-M58 | Pin/unpin across monitors and edges, reject separator unpin and vanished targets, handle overflow, and recover input after cancellation. |
 | TC-M59 | First launch/close/relaunch/Set Up Later/upgrade shows one guide when required and preserves existing options on upgrade. |
 | TC-M60 | Permission actions lead to the proper settings and distinguish errors; detailed status/location help is now in Settings (see M65). |
@@ -178,9 +178,35 @@ These targets require real measurements. Display-link callback/render timing alo
 | TC-R06 | Normal quit/uninstall/reinstall: app removal and Dock restoration; since v0.3.9, reset settings/login while preserving unfinished journals. | FR-09/19/30, NFR-05 |
 | TC-R07 | Historical v0.3.8 opt-in zap fixture: ordinary uninstall preserved preferences, zap removed three paths and first-run cache while retaining journals. Superseded by R08; do not reuse the ID. | FR-30 |
 | TC-R08 | Install/upgrade/reinstall/uninstall an isolated artifact cask: preserve on upgrade, invoke reset on reinstall/removal without touching user data. | FR-30 |
+| TC-R10 | Compare source LICENSE/NOTICE with final bundled copies; recognize Apache-2.0, preserve its patent grant, and verify ownership language does not assert a registered patent. | FR-19 |
 | TC-R09 | Check app-owned source uses the English/Korean catalog, inspect en/ko bundle metadata, render README through GitHub Markdown, and check links/anchors. Preserve multilingual test inputs and historical evidence. | FR-31, NFR-08 |
 
 ## 6. Evidence and release gates
+
+### Unreleased display handoff and reordering — FR-27/32/33
+
+| ID | Check | Result |
+|---|---|---|
+| TC-A58 | externalDisplayPolicyHandlesLaptopDesktopMirroringAndOptOut: built-in only/headless pause; external/mirrored/desktop active; default-on and saved opt-out. | PASS (2026-09-15) |
+| TC-A59 | holdingDistinguishesClicksEarlyMovementAndCancellation: short click, movement cancellation, stale timer after release, armed drag/release. | PASS (2026-09-15) |
+| TC-A60 | nativeOrderIgnoresEveryDockSeparatorsAndPreservesMetadataAndOtherTiles: Finder excluded, native spacer/custom tile and native-only app retained, no-op stable. | PASS (2026-09-15) |
+| TC-A61 | nativeOrderPinsNewAppsAndUnpinsOnlyTheRequestedApp: duplicate suppression, metadata, targeted unpin, non-file rejection. | PASS (2026-09-15) |
+| TC-A62 | nativePinSyncWritesOnlyAppTilesAndRejectsMalformedState: isolated temporary preference domain; unrelated keys preserved, no-op no write, malformed schema refused. | PASS (2026-09-15) |
+| TC-A63 | nativeImportReflectsReorderPinUnpinAndKeepsLocalSeparators: native reorder/add/remove/unpin-all, duplicate suppression, stable separator identities/Finder slots, idempotent round trip. | PASS (2026-09-15) |
+| TC-A64 | nativePinsReadExternalChangesAfterReopeningAndDistinguishEmptyFromMissing: native changes in an isolated preference domain are read by a new reader; empty, missing, and malformed states remain distinct. | PASS (2026-09-15) |
+| TC-M70 | Connect/disconnect/reconnect external and mirrored displays, clamshell and desktop; verify native Dock restoration, manual pause independence, default/opt-out, Settings access, no duplicate timers/panels or ongoing frame/window work. Measure idle energy separately. | NOT RUN |
+| TC-M71 | Long press, short click, premature drag, release without drop, Escape, separators, pin/unpin, outside drop, and disconnect while held; verify no accidental launch. | NOT RUN |
+| TC-M72 | With disposable native Dock pins, reorder/pin/unpin in either Dock and Settings; verify startup, resume, activation, active five-second refresh, no inactive polling, stale-read rejection during a local drag, immediate quit after drop, and no echo/restart on import. Verify native metadata, Finder, folders, Trash, spacer identities and slots. | PARTIAL (2026-09-15; startup comparison only) |
+
+Automated native preference tests use a unique test domain; never reset or rearrange real user pins solely for verification. Published v0.4.1 assets are unchanged.
+
+2026-09-15 validation: `EVERYDOCK_RUN_QL_TEST=1 swift test --arch arm64` passed all 60 tests, including the real Quick Look integration. The release build and strict code-signature verification passed. GitHub Markdown rendering and `git diff --check` passed. After normal quit, the local build was applied to `dist/everyDock.app` and `/Applications/everyDock.app` and relaunched. TC-M70–72 remain NOT RUN: physical display handoff, live hold-and-drag interaction, and real native Dock pin ordering have not been verified. Energy savings have not been measured. These changes have not been published to GitHub Releases or Homebrew.
+
+### Reverse-sync correction — FR-33
+
+2026-09-15: the prior implementation only wrote everyDock edits to native preferences and loaded saved local pins on restart. It did not read later native edits. Reverse imports now run on launch, activation, resume, manual import, and active reconciliation, with revision checks and no write-back on imports. All pin-edit entry points use the outgoing queue, and normal termination drains pending work.
+
+Validation: all 62 tests passed with `EVERYDOCK_RUN_QL_TEST=1 swift test --arch arm64`, including real Quick Look. Release build, strict signature verification, and `git diff --check` passed. After normal quit, the corrected build was installed at `/Applications/everyDock.app` and `dist/everyDock.app` and relaunched. A read-only comparison of actual preferences found 16 app pins in each Dock: their order differed before replacement and matched after launch. The native app-order hash remained unchanged; the single local separator's identity also remained unchanged. No real native pins were rearranged for verification and no preference contents were committed. This verifies the reported startup mismatch against the installed app; physical display resume, live native dragging, race/error handling, and immediate quit-after-drop remain unverified portions of TC-M72. GitHub Releases and Homebrew are unchanged.
 
 ### v0.4.1 permission-dialog navigation — FR-14/18/28
 
@@ -223,4 +249,4 @@ Current results: [QA-v0.4.1](QA-v0.4.1.md). Historical records: [initial QA](../
 
 A defect report includes TC ID, expected/actual behavior, reproduction count, environment, permissions, commit, and redacted evidence. File loss, failed restoration, launch failure, or duplicate panels are P0. Assess interaction defects by task impact.
 
-Beta release requires relevant build/distribution checks and honest disclosure of missing observations. Stable promotion requires P0 manual tests, file preservation, permission-enabled workflows, measured performance, installation/update/removal, and notarization. Do not describe the entire suite as passed while manual cases remain.
+v1.0.0 publication is authorized by the owner with signing and verification limitations disclosed. Require relevant build/distribution checks and honest disclosure of missing observations. P0 manual tests, file preservation, permission-enabled workflows, measured performance, and notarization remain outstanding verification work. Do not describe the entire suite as passed while manual cases remain.

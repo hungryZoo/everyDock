@@ -6,7 +6,7 @@
 
 Keep apps, windows, and everyday files within reach on every monitor.
 
-[![Release](https://img.shields.io/github/v/release/hungryZoo/everyDock?include_prereleases&style=flat-square)](https://github.com/hungryZoo/everyDock/releases) [![Languages](https://img.shields.io/badge/languages-English%20%7C%20%ED%95%9C%EA%B5%AD%EC%96%B4-blue?style=flat-square)](#5-configuration) [![License](https://img.shields.io/badge/license-not%20specified-lightgrey?style=flat-square)](#9-license) [![Built with Swift](https://img.shields.io/badge/built%20with-Swift%206-F05138?style=flat-square&logo=swift&logoColor=white)](Package.swift)
+[![Release](https://img.shields.io/github/v/release/hungryZoo/everyDock?include_prereleases&style=flat-square)](https://github.com/hungryZoo/everyDock/releases) [![Languages](https://img.shields.io/badge/languages-English%20%7C%20%ED%95%9C%EA%B5%AD%EC%96%B4-blue?style=flat-square)](#5-configuration) [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](#9-license) [![Built with Swift](https://img.shields.io/badge/built%20with-Swift%206-F05138?style=flat-square&logo=swift&logoColor=white)](Package.swift)
 
 </div>
 
@@ -29,10 +29,10 @@ open -a everyDock
 ---
 
 everyDock puts an app bar on each enabled display, with shared pinned apps and familiar magnification.
-Click to launch or switch apps, hover to preview windows, and Command-drag to organize your Dock.
+Click to launch or switch apps, hover to preview windows, and press and hold an icon to organize your Dock.
 Desktop and Downloads open file stacks, while Apps opens Spotlight’s app browser.
 The setup guide explains the permissions and offers launch at login.
-**v0.4.1 is an English/Korean public beta**, ahead of the planned 1.0 release.
+**v1.0.0 is available in English and Korean**, with automatic display handoff and bidirectional Dock organization.
 
 Displaying dock on all screen
 
@@ -84,6 +84,8 @@ https://github.com/user-attachments/assets/943d317a-1656-409c-a050-17559b184a67
 
 v0.4.1 improves icon rendering with display-scale-aware cached artwork and trilinear downsampling. Animation reuses the cached image. Visual checks across mixed-resolution displays are pending.
 
+v1.0.0 adds automatic pause without an external display, bidirectional native app-order synchronization, and press-and-hold dragging. When paused, pointer timers/monitors, periodic app reconciliation, previews, folder watching, and window work-area observation stop; display connection events remain active. The option is based on display presence, not power source. Battery savings have not been measured.
+
 ### How it works
 
 | Part | Behavior |
@@ -108,7 +110,7 @@ xattr -dr com.apple.quarantine /Applications/everyDock.app
 open -a everyDock
 ```
 
-The app is installed in `/Applications/everyDock.app`. The beta is ad-hoc signed and **not notarized**. The `xattr` step clears the quarantine attribute for this app. If macOS still blocks it, use **System Settings → Privacy & Security → Open Anyway**.
+The app is installed in `/Applications/everyDock.app`. The app is ad-hoc signed and **not notarized**. The `xattr` step clears the quarantine attribute for this app. If macOS still blocks it, use **System Settings → Privacy & Security → Open Anyway**.
 
 Inspect the package with `brew info --cask hungryZoo/tap/everydock`. Its definition lives in [hungryZoo/homebrew-tap](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb).
 
@@ -187,14 +189,16 @@ Supported zoomed windows are resized to leave room for everyDock. If everyDock o
 
 | Action | Result |
 |---|---|
-| ⌘ Command-drag a pinned app or separator | Collapse magnification and move it to the blue insertion line. |
-| ⌘-drag a running app into the pinned section | Pin it at that position. |
-| ⌘-drag a pinned app into the running section | Unpin it at the orange indicator. A running app remains in that section. |
+| Hold a pinned app or separator for 0.30s, then drag | Collapse magnification and move it to the blue insertion line. |
+| Hold and drag a running app into the pinned section | Pin it at that position. |
+| Hold and drag a pinned app into the running section | Unpin it at the orange indicator. A running app remains in that section. |
 | Escape, or drop outside the Dock or over folders | Cancel the move. |
 | Right-click between pinned apps | **Add Separator Here**. |
 | Right-click a pinned app | Add a separator before or after it. |
 | Open **Settings → Pinned Apps** | Reorder or remove apps and separators together. |
 | Drop an `.app` on the Dock background | Add it to pinned apps. |
+
+App order and pin/unpin changes sync both ways with macOS Dock. everyDock reads native changes on launch, activation, and resume, and checks every five seconds while active. The automatic-pause state adds no polling timer. Native pins determine the imported app list, including additions and removals. everyDock separators and Finder retain their local slots; separators never appear in macOS Dock. Native tile metadata, folders, Trash, and native spacers are preserved. Separator-only moves do not write to macOS Dock.
 
 The order is **pinned items → unpinned running apps → folders and Trash**. Separators remain within the pinned section. Bottom Docks read left to right; side Docks read top to bottom. Scroll to your destination before dragging; drag auto-scroll is not implemented.
 
@@ -214,6 +218,7 @@ Click a file to open it in its default app, or choose **Open in Finder**. Droppi
 |---|---|
 | Position | Bottom, Left, or Right; default Bottom. |
 | Size and magnification | Follow the macOS Dock, or adjust manually. |
+| Use macOS Dock When No External Display Is Connected | On. Pause everyDock on the built-in display alone and automatically resume when an external display connects. |
 | Show Running Apps | On. |
 | Show over Full-Screen Apps | Off; enable it to show the Dock over full-screen apps where macOS allows. |
 | Displays | All connected displays; individually configurable. |
@@ -264,7 +269,7 @@ Recovery journals live in `~/Library/Application Support/everyDock/`. If both pr
 
 | Target | Support |
 |---|---|
-| Apple Silicon, macOS 26+ | Supported beta target. |
+| Apple Silicon, macOS 26+ | Supported. |
 | Intel Macs | Not supported. |
 | macOS 25 or earlier | Not supported. |
 | Spaces, full-screen apps, Stage Manager | Behavior depends on system settings; the full device matrix remains under testing. |
@@ -277,7 +282,7 @@ Recovery journals live in `~/Library/Application Support/everyDock/`. If both pr
 - Notification badges, individual minimized-window tiles inside the Dock, Mission Control, per-display app lists, and drag auto-scroll are not implemented.
 - Locked or secure screens and higher-level system windows can cover everyDock. Selecting an app does not move its windows to the current monitor.
 - Reading the macOS Dock’s pins and sizing relies on its preference format. Manual app selection and sizing are available if that format changes.
-- The beta does not promise pixel-for-pixel equivalence with Apple’s Dock or complete compatibility with every app’s Accessibility implementation.
+- everyDock does not promise pixel-for-pixel equivalence with Apple’s Dock or complete compatibility with every app’s Accessibility implementation.
 
 <p align="right"><a href="#table-of-contents">↑ back to top</a></p>
 
@@ -303,7 +308,7 @@ Move the app to Applications before registering launch at login. The build is ad
 | `scripts` | Builds, icon generation, packaging, and signing. |
 | [docs](docs/README.md) | [MRD](docs/MRD.md), [PRD](docs/PRD.md), [SRS](docs/SRS.md), [TC](docs/TC.md), and [release procedure](docs/RELEASING.md). |
 
-App events and KVO drive state changes, with a five-second background check as a fallback. Magnification uses a display-linked animation and cached icon layers; frame updates stop when settled. These mechanisms do not establish measured performance on every device. See the [v0.4.1 QA record](docs/QA-v0.4.1.md) for the tests actually performed.
+App events and KVO drive state changes, with a five-second background check as a fallback. Magnification uses a display-linked animation and cached icon layers; frame updates stop when settled. These mechanisms do not establish measured performance on every device. See the [v1.0.0 QA record](docs/QA-v1.0.0.md) for the tests actually performed.
 
 Keep code and documentation aligned in the same change, preserve requirement IDs, and record untested cases honestly. Do not commit user preferences, recovery journals, permission databases, or private window images. See [AGENTS.md](AGENTS.md).
 
@@ -315,12 +320,16 @@ Keep code and documentation aligned in the same change, preserve requirement IDs
 - [ ] Complete the display, Spaces, sleep/wake, and app compatibility matrix.
 - [ ] Validate permission setup, restoration, file handling, and performance across supported devices.
 - [ ] Complete Developer ID signing and notarization.
-- [ ] Review remaining release criteria before promoting to v1.0.0.
+- [x] Release v1.0.0 with bidirectional Dock sync, automatic pause, and Apache-2.0 licensing.
 
 <p align="right"><a href="#table-of-contents">↑ back to top</a></p>
 
 ## 9. License
 
-A software license has not been specified yet. Public source availability does not itself grant a license. Licensing remains a release decision.
+everyDock is licensed under [Apache-2.0](LICENSE). You may use it commercially, modify it, and redistribute it under that license. Retain the required license and attribution notices and identify modified files when distributing changes.
+
+**Ownership stays with the rights holders.** hungryZoo retains ownership of any patents hungryZoo owns; contributors retain their own rights. This is not a transfer of copyright or patent ownership. Section 3 nevertheless grants users a royalty-free patent license limited to qualifying contributor patent claims necessary for the contributed work, with the termination condition stated in that section. This project does not claim that a patent has been filed or granted. See [NOTICE](NOTICE) and the [official license text](https://www.apache.org/licenses/LICENSE-2.0.html).
+
+특허 소유권은 이전되지 않으며, hungryZoo가 보유한 특허는 hungryZoo에게 남습니다. 다만 Apache-2.0 제3조에 해당하는 특허의 사용은 무상으로 허용됩니다. 이는 특허 출원·등록 사실을 주장하는 문구가 아닙니다.
 
 <p align="right"><a href="#table-of-contents">↑ back to top</a></p>

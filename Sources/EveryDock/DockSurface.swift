@@ -167,7 +167,7 @@ import QuartzCore
             return
         }
         guard !menuTracking else { return }
-        guard let window, window.isVisible, !model.paused else { hoverPoint = nil; return }
+        guard let window, window.isVisible, !model.isDockInactive else { hoverPoint = nil; return }
         let point = convert(window.convertPoint(fromScreen: location ?? NSEvent.mouseLocation), from: nil)
         let onDock = backgroundRect.contains(point) || buttons.values.contains { !$0.isHidden && $0.frame.contains(point) }
             || utilityButtons.values.contains { $0.frame.contains(point) }
@@ -314,7 +314,7 @@ import QuartzCore
         if changed { updateVisibleApps(); animate() }
     }
     func stop() { displayLink?.invalidate(); displayLink = nil }
-    func shutdown() { stop(); previews.close() }
+    func shutdown() { stop(); previews.close(); buttons.values.forEach { $0.cancelHold() } }
     @objc private func appClicked(_ sender: DockAppButton) {
         guard !sender.app.isSeparator else { return }
         previews.close()
@@ -637,9 +637,11 @@ private final class DockIndicators: NSView {
 
 @MainActor final class DockAppButton: DockIconButton, NSDraggingSource {
     private(set) static weak var draggedButton: DockAppButton?
-    private static weak var commandButton: DockAppButton?
-    static var isReordering: Bool { commandButton != nil || draggedButton != nil }
-    private var commandDown: NSPoint?
+    private static weak var heldButton: DockAppButton?
+    static var isReordering: Bool { heldButton != nil || draggedButton != nil }
+    private var pressOrigin: NSPoint?
+    private var hold = DockHold()
+    private var holdTask: Task<Void, Never>?
     var app: DockApplication
     private let model: AppModel
     private var menuGeneration = 0
@@ -658,21 +660,28 @@ private final class DockIndicators: NSView {
     }
     override func accessibilityPerformShowMenu() -> Bool { showAppMenu(); return true }
     override func mouseDown(with event: NSEvent) {
-        commandDown = nil
-        if event.modifierFlags.contains(.control) { showAppMenu() }
-        else if event.modifierFlags.contains(.command) {
-            super.mouseDown(with: event)
-            commandDown = event.locationInWindow
-            Self.commandButton = self
+        cancelHold()
+        if event.modifierFlags.contains(.control) { showAppMenu(); return }
+        super.mouseDown(with: event)
+        pressOrigin = event.locationInWindow
+        hold.begin(at: ProcessInfo.processInfo.systemUptime)
+        holdTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(DockHold.delay))
+            guard !Task.isCancelled, let self, DockIconButton.trackingButton === self,
+                  window?.isVisible == true, hold.arm(at: ProcessInfo.processInfo.systemUptime) else { return }
+            Self.heldButton = self
             menuGeneration += 1
             (superview as? DockSurface)?.prepareForReorder()
         }
-        else { super.mouseDown(with: event) }
     }
     override func mouseDragged(with event: NSEvent) {
-        guard let origin = commandDown else { super.mouseDragged(with: event); return }
-        guard hypot(event.locationInWindow.x - origin.x, event.locationInWindow.y - origin.y) >= 4 else { return }
-        commandDown = nil
+        guard let origin = pressOrigin else { super.mouseDragged(with: event); return }
+        let distance = hypot(event.locationInWindow.x - origin.x, event.locationInWindow.y - origin.y)
+        hold.move(distance: distance)
+        guard hold.armed else { super.mouseDragged(with: event); return }
+        guard distance >= 4 else { return }
+        pressOrigin = nil
+        holdTask?.cancel(); holdTask = nil
         Self.draggedButton = self
         cancelTracking()
         let data = NSPasteboardItem()
@@ -685,8 +694,21 @@ private final class DockIndicators: NSView {
         session.animatesToStartingPositionsOnCancelOrFail = true
     }
     override func mouseUp(with event: NSEvent) {
-        if commandDown != nil { commandDown = nil; cancelTracking(); finishReorder(); return }
+        holdTask?.cancel(); holdTask = nil
+        pressOrigin = nil
+        if hold.end() { cancelTracking(); finishReorder(); return }
         super.mouseUp(with: event)
+    }
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { cancelHold(); finishReorder(); return }
+        super.keyDown(with: event)
+    }
+    func cancelHold() {
+        holdTask?.cancel(); holdTask = nil
+        pressOrigin = nil
+        _ = hold.end()
+        if Self.heldButton === self { Self.heldButton = nil }
+        cancelTracking()
     }
     func belongs(to model: AppModel) -> Bool { self.model === model }
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
@@ -698,8 +720,8 @@ private final class DockIndicators: NSView {
     }
     private func finishReorder() {
         Self.draggedButton = nil
-        Self.commandButton = nil
-        commandDown = nil
+        Self.heldButton = nil
+        cancelHold()
         // Refresh every screen once after drop/cancel; no preference writes during movement.
         model.dockDidChange.send()
         (superview as? DockSurface)?.synchronize()

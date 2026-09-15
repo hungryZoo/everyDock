@@ -18,6 +18,8 @@ release_app="$release_stage/everyDock.app"
 release_binary="$release_app/Contents/MacOS/everyDock"
 [[ "$(lipo -archs "$release_binary")" == "arm64" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$release_app/Contents/Info.plist")" == "26.0" ]]
+cmp LICENSE "$release_app/Contents/Resources/LICENSE"
+cmp NOTICE "$release_app/Contents/Resources/NOTICE"
 
 # Exclude local debug symbols and Finder extended metadata from the public asset.
 strip -S "$release_binary"

@@ -42,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pauseItem: NSMenuItem!
     private var launchPermissionCheck: Task<Void, Never>?
     private var permissionGuideDismissed = false
+    private var terminationPending = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Reopening the app should not produce a second set of Dock panels.
@@ -89,6 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: L10n.text("Quit everyDock"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
+        let inactive = NSMenuItem(title: L10n.text("Paused — using macOS Dock until an external display is connected."), action: nil, keyEquivalent: "")
+        inactive.tag = 101
+        inactive.isHidden = !model.automaticallyPaused
+        menu.insertItem(inactive, at: 0)
     }
 
     private func refreshLanguage() {
@@ -117,6 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        menu.item(withTag: 101)?.isHidden = !model.automaticallyPaused
         pauseItem.title = model.paused ? L10n.text("Show All Docks") : L10n.text("Hide All Docks")
     }
 
@@ -148,6 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func openSettings() {
+        model.refreshApps(force: true)
         if settingsWindow == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 760),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -201,6 +208,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if model.permissions.needsGuidance { openOnboarding() }
         else { openSettings() }
         return false
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let model else { return .terminateNow }
+        if !terminationPending {
+            terminationPending = true
+            Task { @MainActor in
+                await model.finishPinSynchronization()
+                sender.reply(toApplicationShouldTerminate: true)
+            }
+        }
+        return .terminateLater
     }
 
     func applicationWillTerminate(_ notification: Notification) { launchPermissionCheck?.cancel(); coordinator?.stop(); model?.stop() }

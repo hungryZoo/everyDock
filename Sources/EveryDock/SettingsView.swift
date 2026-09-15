@@ -100,9 +100,16 @@ struct SettingsView: View {
                         Button(L10n.text("Import from macOS Dock"), action: model.importNativeDock)
                     }
                 } header: { Text(L10n.text("Pinned Apps")) }
-                  footer: { Text(L10n.text("Reorder or remove pinned apps and separators here, or ⌘-drag them in the Dock. Drag a running app into the pinned section to pin it, or a pinned app into the running section to unpin it. Right-click an icon or a gap between pinned apps to add a separator.")) }
+                  footer: { Text(L10n.text("Press and hold an app or separator for 0.30 seconds, then drag to reorder. Move an app into the pinned section to pin it, or into the running section to unpin it. App order and pins sync both ways with macOS Dock. everyDock keeps its own separators.")) }
 
                 Section(L10n.text("General")) {
+                    Toggle(L10n.text("Use macOS Dock When No External Display Is Connected"), isOn: $model.preferences.pauseWithoutExternalDisplay)
+                    Text(L10n.text("Pauses everyDock and its background monitoring on the built-in display alone. Reconnect an external display to resume automatically."))
+                        .font(.caption).foregroundStyle(.secondary)
+                    if model.automaticallyPaused {
+                        Text(L10n.text("Paused — using macOS Dock until an external display is connected."))
+                            .foregroundStyle(.secondary)
+                    }
                     Picker(L10n.text("Language"), selection: $model.preferences.language) {
                         ForEach(AppLanguage.allCases, id: \.self) { Text($0.title).tag($0) }
                     }

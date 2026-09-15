@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Product | everyDock |
-| Document version | 1.15 / 2026-09-15 |
-| Release | v0.4.1 public beta; preparation for 1.0 |
+| Document version | 1.17 / 2026-09-15 |
+| Release | v1.0.0 |
 | Decision owner | Repository owner / product owner |
 
 ## 1. Problem and evidence
@@ -54,6 +54,8 @@ P0 blocks core use, P1 improves repeated use, and P2 is exploratory.
 
 MR-09 began with v0.4.0 English support and now includes the v0.4.1 Korean interface and language selector, linked to P-10, FR-31, TC-M66, and TC-R09. It does not imply that macOS dialogs or content owned by other apps is translated.
 
+MR-06 additionally covers the v1.0.0 default-on external-display pause, bidirectional native app-order and pin-state continuity, and modifier-free hold-to-drag interaction. These map to P-03/P-06 and FR-27/32/33. Reduce unnecessary background work when only the built-in display is used; actual battery savings require measurement.
+
 ## 5. Validation hypotheses
 
 These are future targets, not measured results. If 5–10 beta participants are recruited, assess two weeks of consented questionnaires and reproduction notes without adding analytics to the app.
@@ -70,7 +72,7 @@ These are future targets, not measured results. If 5–10 beta participants are 
 
 Private Dock preference formats, Accessibility implementation differences, protected windows, ad-hoc signing, and display/Spaces combinations limit compatibility. Document these limits, keep recovery records, preserve user edits, and validate a device matrix. Do not invent competitor pricing or business projections.
 
-The beta can ship with explicit untested cases after build, test, and distribution integrity checks. Stable release requires P0 acceptance, permission-enabled window and file operations, recovery, performance, signing, and notarization evidence. Licensing, Developer ID access, participant recruitment, and demand for per-display customization remain owner decisions.
+The owner requested v1.0.0 publication with the current verification limits disclosed. Build, test, and distribution integrity remain release checks. Full device acceptance, permission-enabled workflows, recovery, performance measurements, Developer ID signing, and notarization remain outstanding validation work, not completed claims. Apache-2.0 permits reuse without transferring ownership of copyright or patents; its Section 3 patent grant remains intact. Developer ID access, participant recruitment, and demand for per-display customization remain owner decisions.
 
 ## 7. Feedback incorporated into the baseline
 

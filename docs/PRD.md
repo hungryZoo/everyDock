@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.15 / 2026-09-15 |
-| Product baseline | everyDock v0.4.1 public beta |
+| Document version | 1.17 / 2026-09-15 |
+| Product baseline | everyDock v1.0.0 |
 | Parent | [MRD](MRD.md) |
 | Implementation and tests | [SRS](SRS.md), [TC](TC.md) |
 
@@ -11,11 +11,11 @@
 
 Provide a persistent, familiar app bar on each enabled display, with reliable app switching, window selection, everyday file access, and a reversible relationship with the macOS Dock. v0.4.1 adds Korean language selection, revised new-install defaults, sharper icon rendering, and separate permission requests/settings navigation while preserving saved preferences.
 
-The supported target is Apple Silicon with macOS 26+. The app is local, without accounts, analytics, remote window-image storage, or runtime network services. Public beta status remains in place before the proposed 1.0 release.
+The supported target is Apple Silicon with macOS 26+. The app is local, without accounts, analytics, remote window-image storage, or runtime network services. v1.0.0 adds automatic display handoff, bidirectional app order/pin synchronization, hold-to-drag, and Apache-2.0 licensing.
 
 ## 2. Scope
 
-Included: multiple displays, Bottom/Left/Right placement, native size following, magnification and launch feedback, app activation and supported minimize/restore, previews, close actions, app Dock menus, file stacks, Trash, pins, separators, Command-drag, setup and permissions, login launch, native Dock restoration, and Homebrew distribution.
+Included: multiple displays, Bottom/Left/Right placement, native size following, magnification and launch feedback, app activation and supported minimize/restore, previews, close actions, app Dock menus, file stacks, Trash, pins, separators, press-and-hold dragging, setup and permissions, login launch, native Dock restoration, and Homebrew distribution.
 
 P-02 icon quality: preserve available high-resolution artwork on Retina displays, filter resting and magnified icons appropriately, and refresh cached pixels when display scale changes without rerasterizing during animation. Source artwork quality remains a limit. See FR-03 and TC-A52/A53/M67; this improvement is included in v0.4.1.
 
@@ -23,7 +23,7 @@ Excluded: Intel, earlier macOS, a pixel-exact Dock clone, independent system Gen
 
 ## 3. Product requirements
 
-Implementation is not equivalent to verification. Current execution scope is recorded in [QA-v0.4.1](QA-v0.4.1.md); historical results remain version-specific.
+Implementation is not equivalent to verification. Current execution scope is recorded in [QA-v1.0.0](QA-v1.0.0.md); historical results remain version-specific.
 
 | ID | Priority | Requirement and acceptance |
 |---|---|---|
@@ -44,6 +44,7 @@ Implementation is not equivalent to verification. Current execution scope is rec
 |---|---|
 | Position | Bottom; Left and Right available. |
 | Size and magnification | Follow the macOS Dock; manual controls available. |
+| Pause without external display | On; preserve an explicit saved opt-out. External-only desktop/clamshell setups stay active. |
 | Running apps / full-screen display | Running apps on; full-screen display off by default. |
 | Enabled displays | All connected displays; new displays included automatically. |
 | Click active app to minimize | On. |
@@ -56,6 +57,12 @@ Implementation is not equivalent to verification. Current execution scope is rec
 Running apps have an indicator; active state is distinguished. A launch request gets immediate feedback. Focus changes alone must not reorder apps. Overflow is handled by fitting and scrolling.
 
 ## 5. Interaction acceptance
+
+### Automatic pause and native order — P-03/P-06
+
+Without any external online display, default to the macOS Dock and suspend everyDock's Dock UI, recurring app/pointer work, previews, folder watching, and window adjustment. Keep Settings/menu access and display notifications so reconnection resumes automatically. Built-in-only and headless configurations pause; one external display, including clamshell/desktop use or mirroring, keeps everyDock enabled. Manual pause remains independent. Unknown display-query state keeps everyDock active.
+
+Synchronize completed reorder and pin/unpin changes in both directions. Read native pins on launch, activation, resume, and the existing five-second active reconciliation; add no inactive polling. Native additions/removals and order replace the local app sequence, retaining everyDock separator IDs and Finder at their local slots (surplus separators remain at the end after removals). Native writes preserve tile metadata and non-app entries and leave persistent-others untouched. Separator-only changes and canceled/no-op drops do not write. Native imports must not echo writes or restart the native Dock. Failed or missing reads retain local pins; an explicit empty native list removes ordinary app pins. These changes ship in v1.0.0; battery/runtime UI measurements remain pending.
 
 ### Windows and menus — P-02/P-05/P-09
 
@@ -71,7 +78,7 @@ Supported screen-sized windows leave room for the resting Dock without an extra 
 
 Order pinned items, unpinned running apps, then folders. Persist custom separator UUIDs alongside pins. Insert separators from gaps, app context menus, or Settings; reorder and remove them in both places. Separators do not launch, magnify, or preview.
 
-Command-grab collapses magnification. A drag exceeding four points can move a pin to a blue insertion line, pin a running app, or unpin an app in the orange running-section target. Preserve other item order and IDs. Escape, outside/folder drops, or separator unpin attempts cancel. Command-click alone does not launch. Dragging performs no intermediate preference writes.
+Holding an icon for 0.30 seconds collapses magnification and arms reorder mode without a modifier key. A drag exceeding four points can move a pin to a blue insertion line, pin a running app, or unpin an app in the orange running-section target. Preserve other item order and IDs. Escape, outside/folder drops, or separator unpin attempts cancel. A short click launches normally; releasing after arming without a drop does not launch. Movement beyond 6pt before the hold completes cancels arming. Dragging performs no intermediate preference writes.
 
 ### Files — P-04/P-08
 
@@ -105,4 +112,4 @@ Performance targets are defined in SRS NFR-02 and are not claims of measured per
 
 ## 7. Release gates
 
-A beta requires automated tests, arm64 packaging/signature integrity, public checksum agreement, relevant observations, and disclosure of untested areas. A stable release additionally requires the P0 manual matrix, permission-enabled window/file operations, recovery and file safety, display/sleep/Spaces coverage, measured performance, Developer ID signing, and notarization. The owner decides licensing. A version bump alone does not satisfy these gates.
+The owner authorized v1.0.0 publication with explicit disclosure of incomplete manual/device/performance coverage and ad-hoc signing without notarization. Require automated tests, arm64 packaging/signature integrity, public checksum agreement, and accurate observations. Full P0/device coverage, permission-enabled workflows, recovery/file safety, performance measurements, Developer ID signing, and notarization remain validation work. A 1.0 label must not mark those checks passed. Apache-2.0 and an informational ownership notice ship in the source and app bundle; no notice may restrict the standard patent grant.

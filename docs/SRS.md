@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.15 / 2026-09-15 |
-| Baseline | everyDock v0.4.1 |
+| Document version | 1.17 / 2026-09-15 |
+| Baseline | everyDock v1.0.0 |
 | Parent / verification | [PRD](PRD.md) / [TC](TC.md) |
 
 Requirements describe intended behavior. Implementation and observed PASS results are separate; numeric performance targets are not measured achievements.
@@ -135,7 +135,7 @@ Show Not Checked, Allowed, and Denied by macOS distinctly. Do not infer approval
 
 ### FR-19 Distribution — P-07 / P1
 
-Publish source, MRD, PRD, SRS, and TC. Match bundle and tag versions; publish an arm64 ZIP and SHA-256 file. Pin the cask URL/checksum and declare arm64/macOS 26+. Provide install, launch, update, removal, and permission instructions. Mark beta releases as prereleases. Never overwrite published tags/assets or automatically zap unfinished recovery journals.
+Publish source, MRD, PRD, SRS, and TC. Match bundle and tag versions; publish an arm64 ZIP and SHA-256 file. Pin the cask URL/checksum and declare arm64/macOS 26+. Provide install, launch, update, removal, and permission instructions. Mark beta releases as prereleases; v1.0.0 is a regular release authorized by the owner with verification/signing limitations disclosed. Bundle LICENSE (standard Apache-2.0) and NOTICE with the app; verify identical copies during packaging. The notice retains ownership without contradicting Section 3 patent permissions or asserting a granted patent. Never overwrite published tags/assets or automatically zap unfinished recovery journals.
 
 ### FR-20 Individual and all-window closing — P-09 / P1
 
@@ -181,13 +181,13 @@ Persist pins and custom separators in one ordered list. Old path/bundleIdentifie
 
 Support insertion in gaps or before/after a pin, plus Settings insertion/reorder/removal. Custom separators belong only to the pinned section. Adapt separator hit areas and reusable layers to all three edges, fitting and scrolling with fixed separator widths.
 
-### FR-27 Command-drag ordering — P-06 / P1
+### FR-27 Press-and-hold ordering — P-06 / P1
 
-Distinguish Command mouse-down from movement beyond 4pt before NSDraggingSession. Preserve ordinary click/Control-click. Validate both private pasteboard type `app.everydock.pinned-item` and a genuine dragging source from the same AppModel; reject external imitation. Keep fileURL drops separate.
+Hold a primary-button press for 0.30 seconds to arm reorder mode, then require movement beyond 4pt before NSDraggingSession. Cancel arming if movement exceeds 6pt before the hold threshold; consume the release if already armed. Cancel pending hold tasks on release, Escape, or panel shutdown. Preserve ordinary click/Control-click. Validate both private pasteboard type `app.everydock.pinned-item` and a genuine dragging source from the same AppModel; reject external imitation. Keep fileURL drops separate.
 
 Compute insertion slots from displayed item centers, including magnified pins outside the background. Bottom order is horizontal; side order is vertical. Beyond the midpoint separating pinned/running regions, permit unpinning an app with an orange indicator. Reject folders, outside drops, and separator unpinning. Adjust indices after removal; adjacent slots are no-ops, and preserve existing IDs and unaffected order. Pin running apps without bundle duplicates.
 
-Collapse magnification on Command-grab and pause list synchronization, bounce, previews, and intermediate preference writes. Validate app existence at drop time, save only actual changes, then synchronize all panels. Cancel with the normal drag return, without launching/unpinning. Scroll before a drag; no drag auto-scroll or synchronous global scans in the input path.
+Collapse magnification when the hold arms and pause list synchronization, bounce, previews, and intermediate preference writes. Validate app existence at drop time, save only actual changes, then synchronize all panels. Cancel with the normal drag return, without launching/unpinning. Scroll before a drag; no drag auto-scroll or synchronous global scans in the input path.
 
 ### FR-28 Startup setup — P-06 / P0
 
@@ -215,7 +215,17 @@ Without a bundle, require no running app before defaults deletion/path cleanup. 
 
 Support English and Korean for all everyDock-owned visible and accessibility text, including errors, menus, setup, settings, utilities, drag hints, and preview actions. Declare `CFBundleDevelopmentRegion=en` and supported localizations en/ko. DockPreferences.language stores system/en/ko, defaults to system, and treats unknown values as system. Resolve only the primary preferred system language: ko/ko-* selects Korean; other languages fall back to English. Keep interpolation arguments separate from translated templates so external names are never interpreted as translation keys. Settings applies a language change immediately, refreshes menus and Dock panels, and recreates folder popovers; no permission request or native Dock restart is required. Use singular/plural English display/window counts and Korean counters. New and missing showOnFullScreen values default to false; previewDelay defaults and non-finite fallback are 0.60 seconds. Preserve explicitly saved values, including the earlier 0.55 delay. Retain external app/menu/file/window names and OS-owned dialogs/diagnostics. Preserve stored enum raw values, identifiers, paths, settings keys, and separator UUIDs.
 
-Publish the current README, MRD, PRD, SRS, TC, and release instructions in English. Preserve historical QA evidence rather than rewriting old PASS claims as current results. Keep v0.4.1 a public beta. Validate text coverage, current-document links/anchors, settings migration, and actual layout separately.
+Publish the current README, MRD, PRD, SRS, TC, and release instructions in English. Preserve historical QA evidence rather than rewriting old PASS claims as current results. Keep historical v0.4.1 beta records unchanged; v1.0.0 is a regular release. Validate text coverage, current-document links/anchors, settings migration, and actual layout separately.
+
+### FR-32 External-display automatic pause — P-03/P-06 / P1
+
+Persist pauseWithoutExternalDisplay, default true for new/missing settings. Use CGGetOnlineDisplayList and CGDisplayIsBuiltin at startup/display events, so mirrored externals and single external desktop/clamshell configurations count. Query failure conservatively keeps the app active. Effective inactivity is manual pause OR automatic pause; never overwrite manual pause. On inactivity, restore managed native Dock preferences, close Dock panels and previews, remove pointer monitors/timers, stop periodic geometry/app polling and per-app KVO, stop folder watching, and disconnect work-area AX observation. App/workspace and display events remain registered for recovery; a visible Settings window can request app snapshots. Reconnection recreates monitors/panels and re-applies native management if enabled. No quantified energy reduction is claimed.
+
+### FR-33 Native pinned-app order synchronization — P-06 / P1
+
+After any committed app-pin change in everyDock (drag, context menu, Add Apps, or Settings), serialize native preference IO off the UI thread. Compare non-separator pin order first. Read/modify/write only com.apple.dock/persistent-apps using CFPreferences; refuse unsupported top-level schemas and verify readback. Preserve existing matching tile records, app metadata, native-only apps, and non-app tiles. Ignore Finder in the desired list; synthesize file-tile records for new available apps. Remove only explicitly unpinned paths. Never copy everyDock separators; persistent-others and unrelated preferences are untouched. This format is undocumented and requires macOS regression checks. Read native app pins on launch, app activation, inactive-to-active transition, manual import, and the existing five-second active reconciliation. Do not add an inactive polling timer. Native app order and membership are authoritative on import; preserve local separator identities and Finder by filling ordinary app slots in order, retaining excess separators at the end and appending excess native apps. Ignore native non-app tiles and everyDock itself. Missing or malformed reads preserve the saved list; a valid empty list removes ordinary app pins. Serialize reads behind pending writes, reject a read if a newer local pin revision exists, and defer reads during a hold/drag. Suppress outgoing synchronization for native imports to prevent feedback and native Dock restarts. Drain queued synchronization before normal termination so immediately quitting after a drop does not lose that write.
+
+When everyDock hides the native Dock, defer reloading native order until restoration and combine it with the existing restoration restart. When the native Dock is unmanaged/visible, a changed order requires one restart. Display fallback/manual pause/quit preserves the new order; recovery journals still cover appearance settings only. On write error, keep everyDock's order and show a sync-specific message; suspend reverse imports for the session until a subsequent local app-pin edit synchronizes successfully. No writing/restarting occurs during pointer movement or canceled/no-op drops.
 
 ## 4. Nonfunctional requirements
 

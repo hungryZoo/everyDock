@@ -42,6 +42,10 @@ final class DockPanel: NSPanel {
             NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(screensChanged), name: name, object: nil)
         }
         model.onLayoutChanged = { [weak self] in self?.reconcile() }
+        screensChanged()
+    }
+    private func startMonitoring() {
+        guard refreshTimer == nil else { return }
         globalMouse = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseDown, .leftMouseUp]) { [weak self] event in
             MainActor.assumeIsolated { self?.updatePointer(event: event) }
         }
@@ -57,7 +61,12 @@ final class DockPanel: NSPanel {
         let pointer = Timer(timeInterval: 0.05, target: self, selector: #selector(checkPointer), userInfo: nil, repeats: true)
         RunLoop.main.add(pointer, forMode: .common)
         pointerTimer = pointer
-        screensChanged()
+    }
+    private func stopMonitoring() {
+        refreshTimer?.invalidate(); refreshTimer = nil
+        pointerTimer?.invalidate(); pointerTimer = nil
+        if let globalMouse { NSEvent.removeMonitor(globalMouse) }; globalMouse = nil
+        if let localMouse { NSEvent.removeMonitor(localMouse) }; localMouse = nil
     }
     @objc private func screensChanged() {
         model.updateDisplays()
@@ -88,6 +97,14 @@ final class DockPanel: NSPanel {
     }
     @objc private func refreshGeometry() { reconcile(raise: false) }
     func reconcile(raise: Bool = true) {
+        guard !model.isDockInactive else {
+            stopMonitoring()
+            panels.values.forEach { $0.surface.shutdown(); $0.close() }
+            panels.removeAll(); requestedFrames.removeAll()
+            workArea.configure([])
+            return
+        }
+        startMonitoring()
         var areas: [WindowWorkArea] = []
         let originY = NSScreen.screens.first?.frame.maxY ?? 0
         let visible = NSScreen.screens.filter { !model.preferences.hiddenDisplayIDs.contains(AppModel.displayID($0)) }
@@ -128,7 +145,7 @@ final class DockPanel: NSPanel {
             case .right: frame = NSRect(x: area.maxX - inset - thickness, y: area.midY - length / 2, width: thickness, height: length)
             }
             let aligned = DockMetrics.aligned(frame, scale: screen.backingScaleFactor)
-            if !model.paused {
+            if !model.isDockInactive {
                 // Reserve the resting Dock, not its transparent magnification/tooltip space.
                 let thickness = DockMetrics.thickness(iconSize: model.iconSize)
                 let boundary: Double
@@ -146,7 +163,7 @@ final class DockPanel: NSPanel {
                 panel.setFrame(aligned, display: true)
                 panel.surface.synchronize()
             }
-            if model.paused { panel.orderOut(nil); panel.surface.shutdown() }
+            if model.isDockInactive { panel.orderOut(nil); panel.surface.shutdown() }
             else if raise || !panel.isVisible { panel.orderFrontRegardless() }
             panel.surface.updatePointer()
         }

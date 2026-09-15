@@ -1,6 +1,6 @@
 # everyDock Documentation
 
-Baseline: **v0.4.1 / 2026-09-15 / public beta**. Current specifications are English and describe the implemented contract, with verification recorded separately. Targets are not reported as measured achievements.
+Baseline: **v1.0.0 / 2026-09-15**. Current specifications are English and describe the implemented contract, with verification recorded separately. Targets are not reported as measured achievements.
 
 | Document | Purpose | Audience |
 |---|---|---|
@@ -9,7 +9,7 @@ Baseline: **v0.4.1 / 2026-09-15 / public beta**. Current specifications are Engl
 | [SRS](SRS.md) | Implementable behavior, data, state, and failure handling. | Engineering, QA |
 | [TC](TC.md) | Stable test IDs, procedures, and expected results. | Engineering, QA |
 | [Releasing](RELEASING.md) | Packaging, GitHub releases, and the Homebrew tap. | Maintainers |
-| [v0.4.1 QA](QA-v0.4.1.md) | Tests actually performed and remaining checks. | Reviewers, testers |
+| [v1.0.0 QA](QA-v1.0.0.md) | Tests actually performed and remaining checks. | Reviewers, testers |
 
 ## Traceability
 
@@ -26,12 +26,14 @@ Keep IDs stable; do not delete or reuse retired IDs. Update implementation and t
 | MR-05: window selection | P-05 | FR-14/15 | TC-A12/18–20/26/50/51, TC-M23–27/35/41/65 |
 | MR-05: window closing | P-09 | FR-20 | TC-A23–25, TC-M38–40 |
 | MR-02: menus and labels | P-02 | FR-21/24 | TC-A21/22/39, TC-M34/37/46/48–52 |
-| MR-06: user control | P-06 | FR-16–18/26–29 | TC-A04/06/40/41/44–49, TC-M28–33/53/54/56–63 |
+| MR-06: user control | P-06 | FR-16–18/26–29/32/33 | TC-A04/06/40/41/44–49/58–64, TC-M28–33/53/54/56–63/70–72 |
 | MR-07: distribution | P-07 | FR-19/30 | TC-R01–08, TC-M64 |
 | MR-08: local data | P-08 | NFR-04/05 | TC-M09/20–27, TC-P04 |
 | MR-09: English/Korean presentation | P-10 | FR-31 | TC-A54–57, TC-M66/68, TC-R09 |
 
 ## Reading results
+
+Included in v1.0.0: external-display automatic pause (FR-32), native pin-order synchronization (FR-33), and hold-to-drag (FR-27). Includes reverse native imports on startup/resume and while active. See TC-A58–64 and TC-M70–72. The v0.4.1 release records are historical evidence for its shipped scope.
 
 - **Implemented:** a code path exists; not proof of success on a physical device.
 - **PASS:** observed in the specified environment and procedure.
@@ -39,8 +41,8 @@ Keep IDs stable; do not delete or reuse retired IDs. Update implementation and t
 - **BLOCKED:** a specific missing condition prevented execution.
 - **NOT RUN:** no execution evidence yet.
 
-The suite currently contains 49 executable tests. Default runs omit the opt-in Quick Look integration; enabling it runs all 49. Test IDs include retired and historically grouped cases, so their highest number is not the test count. Legacy DockLayout tests are pure geometry checks rather than runtime multi-display UI tests.
+The suite currently contains 62 executable tests. Default runs omit the opt-in Quick Look integration; enabling it runs all 62. Test IDs include retired and historically grouped cases, so their highest number is not the test count. Legacy DockLayout tests are pure geometry checks rather than runtime multi-display UI tests.
 
-Historical QA and release records retain their original language and scope. Start at [QA.md](../QA.md) or the version links in [TC](TC.md). Prior PASS results do not establish full v0.4.1 verification.
+Historical QA and release records retain their original language and scope. Start at [QA.md](../QA.md) or the version links in [TC](TC.md). Prior PASS results do not establish full v1.0.0 verification.
 
-The app remains an ad-hoc signed beta. Complete signing/notarization, permission-enabled workflows, restoration/file safety, and the device/performance matrix before claiming stable release readiness. Code and docs follow [AGENTS.md](../AGENTS.md).
+The owner authorized the v1.0.0 release with these limits disclosed. The app remains ad-hoc signed and unnotarized. Signing/notarization, permission-enabled workflows, restoration/file safety, and the device/performance matrix remain incomplete; a release label does not establish their verification. Code and docs follow [AGENTS.md](../AGENTS.md).
