@@ -1,8 +1,8 @@
 <div align="center">
 
-# `everyDock`
+#  `everyDock`
 
-**Your Dock. On every display.**
+**Your Dock. On every display. For Mac**
 
 Keep apps, windows, and everyday files within reach on every monitor.
 
