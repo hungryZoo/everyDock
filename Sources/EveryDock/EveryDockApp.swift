@@ -35,6 +35,7 @@ enum EveryDockApp {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var model: AppModel!
     private var coordinator: DockCoordinator!
+    private var updates: UpdateController!
     private var statusItem: NSStatusItem!
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
@@ -57,6 +58,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.showSettings = { [weak self] in self?.openSettings() }
         model.showOnboarding = { [weak self] in self?.openOnboarding() }
         coordinator = DockCoordinator(model: model)
+        updates = UpdateController(model: model)
+        updates.canPresent = { [weak self] in self?.onboardingWindow?.isVisible != true }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(systemSymbolName: "dock.rectangle", accessibilityDescription: "everyDock")
         installStatusMenu()
@@ -75,6 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .background: break
         }
         checkLaunchPermissions()
+        updates.refresh()
     }
 
     private func installStatusMenu() {
@@ -83,6 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         menu.addItem(withTitle: L10n.text("everyDock Settings…"), action: #selector(openSettings), keyEquivalent: ",").target = self
         menu.addItem(withTitle: L10n.text("Add Apps…"), action: #selector(addApps), keyEquivalent: "").target = self
+        menu.addItem(withTitle: L10n.text("Check for Updates…"), action: #selector(checkForUpdates), keyEquivalent: "").target = self
         menu.addItem(.separator())
         pauseItem = menu.addItem(withTitle: L10n.text("Hide All Docks"), action: #selector(togglePause), keyEquivalent: "")
         pauseItem.target = self
@@ -131,6 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let appItem = NSMenuItem()
         let appMenu = NSMenu(title: "everyDock")
         appMenu.addItem(withTitle: L10n.text("everyDock Settings…"), action: #selector(openSettings), keyEquivalent: ",").target = self
+        appMenu.addItem(withTitle: L10n.text("Check for Updates…"), action: #selector(checkForUpdates), keyEquivalent: "").target = self
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: L10n.text("Quit everyDock"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
@@ -160,7 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
             window.title = L10n.text("everyDock Settings")
-            window.contentView = NSHostingView(rootView: SettingsView(model: model))
+            window.contentView = NSHostingView(rootView: SettingsView(model: model, updates: updates))
             window.minSize = NSSize(width: 540, height: 620)
             window.isReleasedWhenClosed = false
             window.setFrameAutosaveName("everyDock.settings")
@@ -189,12 +195,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 UserDefaults.standard.set(true, forKey: "everyDock.hasLaunched")
                 self?.permissionGuideDismissed = true
                 self?.onboardingWindow?.close()
+                self?.updates.presentPendingUpdateIfNeeded()
             })
         NSApp.activate()
         onboardingWindow?.makeKeyAndOrderFront(nil)
     }
 
     @objc private func addApps() { model.chooseApps() }
+    @objc private func checkForUpdates() { updates.checkNow() }
     @objc private func togglePause() { model.paused.toggle() }
     @objc private func refreshDisplays() { model.updateDisplays(); coordinator.reconcile() }
 
@@ -222,5 +230,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return .terminateLater
     }
 
-    func applicationWillTerminate(_ notification: Notification) { launchPermissionCheck?.cancel(); coordinator?.stop(); model?.stop() }
+    func applicationWillTerminate(_ notification: Notification) { launchPermissionCheck?.cancel(); coordinator?.stop(); updates?.stop(); model?.stop() }
 }

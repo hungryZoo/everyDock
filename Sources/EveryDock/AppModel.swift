@@ -339,6 +339,34 @@ final class AppModel: NSObject, ObservableObject {
         openApplication(app)
     }
 
+    /// Shift-click. A running app gets one new window from its own new-window menu command; activation
+    /// alone does not send a reopen event, so an app without windows does not open a second one.
+    /// Apps without such a command are only activated, with a beep, instead of running another Command-N action.
+    func openNewWindow(_ app: DockApplication, anchor: NSView? = nil) {
+        guard !ApplicationCatalog.isLauncher(bundle: app.bundleIdentifier),
+              let process = NSWorkspace.shared.runningApplications.first(where: {
+                  !$0.isTerminated && ($0.bundleURL == app.url || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier))
+              }) else {
+            launch(app, toggle: false, anchor: anchor)
+            return
+        }
+        guard clicksInProgress.insert(app.id).inserted else { return }
+        process.unhide()
+        process.activate(options: [])
+        Task { @MainActor in
+            let failure = await WindowActions.newWindow(pid: process.processIdentifier)
+            defer { clicksInProgress.remove(app.id); refreshApps() }
+            permissions.recordAccessibility(failure)
+            switch failure {
+            case nil: break
+            case .permissionDenied: report(L10n.text("macOS denied window control for everyDock. If permission is enabled, the registered app may have a different signature. Use Check Permission Status and Show App Location in Settings."))
+            case .unsupported, .noWindow: NSSound.beep()
+            case .timedOut: report(L10n.text("The app did not respond to the window request in time. Try again in a moment."))
+            case .apiError(let code): report(L10n.text("Could not open a new window. macOS error code: \(code)"))
+            }
+        }
+    }
+
     func closeAllWindows(_ app: DockApplication) {
         guard let process = NSWorkspace.shared.runningApplications.first(where: {
             !$0.isTerminated && ($0.bundleURL == app.url || (app.bundleIdentifier != nil && $0.bundleIdentifier == app.bundleIdentifier))

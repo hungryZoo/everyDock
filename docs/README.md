@@ -18,7 +18,7 @@ Keep IDs stable; do not delete or reuse retired IDs. Update implementation and t
 | Market | Product | Software | Tests |
 |---|---|---|---|
 | MR-01: access on each screen | P-01 | FR-01/02 | TC-M01–05 |
-| MR-02: familiar interaction | P-02 | FR-03–07 | TC-A05/09/11/13/14, TC-M06–11 |
+| MR-02: familiar interaction | P-02 | FR-03–07 | TC-A05/09/11/13/14/65–68, TC-M06–11/73 |
 | MR-02: zoomed work area | P-02 | FR-23 | TC-A27–29/32–35/37, TC-M44/45 |
 | MR-04: Apps browser | P-04 | FR-22 | TC-A30/31, TC-M43 |
 | MR-03: native Dock recovery | P-03 | FR-08/09 | TC-A07/10, TC-M12–15 |
@@ -30,8 +30,12 @@ Keep IDs stable; do not delete or reuse retired IDs. Update implementation and t
 | MR-07: distribution | P-07 | FR-19/30 | TC-R01–08, TC-M64 |
 | MR-08: local data | P-08 | NFR-04/05 | TC-M09/20–27, TC-P04 |
 | MR-09: English/Korean presentation | P-10 | FR-31 | TC-A54–57, TC-M66/68, TC-R09 |
+| MR-02: familiar interaction | P-11 | FR-34 | TC-A77, TC-M74 |
+| MR-07: distribution | P-12 | FR-35 | TC-A69–76/78, TC-M75–77, TC-R11, TC-P05 |
 
 ## Reading results
+
+Unreleased 1.1.0 in development: Shift-click new window (FR-34) and the daily update check (FR-35); see TC-A69–78, TC-R11, and TC-M74–77.
 
 Included in v1.0.0: external-display automatic pause (FR-32), native pin-order synchronization (FR-33), and hold-to-drag (FR-27). Includes reverse native imports on startup/resume and while active. See TC-A58–64 and TC-M70–72. The v0.4.1 release records are historical evidence for its shipped scope.
 
@@ -41,7 +45,7 @@ Included in v1.0.0: external-display automatic pause (FR-32), native pin-order s
 - **BLOCKED:** a specific missing condition prevented execution.
 - **NOT RUN:** no execution evidence yet.
 
-The suite currently contains 62 executable tests. Default runs omit the opt-in Quick Look integration; enabling it runs all 62. Test IDs include retired and historically grouped cases, so their highest number is not the test count. Legacy DockLayout tests are pure geometry checks rather than runtime multi-display UI tests.
+The suite currently contains 76 executable tests. Default runs omit the opt-in Quick Look integration; enabling it runs all 76. Test IDs include retired and historically grouped cases, so their highest number is not the test count. Legacy DockLayout tests are pure geometry checks rather than runtime multi-display UI tests.
 
 Historical QA and release records retain their original language and scope. Start at [QA.md](../QA.md) or the version links in [TC](TC.md). Prior PASS results do not establish full v1.0.0 verification.
 

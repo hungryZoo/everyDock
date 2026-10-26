@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.17 / 2026-09-15 |
-| Product baseline | everyDock v1.0.0 |
+| Document version | 1.19 / 2026-10-27 |
+| Product baseline | everyDock v1.0.0 (unreleased 1.1.0 in development) |
 | Parent | [MRD](MRD.md) |
 | Implementation and tests | [SRS](SRS.md), [TC](TC.md) |
 
@@ -11,13 +11,13 @@
 
 Provide a persistent, familiar app bar on each enabled display, with reliable app switching, window selection, everyday file access, and a reversible relationship with the macOS Dock. v0.4.1 adds Korean language selection, revised new-install defaults, sharper icon rendering, and separate permission requests/settings navigation while preserving saved preferences.
 
-The supported target is Apple Silicon with macOS 26+. The app is local, without accounts, analytics, remote window-image storage, or runtime network services. v1.0.0 adds automatic display handoff, bidirectional app order/pin synchronization, hold-to-drag, and Apache-2.0 licensing.
+The supported target is Apple Silicon with macOS 26+. The app is local, without accounts, analytics, or remote window-image storage. The only runtime network request is the optional update check (P-12) against GitHub’s public releases API; it sends no personal content. v1.0.0 adds automatic display handoff, bidirectional app order/pin synchronization, hold-to-drag, and Apache-2.0 licensing.
 
 ## 2. Scope
 
 Included: multiple displays, Bottom/Left/Right placement, native size following, magnification and launch feedback, app activation and supported minimize/restore, previews, close actions, app Dock menus, file stacks, Trash, pins, separators, press-and-hold dragging, setup and permissions, login launch, native Dock restoration, and Homebrew distribution.
 
-P-02 icon quality: preserve available high-resolution artwork on Retina displays, filter resting and magnified icons appropriately, and refresh cached pixels when display scale changes without rerasterizing during animation. Source artwork quality remains a limit. See FR-03 and TC-A52/A53/M67; this improvement is included in v0.4.1.
+P-02 icon quality: preserve available high-resolution artwork on Retina displays, filter resting and magnified icons appropriately, and refresh cached pixels when display scale changes without rerasterizing during animation. Source artwork quality remains a limit. Unreleased after v1.0.0: transient artwork failures must preserve the last visible icon or show a generic placeholder while bounded retries reload it; unchanged source identity must not prevent restoring discarded layer contents. See FR-03 and TC-A52/A53/M67; this improvement is included in v0.4.1.
 
 Excluded: Intel, earlier macOS, a pixel-exact Dock clone, independent system Genie destinations for every monitor, notification badges, minimized-window tiles, Mission Control, drag auto-scroll, and per-display app lists. OS-protected content and unsupported AX windows are not bypassed.
 
@@ -37,6 +37,8 @@ Implementation is not equivalent to verification. Current execution scope is rec
 | P-08 | P0 | Keep images in memory, send no personal content, preserve original files, and confirm irreversible deletion. |
 | P-09 | P1 | One card per actual AX window, distinct same-title windows, individual × buttons, and Close All Windows including Finder. Stop at save confirmation. |
 | P-10 | P1 | English and Korean app-owned menus, settings, setup, utility names, tooltips, accessibility labels, and messages. English README/current requirements; stable storage IDs and unchanged user/third-party text. |
+| P-11 | P1 | Shift-click opens a new window of a running app through the app’s own new-window menu command (Finder: New Finder Window). Never run another Command-N action such as a new event, file, or chat; such apps are only brought forward. A stopped app launches normally. |
+| P-12 | P1 | Check the latest GitHub release at most once a day without delaying launch. Show one update window with new and current versions, release notes, Skip This Version, Later, and Yes. Homebrew installations upgrade through brew after a normal quit and keep settings; other installations open the release page. Automatic checks can be turned off; a manual check is always available. |
 
 ## 4. Default experience
 
@@ -52,6 +54,7 @@ Implementation is not equivalent to verification. Current execution scope is rec
 | Native Dock management | On; preserve an existing user choice. |
 | Launch at login | Selected in first-time setup, registered only after Get Started. |
 | Menu bar icon | Visible by default. |
+| Update check | On, once a day. Later shows the window again at the next launch, such as after a restart; Skip This Version hides that version and older ones. |
 | Interface | Follow System: Korean when the primary system language is Korean, English otherwise. Manual English/한국어 selection applies immediately. External content and system dialogs keep their source language. |
 
 Running apps have an indicator; active state is distinguished. A launch request gets immediate feedback. Focus changes alone must not reorder apps. Overflow is handled by fitting and scrolling.
@@ -97,6 +100,12 @@ Permission-request buttons must not also navigate to System Settings, including 
 Hide Menu Bar Icon must explain that launching everyDock from Apps reopens Settings. Permission guidance takes priority when needed; a permitted login launch remains quiet.
 
 Homebrew uninstall and reinstall reset preferences and setup history, unregister login, and clean caches after native Dock recovery. Upgrade preserves preferences. macOS privacy decisions are separate. Installed cask snapshots determine removal behavior; older installations need an upgrade to receive new rules. Failed cleanup stops removal.
+
+### New windows and updates — P-11/P-12
+
+Shift-click on a running app activates it and presses one enabled menu item whose title names a window in the system language and whose shortcut is Command-N, or Shift-Command-N when no Command-N item qualifies. Finder opens a New Finder Window; browsers and terminals open a new window. Calendar, editors, and chat apps whose Command-N creates an event, file, or chat are only activated, with a beep. Activation sends no reopen event, so an app without windows gets exactly one new window. Permission denial shows the existing window-control guidance. Shift-click on a stopped app or Spotlight Apps follows ordinary click behavior; holding still arms reordering.
+
+The update check runs on launch and wake only, with no recurring timer, and records the attempt time before the request so offline launches do not retry until the next day. Drafts, prereleases, and non-version tags are ignored. While a newer version is pending, the update window appears at most once per launch and never over the setup window; Later waits for the next launch. Yes on a Homebrew installation writes a temporary Terminal script that waits for everyDock to exit, runs `brew update` and `brew upgrade --cask hungryZoo/tap/everydock`, clears the app-scoped quarantine flag, and reopens the app. everyDock then quits normally, so pin synchronization and native Dock recovery finish before brew replaces the bundle. Releases before 1.1.0 have no update check and need one manual upgrade.
 
 ### English and Korean presentation — P-10
 

@@ -45,7 +45,14 @@ gh release create v<version> \
   --notes-file .github/release-notes/v<version>.md
 ```
 
-These are placeholders, not commands to paste unchanged. Regular releases such as v1.0.0 use --latest; use --prerelease instead for an explicitly beta release. Never overwrite a published tag or asset. Check the public release page and attached assets after publishing. [GitHub release documentation](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository).
+These are placeholders, not commands to paste unchanged. Regular releases such as v1.0.0 use --latest; use --prerelease instead for an explicitly beta release.
+
+Since 1.1.0 the in-app update window (FR-35) reads `releases/latest`, which excludes drafts and prereleases, and shows the release body as patch notes. Publish the body without the file’s leading `# title` line, which is already the release title, so the window starts with the summary sentence. Notes for the first release after a change in update behavior also need an "Upgrading from …" section for versions without the update check.
+
+```bash
+tail -n +3 .github/release-notes/v<version>.md > .build/release-body.md
+# then pass --notes-file .build/release-body.md to gh release create
+``` Never overwrite a published tag or asset. Check the public release page and attached assets after publishing. [GitHub release documentation](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository).
 
 ## 4. Update the tap
 
@@ -62,6 +69,8 @@ brew fetch --cask hungryZoo/tap/everydock
 Record ordinary audit separately from online/strict/notarization checks, which can fail for the ad-hoc app. The legacy uninstall_preflight hook has an explicit Cask/InstallSteps exception because its removal-versus-upgrade decision must happen at runtime. A full default style check still reports that rule; do not call the exception-scoped check an unrestricted style pass. Inline RuboCop directives are no longer used. Do not hide Homebrew warnings.
 
 Use a fresh installation or isolated test environment for install coverage. `brew reinstall` deliberately resets preferences, so do not use it as a settings-preserving upgrade test. Verify the app-scoped quarantine step and launch instructions from README. Cask scripts do not disable Gatekeeper or clear quarantine automatically.
+
+After the tap update, check the in-app path from the previous release (TC-M77): **Check for Updates…** shows the new version, **Yes** opens Terminal, everyDock quits and restores the native Dock, the Homebrew upgrade keeps settings, and the new version opens. This needs a release newer than the first version with the update check (1.1.0). The update cache is `~/Library/Caches/app.everydock.mac/update-check.json`, which the existing cask cleanup and zap paths already remove.
 
 Uninstall/reinstall invokes the cleanup helper; upgrade preserves settings. Cleanup stops the app, restores the native Dock, unregisters login, and clears preferences/caches. Installed cask snapshots determine uninstall behavior. Zap excludes unfinished recovery journals. See [README](../README.md) for user commands.
 

@@ -18,7 +18,7 @@ open -a everyDock
 
 <div align="center">
 
-**Apple Silicon · macOS 26+ · Homebrew 6**
+**Apple Silicon · macOS 26+ · Homebrew 7**
 
 [First-time setup](#2-installation) · [Usage](#4-usage) · [Latest release](https://github.com/hungryZoo/everyDock/releases)
 
@@ -75,14 +75,17 @@ https://github.com/user-attachments/assets/943d317a-1656-409c-a050-17559b184a67
 
 - A persistent Dock on each enabled monitor, with the same pinned app order.
 - Magnification, launch bounce, running indicators, and macOS 26 glass styling.
-- Click to launch, activate, minimize, or restore app windows.
+- Click to launch, activate, minimize, or restore app windows. Shift-click to open a new window, such as a new Finder window.
 - Window previews with individual close buttons and **Close All Windows**.
 - App-provided Dock commands alongside everyDock’s own right-click menu.
 - Pinned apps, custom separators, and a separate section for unpinned running apps.
 - Desktop and Downloads stacks with file thumbnails, plus Trash access.
 - English and Korean interfaces, permission setup, and optional launch at login.
+- A daily update check with release notes; Homebrew installations update in one step.
 
-v0.4.1 improves icon rendering with display-scale-aware cached artwork and trilinear downsampling. Animation reuses the cached image. Visual checks across mixed-resolution displays are pending.
+v0.4.1 improves icon rendering with display-scale-aware cached artwork and trilinear downsampling. Animation reuses the cached image. An unreleased fix after v1.0.0 restores missing layer contents and retries blank icon loads while preserving the last good image or a visible placeholder; it is not yet in the Homebrew release. Visual checks across mixed-resolution displays are pending.
+
+The unreleased 1.1.0 adds Shift-click for a new window and an in-app update check. Neither is in the Homebrew release yet, and their in-app checks are still pending.
 
 v1.0.0 adds automatic pause without an external display, bidirectional native app-order synchronization, and press-and-hold dragging. When paused, pointer timers/monitors, periodic app reconciliation, previews, folder watching, and window work-area observation stop; display connection events remain active. The option is based on display presence, not power source. Battery savings have not been measured.
 
@@ -94,7 +97,7 @@ v1.0.0 adds automatic pause without an external display, bidirectional native ap
 | Windows | Accessibility controls supported windows; ScreenCaptureKit provides still previews. |
 | Files | Folder contents and thumbnails load asynchronously. |
 | macOS Dock | Optional management hides it while everyDock runs and restores its previous settings afterward. |
-| Privacy | No accounts, analytics, or network requests. Window previews stay in memory; audio is not recorded. |
+| Privacy | No accounts or analytics. The only network request is an optional once-a-day check of the latest GitHub release, which sends only the app version. Window previews stay in memory; audio is not recorded. |
 
 <p align="right"><a href="#table-of-contents">↑ back to top</a></p>
 
@@ -102,7 +105,7 @@ v1.0.0 adds automatic pause without an external display, bidirectional native ap
 
 ### Homebrew
 
-Install [Homebrew](https://brew.sh/) first. Homebrew 6 automatically adds the tap and trusts this specific cask when you install using its fully qualified name:
+Install [Homebrew](https://brew.sh/) first. A fully qualified name adds the tap automatically, and Homebrew 7 runs commands that name `hungryZoo/tap/everydock` in full without a separate trust step. Every command here uses the full name:
 
 ```bash
 brew install --cask hungryZoo/tap/everydock
@@ -116,7 +119,22 @@ Inspect the package with `brew info --cask hungryZoo/tap/everydock`. Its definit
 
 ### Update
 
-Quit everyDock, including any development copy, then update. **Upgrade preserves your settings.** Repeat the quarantine step after upgrades while the app remains unnotarized.
+From 1.1.0, everyDock checks the latest GitHub release at launch and after wake, at most once a day, without delaying startup. When a newer version exists, an update window shows the new and current versions and the release notes.
+
+| Button | Action |
+|---|---|
+| Skip This Version | Hide this version. A later version appears again. |
+| Later (Esc) | Close the window. It appears again the next time everyDock starts, such as after a restart. |
+| Yes (Return) | Update according to how everyDock was installed. |
+
+| Installation | What **Yes** does |
+|---|---|
+| Homebrew cask in `/Applications` or `~/Applications` | Opens Terminal, quits everyDock so the macOS Dock is restored, runs `brew update` and `brew upgrade --cask hungryZoo/tap/everydock`, clears quarantine, and opens the new version. **Settings are kept.** |
+| Manual download or development build | Opens the release page in your browser. |
+
+Choose **Check for Updates…** from the menu bar icon, or **Settings → Updates → Check Now**, to check immediately. Turn off **Check for Updates Automatically (Once a Day)** in Settings to stop automatic checks and the window. The last result is cached in `~/Library/Caches/app.everydock.mac/update-check.json`; removal and zap delete it.
+
+Versions before 1.1.0 have no update check. Update them once with Homebrew. Quit everyDock, including any development copy, first. **Upgrade preserves your settings.** Repeat the quarantine step after upgrades while the app remains unnotarized.
 
 ```bash
 brew update
@@ -124,6 +142,8 @@ brew upgrade --cask hungryZoo/tap/everydock
 xattr -dr com.apple.quarantine /Applications/everyDock.app
 open -a everyDock
 ```
+
+To include everyDock in a plain `brew upgrade`, trust the cask once with `brew trust --cask hungryZoo/tap/everydock`.
 
 ### Uninstall and reinstall
 
@@ -171,6 +191,7 @@ Startup, reopening, and background checks do not request missing Screen Recordin
 | Action | Result |
 |---|---|
 | Click an app | Launch or activate it. |
+| Shift-click a running app | Open a new window with the app’s own New Window command, such as **New Finder Window**. Apps whose Command-N creates something else, such as a calendar event or a file, are only brought forward. A stopped app launches normally. |
 | Click the active app again | Minimize its window when enabled and supported. |
 | Click an app with minimized windows | Restore its minimized windows. |
 | Hover over a running app | Show window previews after the configured delay. |
@@ -228,6 +249,7 @@ Click a file to open it in its default app, or choose **Open in Finder**. Droppi
 | Launch at login | Selected in first-time setup; registered only after **Get Started**. |
 | Language | Follow System: Korean for a Korean primary system language; English otherwise. Choose English or 한국어 to override it. Changes apply immediately. |
 | Hide Menu Bar Icon | Off. Reopen everyDock from Apps to return to Settings when hidden. |
+| Check for Updates Automatically (Once a Day) | On. See [Update](#update). |
 
 Preferences use the `app.everydock.mac` domain and `everyDock.preferences.v1` key. Upgrades preserve stored app paths, separator IDs, and option values. v0.4.1 adds Korean alongside English; app names, filenames, window titles, and third-party menu commands retain their original text. macOS permission dialogs follow system language.
 
@@ -237,7 +259,7 @@ The language selector and new defaults are included in v0.4.1. Existing saved op
 
 | Permission | Used for |
 |---|---|
-| Accessibility | Window control, window lists, and app-provided Dock menus. |
+| Accessibility | Window control, window lists, app-provided Dock menus, and Shift-click new windows. |
 | Screen Recording | Still window previews; no audio capture. |
 | Desktop / Downloads access | File lists and thumbnails for the selected folder. |
 

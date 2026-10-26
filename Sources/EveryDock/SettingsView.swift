@@ -5,6 +5,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject var updates: UpdateController
 
     var body: some View {
         VStack(spacing: 0) {
@@ -120,6 +121,8 @@ struct SettingsView: View {
                     Text(L10n.text("To open Settings, find everyDock in Apps and launch it. Settings opens even if everyDock is already running."))
                         .font(.caption).foregroundStyle(.secondary)
                     Toggle(L10n.text("Click Active App to Minimize"), isOn: $model.preferences.clickToMinimize)
+                    Text(L10n.text("Shift-click an app to open a new window, such as a new Finder window. everyDock runs the app’s own New Window menu command; apps without one are only brought forward."))
+                        .font(.caption).foregroundStyle(.secondary)
                     LabeledContent(L10n.text("Minimize and Restore")) {
                         Text(model.permissions.accessibility.title)
                         Button(L10n.text("Allow Accessibility…"), action: model.requestAccessibility)
@@ -161,6 +164,14 @@ struct SettingsView: View {
                     Toggle(L10n.text("Hide All Docks"), isOn: $model.paused)
                     Toggle(L10n.text("Hide macOS Dock While everyDock Is Running"), isOn: $model.preferences.manageNativeDock)
                     Text(L10n.text("Saves your macOS Dock settings and enables auto-hide. Quitting, hiding all Docks, or a crash restores those settings. The macOS Dock restarts when this changes."))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
+                Section(L10n.text("Updates")) {
+                    Toggle(L10n.text("Check for Updates Automatically (Once a Day)"), isOn: $model.preferences.checkForUpdates)
+                    Button(updates.isChecking ? L10n.text("Checking…") : L10n.text("Check Now"), action: updates.checkNow)
+                        .disabled(updates.isChecking)
+                    Text(L10n.text("Checks the latest GitHub release at launch and after wake, at most once a day. Turning this off stops automatic checks and the update window."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }

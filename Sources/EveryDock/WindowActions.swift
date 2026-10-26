@@ -179,6 +179,35 @@ enum WindowActions {
         }.value
     }
 
+    /// Presses the app's best new-window menu item (see NewWindowCommand). Returns nil on success.
+    static func newWindow(pid: pid_t) async -> WindowFailure? {
+        await Task.detached(priority: .userInitiated) {
+            let application = client(pid)
+            guard let menuBar = element(application, kAXMenuBarAttribute) else {
+                var value: CFTypeRef?
+                let error = AXUIElementCopyAttributeValue(application, kAXMenuBarAttribute as CFString, &value)
+                return error == .success ? .unsupported : .classify(error)
+            }
+            var best: (rank: Int, item: AXUIElement)?
+            for item in elements(menuBar, kAXChildrenAttribute).dropFirst() {
+                for menu in elements(item, kAXChildrenAttribute) {
+                    for entry in elements(menu, kAXChildrenAttribute) {
+                        let character = string(entry, kAXMenuItemCmdCharAttribute)
+                        guard !character.isEmpty,
+                              let rank = NewWindowCommand.rank(title: string(entry, kAXTitleAttribute), character: character,
+                                                               modifiers: int(entry, kAXMenuItemCmdModifiersAttribute),
+                                                               enabled: bool(entry, kAXEnabledAttribute)),
+                              rank < (best?.rank ?? .max) else { continue }
+                        best = (rank, entry)
+                    }
+                }
+            }
+            guard let best else { return .unsupported }
+            let pressed = AXUIElementPerformAction(best.item, kAXPressAction as CFString)
+            return pressed == .success ? nil : .classify(pressed)
+        }.value
+    }
+
     static func close(_ reference: WindowReference) async -> WindowCloseResult {
         await Task.detached(priority: .userInitiated) { await closeAndWait(reference) }.value
     }
@@ -278,6 +307,11 @@ enum WindowActions {
             AXValueGetValue(unsafeDowncast(size, to: AXValue.self), .cgSize, &extent)
         }
         return CGRect(origin: point, size: extent)
+    }
+    private static func int(_ owner: AXUIElement, _ attribute: String) -> Int? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success else { return nil }
+        return (value as? NSNumber)?.intValue
     }
     private static func bool(_ element: AXUIElement, _ attribute: String) -> Bool {
         var value: CFTypeRef?

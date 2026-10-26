@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.17 / 2026-09-15 |
-| Baseline | everyDock v1.0.0 |
+| Document version | 1.19 / 2026-10-27 |
+| Baseline | everyDock v1.0.0 (unreleased 1.1.0 in development) |
 | Parent / verification | [PRD](PRD.md) / [TC](TC.md) |
 
 Requirements describe intended behavior. Implementation and observed PASS results are separate; numeric performance targets are not measured achievements.
@@ -16,7 +16,7 @@ Requirements describe intended behavior. Implementation and observed PASS result
 - AppKit panels, controls, `NSGlassEffectView`, and SwiftUI settings/popovers.
 - `NSWorkspace`, `NSScreen`, Accessibility, ScreenCaptureKit, Quick Look Thumbnailing, and `SMAppService` integration.
 - Native Dock preferences use `com.apple.dock`, whose storage format is not a public compatibility contract.
-- No runtime accounts, servers, analytics, or remote image transfer. Distribution downloads are separate.
+- No runtime accounts, servers, analytics, or remote image transfer. The only runtime request is the FR-35 update check (HTTPS GET to `api.github.com`, version-only User-Agent). Distribution downloads are separate.
 - No automatic OS permission approval or system-wide Gatekeeper/SIP changes. README documents user-run, app-scoped quarantine removal.
 
 UI mutations use MainActor. AX and filesystem work run separately. Retain observed NSRunningApplication objects and invalidate KVO before releasing them.
@@ -33,6 +33,7 @@ UI mutations use MainActor. AX and filesystem work run separately. Retain observ
 | WindowActions / WindowWorkArea | AX window identity, minimize/restore/select/close, supported zoom correction. |
 | NativeDockManager / NativeDockMenu | Recovery journals/watchdog and native menu snapshot/dispatch. |
 | DockUtilities / WindowPreview | Folder and Trash actions, file thumbnails, window previews. |
+| UpdateController / UpdateView | Daily release check, update window, Homebrew Terminal hand-off (FR-35). |
 | DockCore | Persistent models, geometry, motion, matching, ordering, recovery, failure classification. |
 
 ## 3. Functional requirements
@@ -61,7 +62,7 @@ Read native tilesize within 16–96pt and largesize between the base size and 12
 
 Length is `(app count + 3) × (icon size + 2) − 2 + 14 + 12 + separator count × 14`, plus 12 when a running-section boundary exists. These are implementation metrics, not official measurements of Apple internals.
 
-Use cell-free NSControl icons with cached CALayers. Rasterize only when artwork or display backing scale changes, at 288pt × backing scale (576px at 2×), covering maximum manual magnification and native-follow sizing. Draw the appropriate NSImage representation into an explicit transparent bitmap, preserve aspect ratio, and use trilinear minification with the layer's display contentsScale. Animated bounds reuse the same texture. Low-resolution source artwork cannot gain missing detail. Reuse dots and separator layers. A release outside cancels a click; dragging back inside and releasing activates once. Space, Return, and accessibility Press must work. Keep input tracking while pressed. Fit and scroll overflowing contents.
+Use cell-free NSControl icons with cached CALayers. Rasterize only when artwork or display backing scale changes, or during a bounded failed-artwork retry, at 288pt × backing scale (576px at 2×), covering maximum manual magnification and native-follow sizing. Draw the appropriate NSImage representation into an explicit transparent bitmap, preserve aspect ratio, and use trilinear minification with the layer's display contentsScale. Animated bounds reuse the same texture. Unreleased after v1.0.0: reject zero/invalid-size and fully transparent raster results; retain the last valid texture, or use a visible generic placeholder if none exists. While attached, retry failed artwork up to three times at 0.5/1/2 seconds; app tiles reload their source from NSWorkspace. Cancel retries on detachment/shutdown. A new artwork identity or attachment starts a new retry budget. Restore cached pixels when the backing layer loses its contents even when NSImage identity is unchanged, and honor AppKit display requests without rerasterizing successful artwork. Low-resolution source artwork cannot gain missing detail. Reuse dots and separator layers. A release outside cancels a click; dragging back inside and releasing activates once. Space, Return, and accessibility Press must work. Keep input tracking while pressed. Fit and scroll overflowing contents.
 
 ### FR-04 Motion and input — P-02 / P0
 
@@ -227,6 +228,16 @@ After any committed app-pin change in everyDock (drag, context menu, Add Apps, o
 
 When everyDock hides the native Dock, defer reloading native order until restoration and combine it with the existing restoration restart. When the native Dock is unmanaged/visible, a changed order requires one restart. Display fallback/manual pause/quit preserves the new order; recovery journals still cover appearance settings only. On write error, keep everyDock's order and show a sync-specific message; suspend reverse imports for the session until a subsequent local app-pin edit synchronizes successfully. No writing/restarting occurs during pointer movement or canceled/no-op drops.
 
+### FR-34 Shift-click new window — P-11 / P1
+
+When the click event carries Shift, `DockSurface` calls `AppModel.openNewWindow` instead of `launch`. Stopped apps and Spotlight Apps fall back to `launch(toggle: false)`. A running app is unhidden and activated without a reopen event, then `WindowActions.newWindow` reads the AX menu bar off the UI thread, skips the Apple menu, and scans each top-level menu’s items. `NewWindowCommand.rank` accepts only enabled items with character N, a window word in the title (English, Korean, and common European/CJK forms), and AX modifiers 0 (Command, rank 0) or 1 (Shift-Command, rank 1); the lowest rank wins and is pressed once. No candidate → `.unsupported` → beep only. Classify AX errors as in FR-06; permission denial shows the existing window-control message and updates the permission state. Serialize per app with the existing click guard. Shift with a 0.30-second hold still arms FR-27 reordering.
+
+### FR-35 Update check and update window — P-12 / P1
+
+`DockCore/UpdateCheck.swift` holds the Foundation-only logic: `SemanticVersion` (`MAJOR.MINOR.PATCH`, optional leading `v`, ASCII digits only), `UpdateCache` and `UpdateCacheStore` (`~/Library/Caches/app.everydock.mac/update-check.json`; missing or corrupt means unchecked), `UpdatePolicy` (24-hour check interval, clock rollback rechecks, pending only when newer than the current and skipped versions), `LatestReleaseParser` (GitHub `releases/latest`; drafts, prereleases, and non-version tags fail), `UpdateChecker` (ephemeral session, 5-second request/resource timeouts, non-200 → nil), `ReleaseNotesFormatter` (inline-only Markdown), `InstallMethod` (`/Applications` or `~/Applications` plus `<prefix>/Caskroom/everydock` and `<prefix>/bin/brew`, `/opt/homebrew` first), and `UpdateScript`.
+
+`UpdateController` runs on launch and `NSWorkspace.didWakeNotification`: present a cached pending update, then, if 24 hours passed, save the attempt time before fetching and present again after success. No timer. Presentation requires `checkForUpdates`, no visible setup window, no open update window, and no earlier presentation in this process (Later waits for the next launch); dismissing setup re-evaluates. `Check for Updates…` (status menu, app menu) and Settings `Check Now` ignore the interval and skipped version, store the result, and show the window or an up-to-date/failure alert. The window activates the accessory app, uses floating level, and offers Skip This Version (stores `skippedUpdateVersion`), Later (Escape), and Yes (Return). Yes for Homebrew writes `everyDock-update-<UUID>.command` (0755) to the temporary directory; the script waits for this PID, runs `brew update` then `brew upgrade --cask hungryZoo/tap/everydock` with absolute single-quoted paths, removes quarantine from the app path, reopens it, and deletes itself. After Terminal opens successfully, call `NSApp.terminate` so FR-33 draining and FR-09 restoration finish first; failure shows the commands instead. Manual installations open the release page. `checkForUpdates` (default true) and `skippedUpdateVersion` live in `DockPreferences`, so upgrades keep them and uninstall resets them; the cask already removes the cache directory.
+
 ## 4. Nonfunctional requirements
 
 | ID | Requirement / acceptance target |
@@ -234,7 +245,7 @@ When everyDock hides the native Dock, defer reloading native order until restora
 | NFR-01 | arm64 only, LSMinimumSystemVersion=26.0, successful SDK build; mixed-scale multi-display validation. |
 | NFR-02 | Target: Apple Silicon, 20 apps, two displays; idle CPU average ≤2% over five minutes, combined RSS ≤200MiB, magnification frame P95 ≤16.7ms, 95% of app state changes ≤1 second. These remain measurement targets. |
 | NFR-03 | Target: native Dock restored within five seconds of detected process exit; user edits preserved; no duplicate panels after recovery. |
-| NFR-04 | No network/analytics/image-file output. No unapproved automatic capture or retry after denial. |
+| NFR-04 | No network/analytics/image-file output except the FR-35 release check, which sends no personal content and can be turned off. No unapproved automatic capture or retry after denial. |
 | NFR-05 | Preserve source/existing destination files, delete nothing on cancellation, back up before Dock edits, preserve user changes during restoration. |
 | NFR-06 | English accessibility labels/state, keyboard support, Reduce Motion, light/dark, scale, and VoiceOver validation. |
 | NFR-07 | CI/package integrity, tag/bundle agreement, public download checksum, Homebrew fetch/install verification. |

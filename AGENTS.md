@@ -17,11 +17,13 @@ Paths below are relative to `Sources/EveryDock/` unless prefixed otherwise.
 |---|---|
 | Startup, settings, login, language | `EveryDockApp.swift`, `AppModel.swift`, `SettingsView.swift`, `OnboardingView.swift`; `Sources/DockCore/Localization.swift`, `Sources/DockCore/KoreanStrings.swift` |
 | Display lifecycle / automatic pause | `DockPanel.swift`, `AppModel.swift`; `Sources/DockCore/DockActivity.swift` |
-| Icons, magnification, hold/drag, separators | `DockSurface.swift`; `Sources/DockCore/DockReordering.swift`, `Sources/DockCore/DockLayout.swift` |
+| Icons, magnification, hold/drag, separators | `DockSurface.swift`, `DockArtwork.swift`; `Sources/DockCore/DockReordering.swift`, `Sources/DockCore/DockLayout.swift` |
 | Native Dock pin synchronization | `AppModel.swift`, `NativeDockPinSync.swift`; `Sources/DockCore/NativeDockPins.swift` |
 | Native Dock appearance / recovery | `NativeDockManager.swift`, `NativeDockStyle.swift`; `Sources/DockCore/NativeDockSnapshot.swift` |
 | App-provided menus / tooltips | `NativeDockMenu.swift`, `DockTooltip.swift`; `Sources/DockCore/DockMenuPlacement.swift` |
 | Permissions / previews / window actions | `AppPermissions.swift`, `WindowPreview.swift`, `WindowActions.swift`; `Tests/EveryDockTests/CaptureConsentTests.swift` |
+| Shift-click new window | `DockSurface.swift` (`appClicked`), `AppModel.swift` (`openNewWindow`), `WindowActions.swift` (`newWindow`); `Sources/DockCore/NewWindowCommand.swift` |
+| Update check / update window | `UpdateController.swift`, `UpdateView.swift`, `EveryDockApp.swift` menus; `Sources/DockCore/UpdateCheck.swift`, `Tests/DockCoreTests/UpdateCheckTests.swift` |
 | Window zoom and restoration | `WindowWorkAreaController.swift`, `WindowRestoreClock.swift`; `Sources/DockCore/WindowZoomState.swift` |
 | Spotlight Apps / folder stacks | `DockUtilities.swift`, `ApplicationCatalog.swift`; `Tests/EveryDockTests/FolderPresentationTests.swift` |
 | Removal and preference migration | `UninstallCleanup.swift`; `Sources/DockCore/PreferenceReset.swift`, `Sources/DockCore/DockLayout.swift` |

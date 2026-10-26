@@ -314,12 +314,17 @@ import QuartzCore
         if changed { updateVisibleApps(); animate() }
     }
     func stop() { displayLink?.invalidate(); displayLink = nil }
-    func shutdown() { stop(); previews.close(); buttons.values.forEach { $0.cancelHold() } }
+    func shutdown() {
+        stop(); previews.close()
+        buttons.values.forEach { $0.cancelHold(); $0.cancelArtworkRetry() }
+        utilityButtons.values.forEach { $0.cancelArtworkRetry() }
+    }
     @objc private func appClicked(_ sender: DockAppButton) {
         guard !sender.app.isSeparator else { return }
         previews.close()
         clicks[sender.app.id] = ProcessInfo.processInfo.systemUptime
-        model.launch(sender.app, anchor: sender)
+        if NSApp.currentEvent?.modifierFlags.contains(.shift) == true { model.openNewWindow(sender.app, anchor: sender) }
+        else { model.launch(sender.app, anchor: sender) }
         animate()
     }
     override func scrollWheel(with event: NSEvent) {
@@ -549,10 +554,13 @@ private final class DockIndicators: NSView {
     private var artwork: NSImage?
     private var pixels: CGImage?
     private var artworkScale: CGFloat = 0
+    private(set) var artworkNeedsRetry = false
+    private(set) var artworkRetryCount = 0
+    private var artworkRetryTask: Task<Void, Never>?
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        layerContentsRedrawPolicy = .never
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         layer?.contentsGravity = .resizeAspect
         // Linear sampling skips fine details when a large texture shrinks to a resting icon.
         layer?.minificationFilter = .trilinear
@@ -565,43 +573,67 @@ private final class DockIndicators: NSView {
     override func updateLayer() { layer?.contents = pixels }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        refreshArtwork()
+        cancelArtworkRetry()
+        if window != nil { artworkRetryCount = 0; refreshArtwork() }
     }
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
         refreshArtwork()
     }
     func setArtwork(_ image: NSImage) {
-        guard artwork !== image else { return }
+        guard artwork !== image else {
+            // AppKit can request a new backing layer without changing the NSImage identity.
+            if layer?.contents == nil { updateLayer() }
+            scheduleArtworkRetry()
+            return
+        }
+        cancelArtworkRetry()
+        artworkRetryCount = 0
         artwork = image
         refreshArtwork(force: true)
     }
-    private func refreshArtwork(force: Bool = false) {
-        guard let artwork else { return }
+    func freshArtwork() -> NSImage? {
+        guard let fresh = artwork?.copy() as? NSImage else { return nil }
+        fresh.recache()
+        return fresh
+    }
+    func cancelArtworkRetry() {
+        artworkRetryTask?.cancel()
+        artworkRetryTask = nil
+    }
+    func retryArtwork() {
+        guard artworkNeedsRetry, artworkRetryCount < 3 else { return }
+        artworkRetryCount += 1
+        refreshArtwork(force: true, candidate: freshArtwork())
+    }
+    private func scheduleArtworkRetry() {
+        guard artworkNeedsRetry, artworkRetryCount < 3, artworkRetryTask == nil, window != nil else { return }
+        let delay = 0.5 * pow(2, Double(artworkRetryCount))
+        artworkRetryTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard let self, !Task.isCancelled, window != nil else { return }
+            artworkRetryTask = nil
+            retryArtwork()
+        }
+    }
+    private func refreshArtwork(force: Bool = false, candidate: NSImage? = nil) {
+        guard let source = candidate ?? artwork else { return }
         let scale = window?.backingScaleFactor ?? 2
-        guard force || artworkScale != scale else { return }
-        // Preferences cap icon size at 72pt and magnification at 4×.
-        let side = Int(ceil(72 * 4 * scale))
-        guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
-                                            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
-                                            isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
-              let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return }
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = context
-        context.imageInterpolation = .high
-        NSColor.clear.setFill()
-        NSRect(x: 0, y: 0, width: side, height: side).fill(using: .copy)
-        let aspect = artwork.size.width / max(1, artwork.size.height)
-        let size = NSSize(width: aspect >= 1 ? CGFloat(side) : CGFloat(side) * aspect,
-                          height: aspect >= 1 ? CGFloat(side) / aspect : CGFloat(side))
-        artwork.draw(in: NSRect(x: (CGFloat(side) - size.width) / 2, y: (CGFloat(side) - size.height) / 2,
-                               width: size.width, height: size.height),
-                     from: .zero, operation: .copy, fraction: 1)
-        NSGraphicsContext.restoreGraphicsState()
-        pixels = bitmap.cgImage
+        guard force || artworkNeedsRetry || artworkScale != scale else { updateLayer(); return }
+        if let rendered = DockArtwork.render(source, scale: scale) {
+            pixels = rendered
+            artworkNeedsRetry = false
+            cancelArtworkRetry()
+        } else {
+            // Keep the last valid image during transient failures; never publish a blank tile.
+            artworkNeedsRetry = true
+            if pixels == nil { pixels = DockArtwork.render(DockArtwork.placeholder, scale: scale) }
+            scheduleArtworkRetry()
+        }
         artworkScale = scale
         layer?.contentsScale = scale
-        layer?.contents = pixels
+        updateLayer()
+        needsDisplay = true
     }
     private func highlight(_ flag: Bool) {
         CATransaction.begin()
@@ -654,6 +686,11 @@ private final class DockIndicators: NSView {
         setAccessibilityRole(.button)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func freshArtwork() -> NSImage? {
+        let fresh = NSWorkspace.shared.icon(forFile: app.url.path).copy() as? NSImage
+        fresh?.recache()
+        return fresh
+    }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func rightMouseDown(with event: NSEvent) {
         showAppMenu()

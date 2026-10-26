@@ -73,6 +73,8 @@ public struct DockPreferences: Codable, Equatable, Sendable {
     public var previewDelay = 0.60
     public var language: AppLanguage = .system
     public var hideMenuBarIcon = false
+    public var checkForUpdates = true
+    public var skippedUpdateVersion: String?
 
     public init() {}
 
@@ -81,6 +83,7 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         case magnification, manageNativeDock, clickToMinimize
         case followNativeSize, showPreviews, previewDelay
         case hideMenuBarIcon, language, pauseWithoutExternalDisplay
+        case checkForUpdates, skippedUpdateVersion
     }
 
     public init(from decoder: Decoder) throws {
@@ -101,6 +104,8 @@ public struct DockPreferences: Codable, Equatable, Sendable {
         previewDelay = try values.decodeIfPresent(Double.self, forKey: .previewDelay) ?? 0.60
         language = AppLanguage(rawValue: try values.decodeIfPresent(String.self, forKey: .language) ?? "system") ?? .system
         hideMenuBarIcon = try values.decodeIfPresent(Bool.self, forKey: .hideMenuBarIcon) ?? false
+        checkForUpdates = try values.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? true
+        skippedUpdateVersion = try values.decodeIfPresent(String.self, forKey: .skippedUpdateVersion)
         normalize()
     }
 

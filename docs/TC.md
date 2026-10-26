@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.17 / 2026-09-15 |
-| Target | everyDock v1.0.0, Apple Silicon, macOS 26+ |
+| Document version | 1.19 / 2026-10-27 |
+| Target | everyDock v1.0.0 and unreleased 1.1.0, Apple Silicon, macOS 26+ |
 | Requirements | [SRS](SRS.md), [traceability](README.md) |
 | Current results | [QA-v1.0.0](QA-v1.0.0.md) |
 
@@ -151,7 +151,7 @@ Use the matching environments above and the SRS detail for the linked behavior. 
 | TC-M65 | Fresh launch/reopen/hover does not request missing screen access; only the permission button requests, denial stops retries, and setup has no redundant bottom section. |
 | TC-M66 | On Korean and English macOS, inspect everyDock-owned setup/settings/menu/utility/preview/AX text for the selected language and fitting; preserve external names and old preferences. |
 
-M01–05 map to FR-01/02; M06–11 to FR-03–07/18; M12–15 to FR-08/09; M16–22 to FR-10–13; M23–27 to FR-14/15; M28–33 to FR-16–18 and NFR-06; M34–40 to FR-20/21/14/15; M41–47 to FR-10/11/14/22–25; M48–52 to FR-21/24; M53–55 to FR-25/26; M56–58 to FR-27; M59–63 to FR-28/29; M64 to FR-30; M65 to FR-14/28; M66 to FR-31 and NFR-06.
+M01–05 map to FR-01/02; M06–11 to FR-03–07/18; M12–15 to FR-08/09; M16–22 to FR-10–13; M23–27 to FR-14/15; M28–33 to FR-16–18 and NFR-06; M34–40 to FR-20/21/14/15; M41–47 to FR-10/11/14/22–25; M48–52 to FR-21/24; M53–55 to FR-25/26; M56–58 to FR-27; M59–63 to FR-28/29; M64 to FR-30; M65 to FR-14/28; M66 to FR-31 and NFR-06; M74 to FR-34; M75–77 to FR-35 (recorded in section 6).
 
 M44 does not require reconstructing a size never observed before startup. It additionally tests Reduce Motion, app-switch cancellation, and absence of a spare 4pt gap. M60's original setup-bottom controls were superseded by M65. Original show-desktop and same-monitor-only native-menu behavior is historical, not a current acceptance condition.
 
@@ -165,6 +165,7 @@ These targets require real measurements. Display-link callback/render timing alo
 | TC-P02 | Instruments: 30-second pointer sweep and 30 preview cycles; frame P95 ≤16.7ms and no continuing idle memory growth. | NFR-02 |
 | TC-P03 | 20 external launch/quit cycles and five display reconnects; app state 95% ≤1s, display recovery target 2s, AX latency does not stall animation. | FR-01/07, NFR-02 |
 | TC-P04 | Observe process networking/file writes during previews; no remote transfer/image writes or unapproved background permission requests. | NFR-04 |
+| TC-P05 | Observe networking across launches and wakes; at most one release check per 24 hours, version-only User-Agent, none when disabled. Results in section 6. | FR-35, NFR-04 |
 
 ## 5. Distribution and documentation
 
@@ -180,8 +181,47 @@ These targets require real measurements. Display-link callback/render timing alo
 | TC-R08 | Install/upgrade/reinstall/uninstall an isolated artifact cask: preserve on upgrade, invoke reset on reinstall/removal without touching user data. | FR-30 |
 | TC-R10 | Compare source LICENSE/NOTICE with final bundled copies; recognize Apache-2.0, preserve its patent grant, and verify ownership language does not assert a registered patent. | FR-19 |
 | TC-R09 | Check app-owned source uses the English/Korean catalog, inspect en/ko bundle metadata, render README through GitHub Markdown, and check links/anchors. Preserve multilingual test inputs and historical evidence. | FR-31, NFR-08 |
+| TC-R11 | Generated Homebrew update script with a fake brew, temporary app, and test PID: waits for the PID, runs update then the full-name cask upgrade, clears quarantine, deletes itself. Results in section 6. | FR-35 |
 
 ## 6. Evidence and release gates
+
+### Unreleased 1.1.0 Shift-click new window and update check — FR-34/35 / P-11/P-12
+
+| ID | Check | Result |
+|---|---|---|
+| TC-A69 | semanticVersionParsesOnlyPlainReleaseVersions: `v` prefix, numeric ordering (1.0.9 < 1.0.10), rejection of two-part, `-rc1`, `+2`, and empty versions. | PASS (2026-10-27) |
+| TC-A70 | updateCheckRunsAtMostOncePerDay: first run, under/over 24 hours, and clock rollback. | PASS (2026-10-27) |
+| TC-A71 | pendingUpdateRespectsCurrentAndSkippedVersions: newer than current and skipped only; empty cache shows nothing. | PASS (2026-10-27) |
+| TC-A72 | updateCacheRoundTripsAndTreatsCorruptFilesAsUnchecked: nested temporary path round trip, corrupt JSON resets, default path under `Caches/app.everydock.mac`. | PASS (2026-10-27) |
+| TC-A73 | latestReleaseParserRejectsPrereleasesAndErrors: tag, notes, URL; prerelease, non-version tag, and rate-limit body fail. | PASS (2026-10-27) |
+| TC-A74 | releaseNotesBecomeInlineMarkdown: headings, nested lists, code fences, and blank-line collapsing. | PASS (2026-10-27) |
+| TC-A75 | installMethodRequiresCaskLocationAndCaskroomRecord: `/Applications`, `~/Applications`, missing Caskroom, and development bundle paths. | PASS (2026-10-27) |
+| TC-A76 | homebrewScriptWaitsForQuitAndUsesFullCaskName: PID wait, `update` before `upgrade --cask hungryZoo/tap/everydock`, quoted path with an apostrophe, self-deletion, no reinstall. | PASS (2026-10-27) |
+| TC-A77 | newWindowCommandRequiresWindowTitleAndPrefersCommandN: Korean/English window titles, Shift-Command-N rank, rejection of event/file/chat, disabled, Option, and non-N items. | PASS (2026-10-27) |
+| TC-A78 | updatePreferencesDefaultOnAndRoundTrip: missing keys default to checking with no skipped version; values round-trip. | PASS (2026-10-27) |
+| TC-R11 | Harness linking the built DockCore objects: fetch the live `releases/latest`, generate the Homebrew script with a fake `brew`, a temporary quarantined `.app`, and a `sleep 3` PID, then run it with zsh. | PASS (2026-10-27) |
+| TC-M74 | In the everyDock app: Shift-click Finder (one new Finder window, also with no open windows), a browser, Calendar (beep, no event), a stopped app (normal launch), Spotlight Apps, and a held Shift-press (reorder); then repeat with Accessibility denied (guidance message). | NOT RUN |
+| TC-M75 | Set the cached `latestVersion` to `9.9.9` and launch: window on top after the setup window closes, floating level, accessory app stays out of the Dock. Later hides until the next launch, including after wake; Skip This Version stores `skippedUpdateVersion` and stays hidden; Escape/Return map to Later/Yes. Manual install opens the release page. | NOT RUN |
+| TC-M76 | `Check for Updates…` in the status and app menus and Settings `Check Now`: up-to-date alert, offline failure alert, and the update window when newer. Turning the setting off stops launch and wake checks. | NOT RUN |
+| TC-M77 | After a release newer than 1.1.0 exists: Yes on a Homebrew installation opens Terminal, everyDock quits and restores the native Dock, brew upgrades, the new version opens, and preferences and pins are preserved. | NOT RUN |
+| TC-P05 | Observe networking for one day of launches and wakes: at most one `api.github.com` request per 24 hours with only the version in the User-Agent, none when the setting is off. | NOT RUN |
+
+2026-10-27 local validation: `swift test --arch arm64` and `EVERYDOCK_RUN_QL_TEST=1 swift test --arch arm64` each passed 76 tests, 66 existing and 10 new (TC-A69–78). The debug bundle at `.build/dev-app/everyDock.app` (1.1.0, build 20) built and passed strict signature verification; it was not launched. The TC-R11 harness received `1.0.0` from the public API. The generated script waited about 3 seconds for the test PID, called the fake brew with `update` and then `upgrade --cask hungryZoo/tap/everydock`, removed the quarantine attribute, and deleted itself. A separate AX probe used the same `NewWindowCommand` rule against apps running on the owner’s Korean macOS 26 session. Finder (새로운 Finder 윈도우), Chrome and NAVER Whale (새 창), iTerm2 and Audacity (Command-N), and Cursor (New Window, Shift-Command-N) were selected. Mail, Calendar, Codex, Hancom Office, Preview, Telegram, and KakaoTalk had no qualifying item; before the title rule, plain Command-N would have created a calendar event, a text file, or a chat. Menu scans took 5-132 ms. Pressing Finder’s item increased its AX window count from 1 to 2, and the test window was closed. The installed `/Applications/everyDock.app` was left running, so in-app Shift-click, update window, menu, and Settings checks (TC-M74–76) were not run with the 1.1.0 build.
+
+### Unreleased icon recovery — FR-03 / P-02
+
+| ID | Check | Result |
+|---|---|---|
+| TC-A65 | blankIconUsesPlaceholderAndRecoversFromFreshSource: transparent raster is rejected, placeholder remains visible, then fresh artwork replaces it. | PASS (2026-09-23) |
+| TC-A66 | failedIconRefreshKeepsGoodPixelsAndBoundsRetries: retain good pixels and cap failed reload attempts at three even across repeated synchronization. | PASS (2026-09-23) |
+| TC-A67 | sameIconRestoresDiscardedLayerWithoutRasterizingAgain: cleared layer contents recover the identical cached CGImage for the same NSImage. | PASS (2026-09-23) |
+| TC-A68 | iconRasterRejectsEmptyAndInvalidSizeButKeepsSparseArtwork: reject blank/zero-size results without rejecting sparse visible pixels. | PASS (2026-09-23) |
+| TC-M73 | Confirm missing Settings/VMware Fusion/NAVER Whale artwork returns in the installed fix; check long-running use, display detach/reattach, and no ongoing retry work after pause. | PARTIAL (2026-09-23; installed visual check passed) |
+
+Observed v1.0.0 with blank tiles while AX app buttons remained present. Fresh NSWorkspace reads rendered the same apps correctly. Source inspection found that transparent rasters were accepted permanently, identical image objects skipped recovery, and the control used a never-redraw policy. The original transient trigger is not established. The targeted six-test run (new recovery cases plus existing image-quality/cache regressions) passed. No icon cache, private screenshot, or user settings are committed.
+
+Final local validation (2026-09-23): all 66 tests passed with `EVERYDOCK_RUN_QL_TEST=1 swift test --arch arm64`, including real Quick Look; release build and strict signature verification passed. After normal quit, the local fix was copied to `/Applications/everyDock.app` and `dist/everyDock.app` and relaunched. CUA captured the before/after Dock: Settings, VMware Fusion, NAVER Whale, Microsoft Teams, and Bambu Studio showed their proper icons after replacement. Long-duration recurrence and display/pause lifecycle checks remain NOT RUN. The rebuilt ad-hoc app reported Accessibility permissionDenied at startup; no TCC reset or permission grant was performed, and window-control/preview behavior is not claimed as revalidated. The user was informed of the required Accessibility re-authorization. Public v1.0.0 and Homebrew assets remain unchanged.
+
 
 ### v1.0.0 display handoff and reordering — FR-27/32/33
 
