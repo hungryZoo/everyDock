@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document version | 1.19 / 2026-10-27 |
-| Baseline | everyDock v1.0.0 (unreleased 1.1.0 in development) |
+| Baseline | everyDock v1.1.0 |
 | Parent / verification | [PRD](PRD.md) / [TC](TC.md) |
 
 Requirements describe intended behavior. Implementation and observed PASS results are separate; numeric performance targets are not measured achievements.
@@ -62,7 +62,7 @@ Read native tilesize within 16–96pt and largesize between the base size and 12
 
 Length is `(app count + 3) × (icon size + 2) − 2 + 14 + 12 + separator count × 14`, plus 12 when a running-section boundary exists. These are implementation metrics, not official measurements of Apple internals.
 
-Use cell-free NSControl icons with cached CALayers. Rasterize only when artwork or display backing scale changes, or during a bounded failed-artwork retry, at 288pt × backing scale (576px at 2×), covering maximum manual magnification and native-follow sizing. Draw the appropriate NSImage representation into an explicit transparent bitmap, preserve aspect ratio, and use trilinear minification with the layer's display contentsScale. Animated bounds reuse the same texture. Unreleased after v1.0.0: reject zero/invalid-size and fully transparent raster results; retain the last valid texture, or use a visible generic placeholder if none exists. While attached, retry failed artwork up to three times at 0.5/1/2 seconds; app tiles reload their source from NSWorkspace. Cancel retries on detachment/shutdown. A new artwork identity or attachment starts a new retry budget. Restore cached pixels when the backing layer loses its contents even when NSImage identity is unchanged, and honor AppKit display requests without rerasterizing successful artwork. Low-resolution source artwork cannot gain missing detail. Reuse dots and separator layers. A release outside cancels a click; dragging back inside and releasing activates once. Space, Return, and accessibility Press must work. Keep input tracking while pressed. Fit and scroll overflowing contents.
+Use cell-free NSControl icons with cached CALayers. Rasterize only when artwork or display backing scale changes, or during a bounded failed-artwork retry, at 288pt × backing scale (576px at 2×), covering maximum manual magnification and native-follow sizing. Draw the appropriate NSImage representation into an explicit transparent bitmap, preserve aspect ratio, and use trilinear minification with the layer's display contentsScale. Animated bounds reuse the same texture. Since v1.1.0: reject zero/invalid-size and fully transparent raster results; retain the last valid texture, or use a visible generic placeholder if none exists. While attached, retry failed artwork up to three times at 0.5/1/2 seconds; app tiles reload their source from NSWorkspace. Cancel retries on detachment/shutdown. A new artwork identity or attachment starts a new retry budget. Restore cached pixels when the backing layer loses its contents even when NSImage identity is unchanged, and honor AppKit display requests without rerasterizing successful artwork. Low-resolution source artwork cannot gain missing detail. Reuse dots and separator layers. A release outside cancels a click; dragging back inside and releasing activates once. Space, Return, and accessibility Press must work. Keep input tracking while pressed. Fit and scroll overflowing contents.
 
 ### FR-04 Motion and input — P-02 / P0
 

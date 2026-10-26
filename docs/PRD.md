@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document version | 1.19 / 2026-10-27 |
-| Product baseline | everyDock v1.0.0 (unreleased 1.1.0 in development) |
+| Product baseline | everyDock v1.1.0 |
 | Parent | [MRD](MRD.md) |
 | Implementation and tests | [SRS](SRS.md), [TC](TC.md) |
 
@@ -17,7 +17,7 @@ The supported target is Apple Silicon with macOS 26+. The app is local, without 
 
 Included: multiple displays, Bottom/Left/Right placement, native size following, magnification and launch feedback, app activation and supported minimize/restore, previews, close actions, app Dock menus, file stacks, Trash, pins, separators, press-and-hold dragging, setup and permissions, login launch, native Dock restoration, and Homebrew distribution.
 
-P-02 icon quality: preserve available high-resolution artwork on Retina displays, filter resting and magnified icons appropriately, and refresh cached pixels when display scale changes without rerasterizing during animation. Source artwork quality remains a limit. Unreleased after v1.0.0: transient artwork failures must preserve the last visible icon or show a generic placeholder while bounded retries reload it; unchanged source identity must not prevent restoring discarded layer contents. See FR-03 and TC-A52/A53/M67; this improvement is included in v0.4.1.
+P-02 icon quality: preserve available high-resolution artwork on Retina displays, filter resting and magnified icons appropriately, and refresh cached pixels when display scale changes without rerasterizing during animation. Source artwork quality remains a limit. Since v1.1.0: transient artwork failures must preserve the last visible icon or show a generic placeholder while bounded retries reload it; unchanged source identity must not prevent restoring discarded layer contents. See FR-03 and TC-A52/A53/M67; this improvement is included in v0.4.1.
 
 Excluded: Intel, earlier macOS, a pixel-exact Dock clone, independent system Genie destinations for every monitor, notification badges, minimized-window tiles, Mission Control, drag auto-scroll, and per-display app lists. OS-protected content and unsupported AX windows are not bypassed.
 

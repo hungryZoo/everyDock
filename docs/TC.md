@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document version | 1.19 / 2026-10-27 |
-| Target | everyDock v1.0.0 and unreleased 1.1.0, Apple Silicon, macOS 26+ |
+| Target | everyDock v1.1.0, Apple Silicon, macOS 26+ |
 | Requirements | [SRS](SRS.md), [traceability](README.md) |
-| Current results | [QA-v1.0.0](QA-v1.0.0.md) |
+| Current results | [QA-v1.1.0](QA-v1.1.0.md) |
 
 ## 1. Execution rules
 
@@ -185,7 +185,7 @@ These targets require real measurements. Display-link callback/render timing alo
 
 ## 6. Evidence and release gates
 
-### Unreleased 1.1.0 Shift-click new window and update check — FR-34/35 / P-11/P-12
+### v1.1.0 Shift-click new window and update check — FR-34/35 / P-11/P-12
 
 | ID | Check | Result |
 |---|---|---|
@@ -208,7 +208,7 @@ These targets require real measurements. Display-link callback/render timing alo
 
 2026-10-27 local validation: `swift test --arch arm64` and `EVERYDOCK_RUN_QL_TEST=1 swift test --arch arm64` each passed 76 tests, 66 existing and 10 new (TC-A69–78). The debug bundle at `.build/dev-app/everyDock.app` (1.1.0, build 20) built and passed strict signature verification; it was not launched. The TC-R11 harness received `1.0.0` from the public API. The generated script waited about 3 seconds for the test PID, called the fake brew with `update` and then `upgrade --cask hungryZoo/tap/everydock`, removed the quarantine attribute, and deleted itself. A separate AX probe used the same `NewWindowCommand` rule against apps running on the owner’s Korean macOS 26 session. Finder (새로운 Finder 윈도우), Chrome and NAVER Whale (새 창), iTerm2 and Audacity (Command-N), and Cursor (New Window, Shift-Command-N) were selected. Mail, Calendar, Codex, Hancom Office, Preview, Telegram, and KakaoTalk had no qualifying item; before the title rule, plain Command-N would have created a calendar event, a text file, or a chat. Menu scans took 5-132 ms. Pressing Finder’s item increased its AX window count from 1 to 2, and the test window was closed. The installed `/Applications/everyDock.app` was left running, so in-app Shift-click, update window, menu, and Settings checks (TC-M74–76) were not run with the 1.1.0 build.
 
-### Unreleased icon recovery — FR-03 / P-02
+### v1.1.0 icon recovery — FR-03 / P-02
 
 | ID | Check | Result |
 |---|---|---|
@@ -285,7 +285,7 @@ These changes ship in v0.4.1. Historical v0.4.0 evidence is unchanged. No new on
 
 Validation on macOS 26.5.2 / arm64: `swift test --arch arm64` completed successfully (51 discovered tests; the opt-in Quick Look integration was skipped). Both new icon tests passed. Release build and strict code-signature verification passed. The local build was copied to `dist/everyDock.app` and `/Applications/everyDock.app` after normal quit, then launched. Homebrew assets/tags remain unchanged. TC-M67 still requires visual verification.
 
-Current results: [QA-v1.0.0](QA-v1.0.0.md). Historical records: [v0.4.1](QA-v0.4.1.md), [initial QA](../QA.md), [v0.3.1](QA-v0.3.1.md), [v0.3.2](QA-v0.3.2.md), [v0.3.3](QA-v0.3.3.md), [v0.3.4](QA-v0.3.4.md), [v0.3.5](QA-v0.3.5.md), [v0.3.6](QA-v0.3.6.md), [v0.3.7](QA-v0.3.7.md), [v0.3.8](QA-v0.3.8.md), [v0.3.9](QA-v0.3.9.md), [v0.3.10](QA-v0.3.10.md). Historical records retain their original language and version-specific scope.
+Current results: [QA-v1.1.0](QA-v1.1.0.md). Historical records: [v1.0.0](QA-v1.0.0.md), [v0.4.1](QA-v0.4.1.md), [initial QA](../QA.md), [v0.3.1](QA-v0.3.1.md), [v0.3.2](QA-v0.3.2.md), [v0.3.3](QA-v0.3.3.md), [v0.3.4](QA-v0.3.4.md), [v0.3.5](QA-v0.3.5.md), [v0.3.6](QA-v0.3.6.md), [v0.3.7](QA-v0.3.7.md), [v0.3.8](QA-v0.3.8.md), [v0.3.9](QA-v0.3.9.md), [v0.3.10](QA-v0.3.10.md). Historical records retain their original language and version-specific scope.
 
 A defect report includes TC ID, expected/actual behavior, reproduction count, environment, permissions, commit, and redacted evidence. File loss, failed restoration, launch failure, or duplicate panels are P0. Assess interaction defects by task impact.
 
