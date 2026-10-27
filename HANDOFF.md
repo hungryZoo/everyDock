@@ -1,13 +1,14 @@
 # everyDock handoff
 
-Updated: **2026-10-27**. **v1.1.0 (build 20) is published** as the regular/latest release, and the Homebrew tap is updated. The owner asked for the release without waiting for the in-app manual checks. It ships Shift-click new windows, the update check, and the blank-icon fix below. Evidence is in [QA-v1.1.0](docs/QA-v1.1.0.md).
+Updated: **2026-10-27**. **v1.1.1 (build 21) is published** as the regular/latest release, and the Homebrew tap is updated. 1.1.1 fixes the update window Yes deadlock found in 1.1.0; everything else below shipped in 1.1.0. The owner asked for the 1.1.0 release without waiting for the in-app manual checks. 1.1.0 shipped Shift-click new windows, the update check, and the blank-icon fix below. Evidence is in [QA-v1.1.0](docs/QA-v1.1.0.md).
 
 - **Shift-click new window (FR-34, P-11).** `AppModel.openNewWindow` activates a running app without a reopen event, then `WindowActions.newWindow` presses one AX menu item chosen by `NewWindowCommand.rank`: enabled, character N, a window word in the title, Command-N preferred over Shift-Command-N. Plain Command-N was rejected after probing real apps: Calendar would create an event, Cursor a text file, and Codex a chat. Apps without a match only activate, with a beep. Stopped apps launch normally.
 - **Update check and window (FR-35, P-12)** following the owner’s `macos-app-update-check` skill (agents-dev-skills). Logic is in `DockCore/UpdateCheck.swift`, UI in `UpdateController.swift`/`UpdateView.swift`. It checks on launch and wake only, with no timer, at most once a day. Later waits for the next launch, such as after a restart; the owner chose this on 2026-10-27 over a 24-hour reminder. Preferences `checkForUpdates`/`skippedUpdateVersion` live in `DockPreferences`. The cache is `~/Library/Caches/app.everydock.mac/update-check.json`, which the existing cask zap/cleanup already cover, so no tap change is needed. Homebrew Yes runs a Terminal script that waits for everyDock’s normal quit, which completes Dock recovery, then runs `brew update` and `brew upgrade --cask hungryZoo/tap/everydock`. Menus and Settings have Check for Updates.
 - **Verification (2026-10-27).** 76 tests passed, also with Quick Look; this covers TC-A69–78. TC-R11 PASS: live GitHub API fetch plus a fake-brew script run. An AX probe on 12 running apps behaved as intended, and a live press on Finder opened one window, which was then closed. The dev bundle `.build/dev-app/everyDock.app` was built but **not launched**, because the installed `/Applications/everyDock.app` (local 1.0.0 icon-fix build) was running and only one instance runs at a time. TC-M74–77 and TC-P05 are NOT RUN.
 - **Release (2026-10-27).** Tag `v1.1.0` at `6d9092c`, [CI](https://github.com/hungryZoo/everyDock/actions/runs/40374260396) PASS, ZIP SHA-256 `2212b390c1e269941cd96f90e14219333704e16ee8a1d2250be2d1c1a3b8a292`, public download matched, `releases/latest` = v1.1.0. The body was published without its `# title` line. Tap commit `35b658e`; audit exit 0 and fetch passed.
-- **Post-release check and 1.1.1 (2026-10-27).** The owner’s Mac was upgraded with the README Homebrew steps (1.0.0 → 1.1.0) and its settings were preserved. TC-M77 failed in 1.1.0: Yes in the update window deadlocks the quit because `NSApp.terminate` is called inside a main-actor Task. The fix (`UpdateController.outsideTask`), 1.1.1 build 21, release notes, and docs are prepared locally. They were verified with a temporary Homebrew-located debug build and are **not yet published**; publishing needs the owner’s approval.
-- **Next.** Publish 1.1.1 when approved. After the owner re-grants Accessibility to `/Applications/everyDock.app`, run TC-M74 Shift-click, then the remaining TC-M75/76 parts and TC-P05.
+- **Post-release check and 1.1.1 (2026-10-27).** The owner’s Mac was upgraded with the README Homebrew steps (1.0.0 → 1.1.0) and its settings were preserved. TC-M77 failed in 1.1.0: Yes in the update window deadlocks the quit because `NSApp.terminate` is called inside a main-actor Task. The fix (`UpdateController.outsideTask`), 1.1.1 build 21, release notes, and docs were prepared, then verified with a temporary Homebrew-located debug build before release.
+- **Release 1.1.1 (2026-10-27).** Owner-approved. Tag `v1.1.1` at `739e74e`, [CI](https://github.com/hungryZoo/everyDock/actions/runs/40452516500) PASS, ZIP SHA-256 `f5ac7174028fb7bb1b21212c4152f2f4a317dcf63ff47528f4c3f5323a2f9a8f`, public download matched, `releases/latest` = v1.1.1. Tap commit `a0ff8a8`; style (with exception), audit, and fetch passed. The owner’s Mac still runs 1.1.0, whose Yes button hangs; upgrade it from Terminal per the 1.1.1 notes.
+- **Next.** After the owner re-grants Accessibility to `/Applications/everyDock.app`, run TC-M74 Shift-click, then the remaining TC-M75/76 parts and TC-P05.
 
 Previous state (2026-09-23): development resumed for a reported blank-icon defect. The correction, now shipped in v1.1.0, adds invalid/transparent raster rejection, a visible fallback, bounded fresh-source retries, and cached-layer restoration. See FR-03 and TC-A65–68/TC-M73. No new release or push has been requested; v1.0.0 remains the published baseline.
 
@@ -18,12 +19,12 @@ The defect was visible in Settings, VMware Fusion, and NAVER Whale tiles while f
 | Item | Last verified state |
 |---|---|
 | Source | [hungryZoo/everyDock](https://github.com/hungryZoo/everyDock), branch `main` |
-| Published release | [v1.1.0](https://github.com/hungryZoo/everyDock/releases/tag/v1.1.0), regular/latest release, not a prerelease; build **20** |
-| Release source | `6d9092cd3e4cdd6993125ae14b300b6447476cf2` (tag `v1.1.0`) |
-| Published ZIP | `everyDock-1.1.0-arm64.zip`, with `SHA256SUMS` |
-| ZIP SHA-256 | `2212b390c1e269941cd96f90e14219333704e16ee8a1d2250be2d1c1a3b8a292` |
-| Homebrew | [hungryZoo/homebrew-tap](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb), `everydock` 1.1.0; tap commit `35b658e` |
-| Previous release | v1.0.0 build 19, `151b06b`, ZIP `8daa3387…`, tap `87456ca` |
+| Published release | [v1.1.1](https://github.com/hungryZoo/everyDock/releases/tag/v1.1.1), regular/latest release, not a prerelease; build **21** |
+| Release source | `739e74e87b7d53e718c352a4cf3652645c549bc1` (tag `v1.1.1`) |
+| Published ZIP | `everyDock-1.1.1-arm64.zip`, with `SHA256SUMS` |
+| ZIP SHA-256 | `f5ac7174028fb7bb1b21212c4152f2f4a317dcf63ff47528f4c3f5323a2f9a8f` |
+| Homebrew | [hungryZoo/homebrew-tap](https://github.com/hungryZoo/homebrew-tap/blob/main/Casks/everydock.rb), `everydock` 1.1.1; tap commit `a0ff8a8` |
+| Previous releases | v1.1.0 build 20, `6d9092c`, ZIP `2212b390…`, tap `35b658e`; v1.0.0 build 19, `151b06b`, ZIP `8daa3387…`, tap `87456ca` |
 | Platform | Apple Silicon, macOS 26+, Swift 6.2+ / Xcode 26+ |
 | License | [Apache-2.0](LICENSE), ownership explanation in [NOTICE](NOTICE); both bundled in the app |
 | Signing | Ad-hoc, **not notarized**. No valid signing identity was available during release preparation. |
