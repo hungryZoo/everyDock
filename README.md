@@ -32,7 +32,7 @@ everyDock puts an app bar on each enabled display, with shared pinned apps and f
 Click to launch or switch apps, hover to preview windows, and press and hold an icon to organize your Dock.
 Desktop and Downloads open file stacks, while Apps opens Spotlight’s app browser.
 The setup guide explains the permissions and offers launch at login.
-**v1.1.0 is available in English and Korean**, with Shift-click new windows, in-app updates, automatic display handoff, and bidirectional Dock organization.
+**v1.1.1 is available in English and Korean**, with Shift-click new windows, in-app updates, automatic display handoff, and bidirectional Dock organization.
 
 Displaying dock on all screen
 
@@ -85,7 +85,7 @@ https://github.com/user-attachments/assets/943d317a-1656-409c-a050-17559b184a67
 
 v0.4.1 improves icon rendering with display-scale-aware cached artwork and trilinear downsampling. Animation reuses the cached image. v1.1.0 restores missing layer contents and retries blank icon loads while preserving the last good image or a visible placeholder. Visual checks across mixed-resolution displays are pending.
 
-v1.1.0 adds Shift-click for a new window and an in-app update check. In-app manual checks of both are still pending; see [QA-v1.1.0](docs/QA-v1.1.0.md).
+v1.1.0 adds Shift-click for a new window and an in-app update check. v1.1.1 fixes the update window’s Yes button, which left 1.1.0 unresponsive instead of quitting for the Homebrew update. Shift-click and some update-window checks are still pending on a device; see [QA-v1.1.0](docs/QA-v1.1.0.md).
 
 v1.0.0 adds automatic pause without an external display, bidirectional native app-order synchronization, and press-and-hold dragging. When paused, pointer timers/monitors, periodic app reconciliation, previews, folder watching, and window work-area observation stop; display connection events remain active. The option is based on display presence, not power source. Battery savings have not been measured.
 

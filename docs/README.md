@@ -1,6 +1,6 @@
 # everyDock Documentation
 
-Baseline: **v1.1.0 / 2026-10-27**. Current specifications are English and describe the implemented contract, with verification recorded separately. Targets are not reported as measured achievements.
+Baseline: **v1.1.1 / 2026-10-27**. Current specifications are English and describe the implemented contract, with verification recorded separately. Targets are not reported as measured achievements.
 
 | Document | Purpose | Audience |
 |---|---|---|
@@ -9,7 +9,7 @@ Baseline: **v1.1.0 / 2026-10-27**. Current specifications are English and descri
 | [SRS](SRS.md) | Implementable behavior, data, state, and failure handling. | Engineering, QA |
 | [TC](TC.md) | Stable test IDs, procedures, and expected results. | Engineering, QA |
 | [Releasing](RELEASING.md) | Packaging, GitHub releases, and the Homebrew tap. | Maintainers |
-| [v1.1.0 QA](QA-v1.1.0.md) | Tests actually performed and remaining checks. | Reviewers, testers |
+| [v1.1.0 QA](QA-v1.1.0.md) | Tests actually performed and remaining checks, including the v1.1.1 patch. | Reviewers, testers |
 | [v1.0.0 QA](QA-v1.0.0.md) | Previous release record. | Reviewers, testers |
 
 ## Traceability
@@ -35,6 +35,8 @@ Keep IDs stable; do not delete or reuse retired IDs. Update implementation and t
 | MR-07: distribution | P-12 | FR-35 | TC-A69–76/78, TC-M75–77, TC-R11, TC-P05 |
 
 ## Reading results
+
+Included in v1.1.1: the update window Yes fix (FR-35), which quits outside the main-actor Task; see TC-M77.
 
 Included in v1.1.0: Shift-click new window (FR-34), the daily update check (FR-35), and blank-icon recovery (FR-03); see TC-A65–78, TC-R11, and TC-M73–77.
 

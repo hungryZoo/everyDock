@@ -183,9 +183,16 @@ final class UpdateController: ObservableObject {
         NSWorkspace.shared.open([scriptURL], withApplicationAt: terminalURL, configuration: NSWorkspace.OpenConfiguration()) { [weak self] _, error in
             Task { @MainActor in
                 if error != nil { self?.showHomebrewFallback(brewPath: brewPath) }
-                else { NSApp.terminate(nil) }
+                else { Self.outsideTask { NSApp.terminate(nil) } }
             }
         }
+    }
+
+    /// `terminate:` and `runModal` spin a nested event loop. Inside a main-actor Task that loop blocks
+    /// every other main-actor task, including the pin-sync drain `applicationShouldTerminate` waits for,
+    /// so quitting deadlocked in 1.1.0. A run-loop block runs outside any Task.
+    private static func outsideTask(_ body: @escaping @MainActor @Sendable () -> Void) {
+        RunLoop.main.perform { MainActor.assumeIsolated(body) }
     }
 
     private func showHomebrewFallback(brewPath: String) {
@@ -196,11 +203,13 @@ final class UpdateController: ObservableObject {
     }
 
     private func showMessage(_ title: String, _ message: String) {
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = message
-        alert.addButton(withTitle: L10n.text("OK"))
-        NSApp.activate()
-        alert.runModal()
+        Self.outsideTask {
+            let alert = NSAlert()
+            alert.messageText = title
+            alert.informativeText = message
+            alert.addButton(withTitle: L10n.text("OK"))
+            NSApp.activate()
+            alert.runModal()
+        }
     }
 }

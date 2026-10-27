@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document version | 1.19 / 2026-10-27 |
-| Product baseline | everyDock v1.1.0 |
+| Product baseline | everyDock v1.1.1 |
 | Parent | [MRD](MRD.md) |
 | Implementation and tests | [SRS](SRS.md), [TC](TC.md) |
 

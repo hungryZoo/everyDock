@@ -20,3 +20,10 @@
 - [Public release](https://github.com/hungryZoo/everyDock/releases/tag/v1.1.0): **PASS**, regular/latest, not draft or prerelease. An unauthenticated download matched the local ZIP byte for byte and passed `shasum -a 256 -c SHA256SUMS`. `releases/latest` returns `v1.1.0`, and its body starts with the summary sentence, as the update window needs.
 - Homebrew tap commit `35b658e`: **PASS**, version 1.1.0 and matching SHA-256. `brew audit --cask` exited 0, `brew fetch` succeeded, and the downloaded hash matched. Style passed with the explicit Cask/InstallSteps exception; the existing `uninstall_preflight` deprecation warning remains.
 - README links/anchors and `git diff --check`: **PASS**. The owner’s installed app was not upgraded or relaunched as part of this release; no TCC resets were performed.
+
+## Post-release device check (2026-10-27)
+
+- Official Homebrew upgrade 1.0.0 → 1.1.0: **PASS**. Settings and first-run state were preserved, and the launch check cached 1.1.0.
+- TC-M75: **PARTIAL**. The window appeared after setup closed, at floating level; Later and Skip worked across relaunches. TC-M76: **PARTIAL**. The status menu and Settings Check Now showed the up-to-date alert.
+- TC-M77: **FAIL in 1.1.0**. Yes opened Terminal, but everyDock deadlocked while quitting, so the update waited. The fix (1.1.1) was verified with a temporary Homebrew-located debug build: normal quit within 1 second, Dock restored, script completed and reopened the app. Details are in [TC](TC.md) section 6.
+- TC-M74 Shift-click: waiting for Accessibility to be re-granted after the ad-hoc upgrade.
