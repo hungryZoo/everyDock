@@ -26,7 +26,7 @@
 - Official Homebrew upgrade 1.0.0 → 1.1.0: **PASS**. Settings and first-run state were preserved, and the launch check cached 1.1.0.
 - TC-M75: **PARTIAL**. The window appeared after setup closed, at floating level; Later and Skip worked across relaunches. TC-M76: **PARTIAL**. The status menu and Settings Check Now showed the up-to-date alert.
 - TC-M77: **FAIL in 1.1.0**. Yes opened Terminal, but everyDock deadlocked while quitting, so the update waited. The fix (1.1.1) was verified with a temporary Homebrew-located debug build: normal quit within 1 second, Dock restored, script completed and reopened the app. Details are in [TC](TC.md) section 6.
-- TC-M74 Shift-click: waiting for Accessibility to be re-granted after the ad-hoc upgrade.
+- TC-M74 Shift-click: **PARTIAL** on v1.1.1 after the owner re-granted Accessibility. Finder and Chrome each opened one new window, Calendar only activated, and stopped Safari launched normally. Details are in [TC](TC.md) section 6.
 
 ## v1.1.1 patch release (2026-10-27)
 
